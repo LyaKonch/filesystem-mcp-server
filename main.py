@@ -1,5 +1,6 @@
 import os
 import sys
+import argparse 
 from typing import Any
 from pathlib import Path
 from typing import List, Optional
@@ -10,48 +11,70 @@ from urllib.parse import urlparse, unquote
 # Initialize FastMCP server
 mcp = FastMCP("filesystem")
 
-
+# Global variables
 ALLOWEDROOTS: List[Path] = []
+CLIENT_SUPPORTS_ROOTS: bool = False
+
+def parse_command_line_args():
+    """Parse command line arguments for allowed roots."""
+    parser = argparse.ArgumentParser(
+        description="MCP Filesystem Server",
+        epilog="Example: python main.py /path/to/dir1 /path/to/dir2 --allow-cwd"
+    )
+    
+    parser.add_argument(
+        'roots',
+        nargs='*',
+        help='Allowed root directories (can specify multiple)'
+    )
+    
+    parser.add_argument(
+        '--allow-cwd',
+        action='store_true',
+        help='Allow access to current working directory if no roots specified'
+    )
+    
+    parser.add_argument(
+        '--recursive',
+        action='store_true',
+        default=True,
+        help='Allow access to subdirectories within roots (default: True)'
+    )
+    
+    return parser.parse_args()
 
 def initialize_allowed_roots():
-    """Initialize allowed roots from environment or default to current directory."""
+    """Initialize allowed roots from command line arguments."""
     global ALLOWEDROOTS
     ALLOWEDROOTS.clear()
     
-    # Try to get from environment variable
-    env_roots = os.getenv('MCP_ALLOWED_ROOTS') or os.getenv("PROJECT_ROOT")
-    if env_roots:
-        # this is just in case someone uses commas instead of os.pathsep
-        candidates = []
-        if os.pathsep in env_roots:
-            candidates = env_roots.split(os.pathsep)
-        elif "," in env_roots:
-            candidates = env_roots.split(",")
-        else:
-            candidates = [env_roots]
-        
-        for r in candidates:
-            r = r.strip()
-            if not r:
-                continue
-            try:
-                if r.startswith("file://"):
-                    r = uri_to_path(r)
-                else:
-                    r = norm_path(r)
-                if r.exists():
-                    ALLOWEDROOTS.append(r)
-                    print(f"Added allowed root from env: {r}", file=sys.stderr)
-                else:
-                    print(f"Warning: Path from env does not exist: {r}", file=sys.stderr)
-            except Exception as e:
-                print(f"Error processing path '{r}' from env: {e}", file=sys.stderr)
+    args = parse_command_line_args()
     
-    # If no roots set, use current working directory as fallback
-    if not ALLOWEDROOTS:
+    # Process command line root arguments
+    if args.roots:
+        for root_path in args.roots:
+            try:
+                root = norm_path(root_path)
+                if root.exists() and root.is_dir():
+                    ALLOWEDROOTS.append(root)
+                    print(f"Added allowed root from args: {root}", file=sys.stderr)
+                else:
+                    print(f"Warning: Root path does not exist or is not a directory: {root}", file=sys.stderr)
+            except Exception as e:
+                print(f"Error processing root path '{root_path}': {e}", file=sys.stderr)
+    
+    # --allow-cwd is set, use current directory
+    if args.allow_cwd:
         fallback_root = Path.cwd()
         ALLOWEDROOTS.append(fallback_root)
-        print(f"Using fallback root: {fallback_root}", file=sys.stderr)
+        print(f"Using current working directory as root: {fallback_root}", file=sys.stderr)
+    
+    # If still no roots, show error
+    if not ALLOWEDROOTS:
+        print("ERROR: No allowed roots specified!", file=sys.stderr)
+        print("Use: python main.py /path/to/dir1 /path/to/dir2", file=sys.stderr)
+        print("Or: python main.py --allow-cwd", file=sys.stderr)
+        sys.exit(1)
     
     print(f"Initialized {len(ALLOWEDROOTS)} allowed roots", file=sys.stderr)
 
@@ -62,39 +85,49 @@ def uri_to_path(uri: str) -> Path:
         raise ValueError(f"URI must start with file:// or another scheme but not {p.scheme}")
     return Path(unquote(p.path)).resolve()
 
-# Initialize roots at startup
-initialize_allowed_roots()
+
 
 def norm_path(p: str) -> Path:
     p = os.path.expanduser(p)
     return Path(p).resolve()
 
 def send_roots_list_request(ctx: Context) -> List[Path]:
-    """Request the current list of roots from MCP client."""
+    """Request the current list of roots from MCP client."""    
     roots_paths: List[Path] = []
     try:
-        # Check if client supports roots by trying to call list_roots
+        # Try to call list_roots - may not be available in all FastMCP versions
         if not hasattr(ctx, 'list_roots'):
-            print("Client does not support roots API", file=sys.stderr)
+            print("Context does not have list_roots method - using fallback", file=sys.stderr)
             return []
             
         root_objects = ctx.list_roots()
-        print(f"DEBUG: root_objects from ctx.list_roots(): {root_objects}", file=sys.stderr)
+        print(f"Received {len(root_objects) if root_objects else 0} roots from client", file=sys.stderr)
+        
+        if not root_objects:
+            print("No roots received from client", file=sys.stderr)
+            return []
+            
     except Exception as e:
-        print(f"Error calling ctx.list_roots(): {e}", file=sys.stderr)
+        print(f"Error calling ctx.list_roots(): {e} - using fallback", file=sys.stderr)
         return []
     
     for root in root_objects:
         uri = getattr(root, "uri", None) or root.get("uri") if isinstance(root, dict) else None
+        name = getattr(root, "name", None) or root.get("name") if isinstance(root, dict) else None
+        
         if not uri:
             continue
         try:
             if uri.startswith("file://"):
-                roots_paths.append(uri_to_path(uri))
+                root_path = uri_to_path(uri)
             else:
-                roots_paths.append(Path(uri).resolve())
+                root_path = Path(uri).resolve()
+            
+            roots_paths.append(root_path)
+            print(f"Added root from client: {root_path} ({name or 'unnamed'})", file=sys.stderr)
         except Exception as e:
             print(f"[warning] skipping invalid root URI {uri}: {e}", file=sys.stderr)
+    
     return roots_paths
 
 def get_current_roots(ctx: Optional[Context] = None) -> List[Path]:
@@ -232,7 +265,10 @@ async def get_allowed_roots(ctx: Context) -> str:
         if not current_roots:
             return "No allowed roots configured"
         
-        roots_info = []
+        roots_info = [f"Client supports roots: {CLIENT_SUPPORTS_ROOTS}"]
+        roots_info.append(f"Command line args: {' '.join(sys.argv[1:]) if len(sys.argv) > 1 else 'none'}")
+        roots_info.append("")
+        
         for i, root in enumerate(current_roots, 1):
             roots_info.append(f"{i}. {root}")
         
@@ -241,8 +277,92 @@ async def get_allowed_roots(ctx: Context) -> str:
     except Exception as e:
         return f"Error getting allowed roots: {str(e)}"
 
+@mcp.tool()
+async def refresh_roots(ctx: Context) -> str:
+    """Manually refresh roots from client (if supported) or environment.
+    
+    Returns:
+        Status of refresh operation
+    """
+    try:
+        if CLIENT_SUPPORTS_ROOTS:
+            client_roots = send_roots_list_request(ctx)
+            if client_roots:
+                global ALLOWEDROOTS
+                ALLOWEDROOTS = client_roots
+                return f"Refreshed {len(client_roots)} roots from client"
+            else:
+                return "No roots received from client"
+        else:
+            initialize_allowed_roots()
+            return f"Client doesn't support roots. Using default root: {ALLOWEDROOTS[0] if ALLOWEDROOTS else 'none'}"
+    except Exception as e:
+        return f"Error refreshing roots: {str(e)}"
 
+@mcp.tool()
+async def update_roots(newroots: List[str]) -> str:
+    """Update allowed roots from a list of paths.
+    
+    Args:
+        ctx: List of new root paths
+    """
+    try:
+        new_roots = []
+        for p in newroots:
+            try:
+                path_obj = norm_path(p)
+                if path_obj.exists() and path_obj.is_dir():
+                    new_roots.append(path_obj)
+                else:
+                    return f"Error: Path '{p}' does not exist or is not a directory"
+            except Exception as e:
+                return f"Error processing path '{p}': {str(e)}"
+        
+        if not new_roots:
+            return "Error: No valid directories provided"
+        
+        global ALLOWEDROOTS
+        ALLOWEDROOTS = new_roots
+        return f"Updated allowed roots to {len(new_roots)} directories"
+    
+    except Exception as e:
+        return f"Error updating roots: {str(e)}"
+
+@mcp.tool()
+async def add_roots(newroots: List[str]) -> str:
+    """Add allowed roots from a list of paths.
+
+    Args:
+        ctx: List of new root paths
+    """
+    try:
+        added_roots = []
+        for p in newroots:
+            try:
+                path_obj = norm_path(p)
+                if path_obj.exists() and path_obj.is_dir():
+                    if path_obj not in ALLOWEDROOTS:
+                        ALLOWEDROOTS.append(path_obj)
+                        added_roots.append(path_obj)
+                else:
+                    return f"Error: Path '{p}' does not exist or is not a directory"
+            except Exception as e:
+                return f"Error processing path '{p}': {str(e)}"
+        
+        if not added_roots:
+            return "No new valid directories were added"
+        
+        return f"Added {len(added_roots)} new allowed roots"
+    
+    except Exception as e:
+        return f"Error adding roots: {str(e)}"
 
 if __name__ == "__main__":
+    
+    # Initialize roots at startup
+    initialize_allowed_roots()
+
     # Run the server
     mcp.run(transport="stdio")
+    
+    
