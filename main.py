@@ -357,6 +357,312 @@ async def add_roots(newroots: List[str]) -> str:
     except Exception as e:
         return f"Error adding roots: {str(e)}"
 
+@mcp.tool()
+async def create_directory(path: str, ctx: Context) -> str:
+    """Create a new directory or ensure a directory exists.
+    
+    Args:
+        path: Path to the directory to create
+    """
+    try:
+        target_path = norm_path(path)
+        
+        if not withinAllowed(target_path, ctx):
+            return f"Error: Path '{path}' is not within allowed roots"
+        
+        target_path.mkdir(parents=True, exist_ok=True) 
+        return f"Successfully created directory '{path}'"
+    
+    except Exception as e:
+        return f"Error creating directory: {str(e)}"
+
+@mcp.tool()
+async def list_directory_with_sizes(path: str, sort_by: str = "name", ctx: Context = None) -> str:
+    """Get a detailed listing of files and directories with sizes.
+    
+    Args:
+        path: Path to list contents of
+        sort_by: Sort by 'name' or 'size' (default: name)
+    """
+    try:
+        target_path = norm_path(path)
+        
+        if not withinAllowed(target_path, ctx):
+            return f"Error: Path '{path}' is not within allowed roots"
+        
+        if not target_path.exists():
+            return f"Error: Path '{path}' does not exist"
+        
+        if not target_path.is_dir():
+            return f"Error: Path '{path}' is not a directory"
+        
+        entries = []
+        total_size = 0
+        total_files = 0
+        total_dirs = 0
+        
+        for item in target_path.iterdir():
+            try:
+                stats = item.stat()
+                size = stats.st_size
+                is_dir = item.is_dir()
+                
+                if is_dir:
+                    total_dirs += 1
+                    size_str = ""
+                else:
+                    total_files += 1
+                    total_size += size
+                    size_str = format_size(size)
+                
+                entries.append({
+                    'name': item.name,
+                    'is_dir': is_dir,
+                    'size': size,
+                    'size_str': size_str
+                })
+            except Exception:
+                # Skip files we can't stat
+                continue
+        
+        # Sort entries
+        if sort_by == "size":
+            entries.sort(key=lambda x: x['size'], reverse=True)
+        else:
+            entries.sort(key=lambda x: x['name'].lower())
+        
+        # Format output
+        lines = [f"Contents of '{path}':\n"]
+        for entry in entries:
+            prefix = "📁" if entry['is_dir'] else "📄"
+            name = f"{entry['name']}/" if entry['is_dir'] else entry['name']
+            size = entry['size_str'].rjust(10) if entry['size_str'] else ""
+            lines.append(f"{prefix} {name:<30} {size}")
+        
+        # Add summary
+        lines.append("")
+        lines.append(f"Total: {total_files} files, {total_dirs} directories")
+        lines.append(f"Combined size: {format_size(total_size)}")
+        
+        return "\n".join(lines)
+    
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+@mcp.tool()
+async def get_file_info(path: str, ctx: Context) -> str:
+    """Get detailed metadata about a file or directory.
+    
+    Args:
+        path: Path to the file or directory
+    """
+    try:
+        target_path = norm_path(path)
+        
+        if not withinAllowed(target_path, ctx):
+            return f"Error: Path '{path}' is not within allowed roots"
+        
+        if not target_path.exists():
+            return f"Error: Path '{path}' does not exist"
+        
+        stats = target_path.stat()
+        
+        info = [
+            f"Path: {target_path}",
+            f"Name: {target_path.name}",
+            f"Type: {'Directory' if target_path.is_dir() else 'File'}",
+            f"Size: {format_size(stats.st_size)}",
+            f"Modified: {format_timestamp(stats.st_mtime)}",
+            f"Created: {format_timestamp(stats.st_ctime)}",
+            f"Permissions: {oct(stats.st_mode)[-3:]}",
+        ]
+        
+        if target_path.is_file():
+            # Add file-specific info
+            try:
+                with open(target_path, 'rb') as f:
+                    first_bytes = f.read(100)
+                    is_binary = b'\x00' in first_bytes
+                info.append(f"Binary: {'Yes' if is_binary else 'No'}")
+                
+                if not is_binary and target_path.suffix:
+                    info.append(f"Extension: {target_path.suffix}")
+                    
+            except Exception:
+                pass
+        
+        elif target_path.is_dir():
+            # Add directory-specific info
+            try:
+                item_count = len(list(target_path.iterdir()))
+                info.append(f"Items: {item_count}")
+            except Exception:
+                pass
+        
+        return "\n".join(info)
+    
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+@mcp.tool()
+async def move_file(source: str, destination: str, ctx: Context) -> str:
+    """Move or rename files and directories.
+    
+    Args:
+        source: Source path
+        destination: Destination path
+    """
+    try:
+        source_path = norm_path(source)
+        dest_path = norm_path(destination)
+        
+        if not withinAllowed(source_path, ctx):
+            return f"Error: Source path '{source}' is not within allowed roots"
+        
+        if not withinAllowed(dest_path, ctx):
+            return f"Error: Destination path '{destination}' is not within allowed roots"
+        
+        if not source_path.exists():
+            return f"Error: Source '{source}' does not exist"
+        
+        if dest_path.exists():
+            return f"Error: Destination '{destination}' already exists"
+        
+        # Create parent directories if needed
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        source_path.rename(dest_path)
+        return f"Successfully moved '{source}' to '{destination}'"
+    
+    except Exception as e:
+        return f"Error moving file: {str(e)}"
+
+@mcp.tool()
+async def search_files(path: str, pattern: str, ctx: Context, exclude_patterns: List[str] = None) -> str:
+    """Search for files matching a pattern.
+    
+    Args:
+        path: Directory to search in
+        pattern: Glob pattern to match (e.g., '*.py', '**/*.txt')
+        exclude_patterns: Optional list of patterns to exclude
+    """
+    try:
+        import fnmatch
+        
+        search_path = norm_path(path)
+        
+        if not withinAllowed(search_path, ctx):
+            return f"Error: Path '{path}' is not within allowed roots"
+        
+        if not search_path.exists():
+            return f"Error: Path '{path}' does not exist"
+        
+        if not search_path.is_dir():
+            return f"Error: Path '{path}' is not a directory"
+        
+        if exclude_patterns is None:
+            exclude_patterns = []
+        
+        matches = []
+        
+        # Use ** for recursive search
+        if '**' in pattern:
+            for file_path in search_path.rglob(pattern.replace('**/', '')):
+                if should_include_file(file_path, search_path, exclude_patterns):
+                    matches.append(str(file_path))
+        else:
+            for file_path in search_path.glob(pattern):
+                if should_include_file(file_path, search_path, exclude_patterns):
+                    matches.append(str(file_path))
+        
+        if not matches:
+            return f"No files found matching pattern '{pattern}' in '{path}'"
+        
+        matches.sort()
+        result = f"Found {len(matches)} files matching '{pattern}':\n"
+        result += "\n".join(matches)
+        
+        return result
+    
+    except Exception as e:
+        return f"Error searching files: {str(e)}"
+
+@mcp.tool()
+async def read_multiple_files(paths: List[str], ctx: Context) -> str:
+    """Read contents of multiple files simultaneously.
+    
+    Args:
+        paths: List of file paths to read
+    """
+    try:
+        if not paths:
+            return "Error: No file paths provided"
+        
+        results = []
+        
+        for file_path in paths:
+            try:
+                target_path = norm_path(file_path)
+                
+                if not withinAllowed(target_path, ctx):
+                    results.append(f"{file_path}: Error - Path not within allowed roots")
+                    continue
+                
+                if not target_path.exists():
+                    results.append(f"{file_path}: Error - File does not exist")
+                    continue
+                
+                if not target_path.is_file():
+                    results.append(f"{file_path}: Error - Not a file")
+                    continue
+                
+                content = target_path.read_text(encoding='utf-8')
+                results.append(f"{file_path}:\n{content}")
+                
+            except UnicodeDecodeError:
+                results.append(f"{file_path}: Error - Binary file or unsupported encoding")
+            except Exception as e:
+                results.append(f"{file_path}: Error - {str(e)}")
+        
+        return "\n---\n".join(results)
+    
+    except Exception as e:
+        return f"Error reading multiple files: {str(e)}"
+
+# Helper functions
+def format_size(size: int) -> str:
+    """Format file size in human readable format."""
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if size < 1024.0:
+            return f"{size:.1f} {unit}"
+        size /= 1024.0
+    return f"{size:.1f} PB"
+
+def format_timestamp(timestamp: float) -> str:
+    """Format timestamp to readable string."""
+    from datetime import datetime
+    return datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+
+def should_include_file(file_path: Path, base_path: Path, exclude_patterns: List[str]) -> bool:
+    """Check if file should be included based on exclude patterns."""
+    import fnmatch
+    
+    try:
+        # Get relative path for pattern matching
+        rel_path = file_path.relative_to(base_path)
+        rel_path_str = str(rel_path).replace('\\', '/')
+        
+        for pattern in exclude_patterns:
+            if fnmatch.fnmatch(rel_path_str, pattern):
+                return False
+            # Also check just the filename
+            if fnmatch.fnmatch(file_path.name, pattern):
+                return False
+    except Exception:
+        pass
+    
+    return True
+
 if __name__ == "__main__":
     
     # Initialize roots at startup
