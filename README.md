@@ -266,9 +266,174 @@ source .venv/bin/activate  # Linux/macOS
 python main.py --allow-cwd
 ```
 
-## Ліцензія
+## Налаштування MCP Клієнта
 
-Цей проект розповсюджується під ліцензією MIT. Дивіться файл LICENSE для деталей.
+### Конфігурація через mcp.json
+
+Для використання цього сервера з MCP клієнтами (наприклад, Claude Desktop, Cursor тощо), створіть файл `mcp.json` в директорії конфігурації клієнта.
+
+#### Розташування mcp.json:
+
+**Windows:**
+```
+%APPDATA%\Claude\mcp.json
+```
+
+**macOS:**
+```
+~/Library/Application Support/Claude/mcp.json
+```
+
+**Linux:**
+```
+~/.config/claude/mcp.json
+```
+
+#### Базова конфігурація
+
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "python",
+      "args": [
+        "/path/to/filesystem-mcp-server/main.py",
+        "--allow-cwd"
+      ]
+    }
+  }
+}
+```
+
+#### Конфігурація з конкретними директоріями
+
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "python",
+      "args": [
+        "/absolute/path/to/filesystem-mcp-server/main.py",
+        "/home/user/documents",
+        "/home/user/projects",
+        "/tmp"
+      ]
+    }
+  }
+}
+```
+
+#### Windows конфігурація
+
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "C:\\path\\to\\filesystem-mcp-server\\.venv\\Scripts\\python.exe",
+      "args": [
+        "C:\\path\\to\\filesystem-mcp-server\\main.py",
+        "C:\\Users\\username\\Documents",
+        "C:\\Users\\username\\Desktop",
+        "D:\\Projects"
+      ]
+    }
+  }
+}
+```
+
+### Конфігурація з Roots (Рекомендовано)
+
+#### Опція 1: Статичні roots через аргументи
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "python",
+      "args": [
+        "/path/to/main.py",
+        "/home/user/safe-directory",
+        "/home/user/projects"
+      ]
+    }
+  }
+}
+```
+
+#### Опція 2: Динамічні roots через MCP Roots API
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "python",
+      "args": ["/path/to/main.py"],
+      "roots": [
+        {
+          "uri": "file:///home/user/documents",
+          "name": "Documents"
+        },
+        {
+          "uri": "file:///home/user/projects", 
+          "name": "Projects"
+        }
+      ]
+    }
+  }
+}
+```
+
+#### Опція 3: Комбінована конфігурація
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "python",
+      "args": [
+        "/path/to/main.py",
+        "/home/user/always-accessible"
+      ],
+      "env": {},
+      "roots": [
+        {
+          "uri": "file:///home/user/dynamic-access",
+          "name": "Dynamic Access"
+        }
+      ]
+    }
+  }
+}
+```
+
+
+### Перевірка конфігурації
+
+Після налаштування mcp.json:
+
+1. **Перезапустіть MCP клієнт** (Claude Desktop, Cursor тощо)
+2. **Перевірте підключення:**
+   - Використайте інструмент `get_client_features()` для перевірки можливостей
+   - Викличте `get_allowed_roots()` для перевірки доступних директорій
+3. **Протестуйте базові операції:**
+   - `list_files(".")` - перегляд файлів
+   - `read_file("README.md")` - читання файлу
+
+### Налагодження конфігурації
+
+#### Проблема: Сервер не запускається
+**Рішення:**
+- Перевірте правильність шляхів в `command` та `args`
+- Переконайтеся, що Python та залежності встановлені
+- Перевірте права доступу до файлів
+
+#### Проблема: "No allowed roots specified"  
+**Рішення:**
+- Додайте директорії в `args` або використайте `--allow-cwd`
+- Переконайтеся, що шляхи існують і доступні
+
+#### Проблема: "Path is not within allowed roots"
+**Рішення:**
+- Перевірте список дозволених коренів через `get_allowed_roots()`
+- Додайте необхідні директорії в конфігурацію
+
 
 ## Підтримка
 
