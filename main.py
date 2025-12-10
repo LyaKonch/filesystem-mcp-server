@@ -1249,7 +1249,12 @@ if __name__ == "__main__":
     
     # Initialize roots at startup
     initialize_allowed_roots()
+    
+    # Import and register system monitoring tools
+    import systemmonitoring
+    systemmonitoring._init_systemmonitoring(logger, norm_path, withinAllowed)
+    systemmonitoring.register_tools(mcp)
 
     # Run the server
-    mcp.run(transport="stdio")
+    mcp.run(transport="sse")
 
