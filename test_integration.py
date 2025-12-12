@@ -65,3 +65,5 @@ def test_integration_psutil_real(mocker):
     assert 0.0 <= result <= 100.0
     # Перевіряємо, чи дотримано контракт (interval=1 критичний для точності)
     spy_cpu.assert_called_once_with(interval=1)
+
+    

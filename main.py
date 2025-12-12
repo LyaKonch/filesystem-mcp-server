@@ -1255,6 +1255,11 @@ if __name__ == "__main__":
     systemmonitoring._init_systemmonitoring(logger, norm_path, withinAllowed)
     systemmonitoring.register_tools(mcp)
 
+    import os
+    # default localhost, if not specified in env
+    host = os.environ.get("MCP_HOST", "127.0.0.1")
+    port = int(os.environ.get("MCP_PORT", 8000))
+
     # Run the server
-    mcp.run(transport="sse", host="0.0.0.0", port=8000)
+    mcp.run(transport="sse", host=host, port=port)
 
