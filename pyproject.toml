@@ -14,4 +14,5 @@ dependencies = [
 [dependency-groups]
 dev = [
     "bandit>=1.9.2",
+    "locust>=2.42.6",
 ]
