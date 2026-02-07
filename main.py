@@ -1,14 +1,21 @@
+from argparse import ArgumentParser
 import os
-import sys
-import argparse 
+import sys 
 from typing import Any
 from pathlib import Path
 from typing import List, Optional
 from fastmcp import FastMCP, Context 
 from fastmcp.utilities.logging import get_logger, configure_logging
-from urllib.parse import urlparse, unquote
 import shutil
-import asyncio
+
+import logging
+
+import utilities.dependencies as dependencies
+
+from starlette.middleware import Middleware
+from starlette.middleware.cors import CORSMiddleware
+
+from utilities.logging import initialize_logging
 
 # --- Global Configuration ---
 
@@ -69,7 +76,7 @@ async def get_client_features(ctx: Context) -> dict:
                 for root in roots_result:
                     uri = root.uri
                     if uri.startswith("file://"):
-                        root_path = uri_to_path(uri)
+                        root_path = dependencies.uri_to_path(uri)
                         client_roots_list.append(str(root_path))
                         logger.info(f"Found client root: {root_path}")
         except Exception as e:
@@ -84,14 +91,15 @@ async def get_client_features(ctx: Context) -> dict:
 
 def parse_command_line_args():
     """Parse command line arguments for allowed roots."""
-    parser = argparse.ArgumentParser(
+    parser = ArgumentParser(
         description="MCP Filesystem Server",
-        epilog="Example: python main.py /path/to/dir1 /path/to/dir2 --allow-cwd"
+        epilog="Example: python main.py /path/to/dir1 /path/to/dir2 --allow-cwd --transport sse/http"
     )
     
     parser.add_argument(
-        'roots',
+        '--roots',
         nargs='*',
+        type=Path,
         help='Allowed root directories (can specify multiple)'
     )
     
@@ -108,156 +116,24 @@ def parse_command_line_args():
         help='Allow access to subdirectories within roots (default: True)'
     )
     
-    return parser.parse_args()
+    parser.add_argument(
+        '--transport', 
+        nargs=1, 
+        type=str, 
+        help="transport method for the server. stdio/sse/http"
+    )
 
-def initialize_allowed_roots():
-    """Initialize allowed roots from command line arguments."""
-    global CMD_LINE_ROOTS
-    CMD_LINE_ROOTS.clear()
-    
-    args = parse_command_line_args()
-    
-    # Process command line root arguments
-    if args.roots:
-        for root_path in args.roots:
-            try:
-                root = norm_path(root_path)
-                if root.exists() and root.is_dir():
-                    CMD_LINE_ROOTS.append(root)
-                    logger.info(f"Added allowed root from args: {root}")
-                else:
-                    logger.warning(f"Root path does not exist or is not a directory: {root}")
-            except Exception as e:
-                logger.error(f"Error processing root path '{root_path}': {e}")
-    
-    # --allow-cwd is set, use current directory
+    args = parser.parse_args()
     if args.allow_cwd:
-        fallback_root = Path.cwd()
-        CMD_LINE_ROOTS.append(fallback_root)
-        logger.info(f"Using current working directory as root: {fallback_root}")
-    
-    # If still no roots, show error
-    if not CMD_LINE_ROOTS:
-        logger.error("No allowed roots specified!")
-        logger.error("Use: python main.py /path/to/dir1 /path/to/dir2")
-        logger.error("Or: python main.py --allow-cwd")
-        sys.exit(1)
-    
-    logger.info(f"Initialized {len(CMD_LINE_ROOTS)} allowed roots")
+        args.roots = args.roots + [Path(os.getcwd())] if args.roots else [Path(os.getcwd())]
+    if args.roots is None and args.allow_cwd:
+        args.roots = [Path(os.getcwd())]
+    if args.transport is not None:
+        dependencies.TRANSPORT = args.transport[0]
+    dependencies.GLOBAL_ROOTS = list(map(dependencies.check_path, args.roots))
+    dependencies.logger.info(f"Configured roots: {dependencies.GLOBAL_ROOTS}")
 
-def uri_to_path(uri: str) -> Path:
-    """Convert a file:// URI to a Path object."""
-    p = urlparse(uri)
-    if p.scheme != "file":
-        raise ValueError(f"URI must start with file:// or another scheme but not {p.scheme}")
-    return Path(unquote(p.path)).resolve()
-
-
-
-def norm_path(p: str) -> Path:
-    p = os.path.expanduser(p)
-    return Path(p).resolve()
-
-async def send_roots_list_request(ctx: Context) -> List[Path]:
-    """Request the current list of roots from MCP client."""    
-    roots_paths: List[Path] = []
-    try:
-        # Try to call list_roots - may not be available in all FastMCP versions
-        if not hasattr(ctx, 'list_roots'):
-            logger.warning("Context does not have list_roots method - using fallback")
-            return []
-            
-        root_objects = await ctx.list_roots()  # Added await here
-        logger.info(f"Received {len(root_objects) if root_objects else 0} roots from client")
-        
-        if not root_objects:
-            logger.info("No roots received from client")
-            return []
-            
-    except Exception as e:
-        logger.error(f"Error calling ctx.list_roots(): {e} - using fallback")
-        return []
-    
-    for root in root_objects:
-        uri = getattr(root, "uri", None) or root.get("uri") if isinstance(root, dict) else None
-        name = getattr(root, "name", None) or root.get("name") if isinstance(root, dict) else None
-        
-        if not uri:
-            continue
-        try:
-            if uri.startswith("file://"):
-                root_path = uri_to_path(uri)
-            else:
-                root_path = Path(uri).resolve()
-            
-            roots_paths.append(root_path)
-            logger.info(f"Added root from client: {root_path} ({name or 'unnamed'})")
-        except Exception as e:
-            logger.warning(f"Skipping invalid root URI {uri}: {e}")
-    
-    return roots_paths
-
-def get_current_roots(ctx: Optional[Context] = None) -> List[Path]:
-    """Get current roots from MCP or fallback."""
-    
-    if ctx:
-        try:
-            # This is async function, can't call from sync context easily
-            # Better to use async version
-            logger.warning("get_current_roots called with context - use async version instead")
-        except Exception as e:
-            logger.error(f"Error getting roots from client: {e}")
-
-    # Fallback to command line roots
-    if CMD_LINE_ROOTS:
-        return CMD_LINE_ROOTS
-    
-    # Ultimate fallback
-    return [Path.cwd()]
-
-async def get_current_roots_async(ctx: Context) -> List[Path]:
-    """Async version to get current roots from MCP or fallback."""
-    combined_roots = list(CMD_LINE_ROOTS)  # Start with command line roots
-    
-    try:
-        # Check if client supports roots
-        from mcp.types import ClientCapabilities, RootsCapability
-        roots_cap = ClientCapabilities(roots=RootsCapability())
-        if ctx.session.check_client_capability(roots_cap):
-            client_roots = await send_roots_list_request(ctx)
-            combined_roots.extend(client_roots)
-            logger.info(f"Combined {len(CMD_LINE_ROOTS)} command line roots with {len(client_roots)} client roots")
-        else:
-            logger.info("Client does not support roots, using command line roots only")
-    except Exception as e:
-        logger.warning(f"Error getting client roots: {e}")
-    
-    # Remove duplicates while preserving order
-    seen = set()
-    unique_roots = []
-    for root in combined_roots:
-        if root not in seen:
-            seen.add(root)
-            unique_roots.append(root)
-    
-    return unique_roots if unique_roots else [Path.cwd()]
-
-async def withinAllowed(path: Path, ctx: Context) -> bool:
-    """Check if a given path is within allowed roots."""
-    current_roots = await get_current_roots_async(ctx)
-    if not current_roots:
-        return False
-    
-    p = path.resolve()
-    for root in current_roots:
-        try:
-            # Check if path is within the root
-            p.relative_to(root.resolve())
-            return True
-        except ValueError:
-            continue
-    return False
-
+    return parser.parse_args()
 
 
 @mcp.tool()
@@ -268,9 +144,9 @@ async def list_files(path: str, ctx: Context) -> str:
         path: Path to list contents of
     """
     try:
-        target_path = norm_path(path)
+        target_path = dependencies.check_path(Path(path))
         
-        if not await withinAllowed(target_path, ctx):
+        if not await dependencies.withinAllowed(target_path, ctx):
             return f"Error: Path '{path}' is not within allowed roots"
         
         if not target_path.exists():
@@ -302,9 +178,9 @@ async def read_file(path: str, ctx: Context) -> str:
         path: Path to the file to read
     """
     try:
-        target_path = norm_path(path)
+        target_path = dependencies.check_path(Path(path))
         
-        if not await withinAllowed(target_path, ctx):
+        if not await dependencies.withinAllowed(target_path, ctx):
             return f"Error: Path '{path}' is not within allowed roots"
         
         if not target_path.exists():
@@ -331,9 +207,9 @@ async def write_file(path: str, content: str, ctx: Context) -> str:
         content: Content to write to the file
     """
     try:
-        target_path = norm_path(path)
+        target_path = dependencies.check_path(Path(path))
         
-        if not await withinAllowed(target_path, ctx):
+        if not await dependencies.withinAllowed(target_path, ctx):
             return f"Error: Path '{path}' is not within allowed roots"
         
         # Create parent directories if they don't exist
@@ -354,17 +230,15 @@ async def get_allowed_roots(ctx: Context) -> str:
         List of allowed root directories
     """
     try:
-        current_roots = await get_current_roots_async(ctx)
-        if not current_roots:
-            return "No allowed roots configured"
-        
-        # Check capabilities
-        from mcp.types import ClientCapabilities, RootsCapability
-        roots_cap = ClientCapabilities(roots=RootsCapability())
-        supports_roots = ctx.session.check_client_capability(roots_cap)
+        supports_roots = dependencies.checkRootsCapability(ctx.session)
+        current_roots = dependencies.GLOBAL_ROOTS
+        if supports_roots:
+            current_roots = await dependencies.get_combined_roots(ctx)
+            if not current_roots:
+                return "No allowed clients roots configured"
         
         roots_info = [f"Client supports roots: {supports_roots}"]
-        roots_info.append(f"Command line args: {' '.join(sys.argv[1:]) if len(sys.argv) > 1 else 'none'}")
+        roots_info.append(f"Server command line args: {' '.join(sys.argv[1:]) if len(sys.argv) > 1 else 'none'}")
         roots_info.append("")
         
         for i, root in enumerate(current_roots, 1):
@@ -375,33 +249,6 @@ async def get_allowed_roots(ctx: Context) -> str:
     except Exception as e:
         return f"Error getting allowed roots: {str(e)}"
 
-@mcp.tool()
-async def refresh_roots(ctx: Context) -> str:
-    """Manually refresh roots from client (if supported) or environment.
-    
-    Returns:
-        Status of refresh operation
-    """
-    try:
-        # Check if client supports roots
-        from mcp.types import ClientCapabilities, RootsCapability
-        roots_cap = ClientCapabilities(roots=RootsCapability())
-        supports_roots = ctx.session.check_client_capability(roots_cap)
-        
-        if supports_roots:
-            client_roots = await send_roots_list_request(ctx)
-            if client_roots:
-                global CMD_LINE_ROOTS
-                CMD_LINE_ROOTS.extend(client_roots)
-                # Remove duplicates
-                CMD_LINE_ROOTS = list(dict.fromkeys(CMD_LINE_ROOTS))
-                return f"Refreshed {len(client_roots)} roots from client, total: {len(CMD_LINE_ROOTS)}"
-            else:
-                return "No roots received from client"
-        else:
-            return f"Client doesn't support roots. Using command line roots: {len(CMD_LINE_ROOTS)}"
-    except Exception as e:
-        return f"Error refreshing roots: {str(e)}"
 
 @mcp.tool()
 async def update_roots(newroots: List[str]) -> str:
@@ -414,7 +261,7 @@ async def update_roots(newroots: List[str]) -> str:
         new_roots = []
         for p in newroots:
             try:
-                path_obj = norm_path(p)
+                path_obj = dependencies.check_path(Path(p))
                 if path_obj.exists() and path_obj.is_dir():
                     new_roots.append(path_obj)
                 else:
@@ -443,7 +290,7 @@ async def add_roots(newroots: List[str]) -> str:
         added_roots = []
         for p in newroots:
             try:
-                path_obj = norm_path(p)
+                path_obj = dependencies.check_path(Path(p))
                 if path_obj.exists() and path_obj.is_dir():
                     if path_obj not in CMD_LINE_ROOTS:
                         CMD_LINE_ROOTS.append(path_obj)
@@ -469,9 +316,9 @@ async def create_directory(path: str, ctx: Context) -> str:
         path: Path to the directory to create
     """
     try:
-        target_path = norm_path(path)
+        target_path = dependencies.check_path(Path(path))
         
-        if not await withinAllowed(target_path, ctx):
+        if not await dependencies.withinAllowed(target_path, ctx):
             return f"Error: Path '{path}' is not within allowed roots"
         
         target_path.mkdir(parents=True, exist_ok=True) 
@@ -489,9 +336,9 @@ async def list_directory_with_sizes(path: str, sort_by: str = "name", ctx: Conte
         sort_by: Sort by 'name' or 'size' (default: name)
     """
     try:
-        target_path = norm_path(path)
+        target_path = dependencies.check_path(Path(path))
         
-        if not withinAllowed(target_path, ctx):
+        if not dependencies.withinAllowed(target_path, ctx):
             return f"Error: Path '{path}' is not within allowed roots"
         
         if not target_path.exists():
@@ -561,9 +408,9 @@ async def get_file_info(path: str, ctx: Context) -> str:
         path: Path to the file or directory
     """
     try:
-        target_path = norm_path(path)
+        target_path = dependencies.check_path(Path(path))
         
-        if not withinAllowed(target_path, ctx):
+        if not dependencies.withinAllowed(target_path, ctx):
             return f"Error: Path '{path}' is not within allowed roots"
         
         if not target_path.exists():
@@ -617,13 +464,13 @@ async def move_file(source: str, destination: str, ctx: Context) -> str:
         destination: Destination path
     """
     try:
-        source_path = norm_path(source)
-        dest_path = norm_path(destination)
+        source_path = dependencies.check_path(Path(source))
+        dest_path = dependencies.check_path(Path(destination))
         
-        if not withinAllowed(source_path, ctx):
+        if not dependencies.withinAllowed(source_path, ctx):
             return f"Error: Source path '{source}' is not within allowed roots"
         
-        if not withinAllowed(dest_path, ctx):
+        if not dependencies.withinAllowed(dest_path, ctx):
             return f"Error: Destination path '{destination}' is not within allowed roots"
         
         if not source_path.exists():
@@ -651,18 +498,12 @@ async def search_files(path: str, pattern: str, ctx: Context, exclude_patterns: 
         exclude_patterns: Optional list of patterns to exclude
     """
     try:
-        import fnmatch
         
-        search_path = norm_path(path)
+        search_path = dependencies.check_path(Path(path))
         
-        if not withinAllowed(search_path, ctx):
+        if not dependencies.withinAllowed(search_path, ctx):
             return f"Error: Path '{path}' is not within allowed roots"
-        
-        if not search_path.exists():
-            return f"Error: Path '{path}' does not exist"
-        
-        if not search_path.is_dir():
-            return f"Error: Path '{path}' is not a directory"
+            # або тут raise кидати.
         
         if exclude_patterns is None:
             exclude_patterns = []
@@ -706,9 +547,9 @@ async def read_multiple_files(paths: List[str], ctx: Context) -> str:
         
         for file_path in paths:
             try:
-                target_path = norm_path(file_path)
+                target_path = dependencies.withinAllowed(file_path)
                 
-                if not withinAllowed(target_path, ctx):
+                if not dependencies.withinAllowed(target_path, ctx):
                     results.append(f"{file_path}: Error - Path not within allowed roots")
                     continue
                 
@@ -741,9 +582,9 @@ async def delete_file(path: str, ctx: Context) -> str:
         path: Path to the file to delete
     """
     try:
-        target_path = norm_path(path)
+        target_path = dependencies.withinAllowed(path)
         
-        if not withinAllowed(target_path, ctx):
+        if not dependencies.withinAllowed(target_path, ctx):
             return f"Error: Path '{path}' is not within allowed roots"
         
         if not target_path.exists():
@@ -768,9 +609,9 @@ async def delete_directory(path: str, force: bool = False, ctx: Context = None) 
         ctx: The context object.
     """
     try:
-        target_path = norm_path(path)
+        target_path = dependencies.withinAllowed(path)
 
-        if not withinAllowed(target_path, ctx):
+        if not dependencies.withinAllowed(target_path, ctx):
             return f"Error: Path '{path}' is not within allowed roots"
 
         if not target_path.exists():
@@ -821,8 +662,8 @@ async def filesystem_summary(path: str, ctx: Context) -> dict:
     Args:
         path: The root path for the summary.
     """
-    target_path = norm_path(path)
-    if not await withinAllowed(target_path, ctx):
+    target_path = dependencies.withinAllowed(path)
+    if not await dependencies.withinAllowed(target_path, ctx):
         return {"error": f"Path '{path}' is not within allowed roots"}
 
     total_size = 0
@@ -853,9 +694,9 @@ async def get_creative_file_description(path: str, ctx: Context) -> str:
     """
     # First read the file content directly
     try:
-        target_path = norm_path(path)
+        target_path = dependencies.withinAllowed(path)
         
-        if not await withinAllowed(target_path, ctx):
+        if not await dependencies.withinAllowed(target_path, ctx):
             return f"Error: Path '{path}' is not within allowed roots"
         
         if not target_path.exists():
@@ -916,9 +757,9 @@ async def analyze_directory_security(path: str, ctx: Context) -> str:
         from datetime import datetime, timedelta
         from collections import defaultdict
         
-        target_path = norm_path(path)
+        target_path = dependencies.withinAllowed(path)
         
-        if not await withinAllowed(target_path, ctx):
+        if not await dependencies.withinAllowed(target_path, ctx):
             return f"Error: Path '{path}' is not within allowed roots"
         
         if not target_path.exists():
@@ -1025,7 +866,7 @@ async def analyze_directory_security(path: str, ctx: Context) -> str:
                     if file_size < 50 * 1024 * 1024 and file_size > 0:
                         try:
                             with open(file_path, 'rb') as f:
-                                file_hash = hashlib.md5(f.read()).hexdigest()
+                                file_hash = hashlib.sha256(f.read()).hexdigest()
                                 duplicate_files[file_hash].append(str(file_path))
                         except:
                             pass
@@ -1247,13 +1088,25 @@ def should_include_file(file_path: Path, base_path: Path, exclude_patterns: List
 
 if __name__ == "__main__":
     
-    # Initialize roots at startup
-    initialize_allowed_roots()
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler("debug.log"),
+        ]
+    )
+
+    parse_command_line_args()
+    initialize_logging()
     
     # Import and register system monitoring tools
     import systemmonitoring
-    systemmonitoring._init_systemmonitoring(logger, norm_path, withinAllowed)
+    systemmonitoring._init_systemmonitoring(logger, dependencies.check_path, dependencies.withinAllowed)
     systemmonitoring.register_tools(mcp)
+
+    asgi_middlewares = [
+        Middleware(CORSMiddleware,allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+    ]
 
     import os
     # default localhost, if not specified in env
@@ -1261,5 +1114,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("MCP_PORT", 8000))
 
     # Run the server
-    mcp.run(transport="sse", host=host, port=port)
-
+    mcp.run(transport=dependencies.TRANSPORT, host=host, port=port)
