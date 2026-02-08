@@ -1,6 +1,6 @@
 from utilities import dependencies
 from fastmcp import Context
-
+from config import settings
 #@mcp.resource("/filesystem/summary/{path}")
 async def get_client_features(ctx: Context) -> dict:
     """Get information about which features the client supports."""
@@ -55,5 +55,5 @@ async def get_client_features(ctx: Context) -> dict:
     return {
         "features": features,
         "client_roots": client_roots_list,
-        "command_line_roots": [str(path) for path in CMD_LINE_ROOTS]
+        "command_line_roots": [str(path) for path in settings.ALLOWED_ROOTS]
     }

@@ -3,7 +3,7 @@ from typing import Any, Literal
 import fastmcp
 from fastmcp.utilities.logging import configure_logging
 import uvicorn
-
+from config import settings
 LOG_FILENAME = "fastmcp.log"
 FILE_FORMAT = "%(asctime)s [%(levelname)s] [%(name)s]: %(message)s"
 
@@ -57,6 +57,16 @@ def patched_configure_logging(
 
 
 def initialize_logging():
+    
+    if settings.DEBUG:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(message)s",
+            handlers=[
+                logging.FileHandler("debug.log"),
+            ]
+        )
+    
     # ovveride uvicorn logging configuration
     patch_uvicorn_config()
     
