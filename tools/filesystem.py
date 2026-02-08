@@ -8,7 +8,7 @@ import os
 async def list_files(path: str, ctx: Context) -> str:
     """List files and directories at the given path."""
     try:
-        target_path = await dependencies.validate_path(path, ctx,must_exist=True, expected_type='dir')
+        target_path = await dependencies.validate_path(path, ctx, must_exist=True, expected_type='dir')
         
         items = []
         for item in target_path.iterdir():
@@ -36,8 +36,10 @@ async def read_file(path: str, ctx: Context) -> str:
 async def write_file(path: str, content: str, ctx: Context) -> str:
     try:
         # for writing we need to check the path without existence check, because we might be creating a new file or overwrite
-        target_path =await dependencies.validate_path(path, ctx, must_exist=False, expected_type='file')
+        target_path = await dependencies.validate_path(path, ctx, must_exist=False)
 
+        if not await dependencies.withinAllowed(target_path.parent, ctx):
+             return f"Error: Access denied to write in '{target_path.parent}'"
         # Create parent directories if they don't exist
         target_path.parent.mkdir(parents=True, exist_ok=True)
         
@@ -50,8 +52,9 @@ async def write_file(path: str, content: str, ctx: Context) -> str:
 async def create_directory(path: str, ctx: Context) -> str:
     """Create a new directory."""
     try:
-        target_path = await dependencies.validate_path(path, ctx,must_exist=False, expected_type='dir')
-            
+        target_path = await dependencies.validate_path(path, ctx, must_exist=False)
+        if not await dependencies.withinAllowed(target_path.parent, ctx):
+             return f"Error: Access denied to create directory in '{target_path.parent}'"    
         target_path.mkdir(parents=True, exist_ok=True)
         return f"Created directory '{path}'"
     except Exception as e:
@@ -65,16 +68,7 @@ async def list_directory_with_sizes(path: str, sort_by: str = "name", ctx: Conte
         sort_by: Sort by 'name' or 'size' (default: name)
     """
     try:
-        target_path = dependencies.check_path(Path(path))
-        
-        if not dependencies.withinAllowed(target_path, ctx):
-            return f"Error: Path '{path}' is not within allowed roots"
-        
-        if not target_path.exists():
-            return f"Error: Path '{path}' does not exist"
-        
-        if not target_path.is_dir():
-            return f"Error: Path '{path}' is not a directory"
+        target_path = await dependencies.validate_path(path, ctx, must_exist=True, expected_type='dir')
         
         entries = []
         total_size = 0
@@ -146,16 +140,7 @@ async def analyze_directory_security(path: str, ctx: Context) -> str:
         from datetime import datetime, timedelta
         from collections import defaultdict
         
-        target_path = dependencies.check_path(path, check_existence=True)
-        
-        if not await dependencies.withinAllowed(target_path, ctx):
-            return f"Error: Path '{path}' is not within allowed roots"
-        
-        if not target_path.exists():
-            return f"Error: Path '{path}' does not exist"
-        
-        if not target_path.is_dir():
-            return f"Error: Path '{path}' is not a directory"
+        target_path = await dependencies.validate_path(path, ctx, must_exist=True, expected_type='dir')
         
         # Enhanced data collection
         file_types = {}
@@ -539,34 +524,26 @@ async def search_files(path: str, pattern: str, ctx: Context, exclude_patterns: 
     """
     try:
         
-        search_path = dependencies.check_path(Path(path))
+        search_path = await dependencies.validate_path(path, ctx, must_exist=True, expected_type='dir')
         
-        if not dependencies.withinAllowed(search_path, ctx):
-            return f"Error: Path '{path}' is not within allowed roots"
-            # або тут raise кидати.
-        
-        if exclude_patterns is None:
+        if exclude_patterns is None or exclude_patterns == []:
             exclude_patterns = []
         
         matches = []
         
         # Use ** for recursive search
-        if '**' in pattern:
-            for file_path in search_path.rglob(pattern.replace('**/', '')):
-                if dependencies.should_include_file(file_path, search_path, exclude_patterns):
-                    matches.append(str(file_path))
-        else:
-            for file_path in search_path.glob(pattern):
-                if dependencies.should_include_file(file_path, search_path, exclude_patterns):
-                    matches.append(str(file_path))
-        
+        glob_iter = search_path.rglob(pattern.replace('**/', '')) if '**' in pattern else search_path.glob(pattern)
+
+        for file_path in glob_iter:
+            if dependencies.should_include_file(file_path, search_path, exclude_patterns):
+                matches.append(str(file_path))
+
         if not matches:
             return f"No files found matching pattern '{pattern}' in '{path}'"
         
         matches.sort()
         result = f"Found {len(matches)} files matching '{pattern}':\n"
         result += "\n".join(matches)
-        
         return result
     
     except Exception as e:
@@ -586,14 +563,12 @@ async def read_multiple_files(paths: List[str], ctx: Context) -> str:
         
         for file_path in paths:
             try:
-                target_path = dependencies.check_path(file_path)
+                # this ensures no loop stopping when one file is not accessible,
+                #  and also provides individual error messages for each file
+                target_path = dependencies.check_path(file_path, check_existence=True)
                 
                 if not dependencies.withinAllowed(target_path, ctx):
                     results.append(f"{file_path}: Error - Path not within allowed roots")
-                    continue
-                
-                if not target_path.exists():
-                    results.append(f"{file_path}: Error - File does not exist")
                     continue
                 
                 if not target_path.is_file():
@@ -613,83 +588,85 @@ async def read_multiple_files(paths: List[str], ctx: Context) -> str:
     except Exception as e:
         return f"Error reading multiple files: {str(e)}"
 
-async def delete_file(path: str, ctx: Context) -> str:
+async def delete_file(path: str, ctx: Context, confirm: bool = False) -> str:
     """Delete a file.
     
     Args:
         path: Path to the file to delete
     """
     try:
-        target_path = dependencies.check_path(path)
-        
-        if not dependencies.withinAllowed(target_path, ctx):
-            return f"Error: Path '{path}' is not within allowed roots"
-        
-        if not target_path.exists():
-            return f"Error: File '{path}' does not exist"
-        
-        if not target_path.is_file():
-            return f"Error: Path '{path}' is not a file"
-        
-        target_path.unlink()
-        return f"Successfully deleted file '{path}'"
-    
+        target_path = await dependencies.validate_path(path, ctx, must_exist=True, expected_type='file')
+
+        if not confirm:
+            supports_elicitation = False
+            try:
+                supports_elicitation = dependencies.checkElicitationCapability(ctx.session)
+            except:
+                pass
+            if supports_elicitation:
+                try:
+                    # this calls windows on the client side, asking user for confirmation
+                    user_agreed = await ctx.elicit(
+                        f"Are you sure you want to delete '{path}'? ", 
+                        response_type=bool
+                    )
+                    if user_agreed:
+                        # delete recursively
+                        target_path.unlink()
+                        return f"Successfully deleted file '{path}' via elicitation"
+                    else:
+                        return "Cancelled by user."
+                except:
+                    pass 
+
+            # fallback message
+            return (
+                "⚠️To delete it, you must explicitely confirm.\n"
+                "Please ask the user for permission, then call this tool again with `confirm=True` and try again."
+            )   
     except Exception as e:
         return f"Error deleting file: {str(e)}"
 
-async def delete_directory(path: str, force: bool = False, ctx: Context = None) -> str:
-    """Delete a directory. By default, it only deletes empty directories.
-    
-    Args:
-        path: Path to the directory to delete.
-        force: If true, deletes the directory and all its contents.
-        ctx: The context object.
+async def delete_directory(path: str, confirm: bool = False, ctx: Context = None) -> str:
     """
-    try:
-        target_path = dependencies.check_path(path)
+    Delete a directory.
+    Args:
+        path: Path to delete
+        confirm: Set to True to force deletion of non-empty directories.
+    """
+    target_path = await dependencies.validate_path(path, ctx, must_exist=True, expected_type='dir')
 
-        if not dependencies.withinAllowed(target_path, ctx):
-            return f"Error: Path '{path}' is not within allowed roots"
+    if not confirm:
+        supports_elicitation = False
+        try:
+            supports_elicitation = dependencies.checkElicitationCapability(ctx.session)
+        except:
+            pass
 
-        if not target_path.exists():
-            return f"Error: Directory '{path}' does not exist"
-
-        if not target_path.is_dir():
-            return f"Error: Path '{path}' is not a directory"
-
-        if any(target_path.iterdir()): # Check if directory is not empty
-            # Check if client supports elicitation for confirmation
+        if supports_elicitation:
             try:
-                from mcp.types import ClientCapabilities, ElicitationCapability
-                elicitation_cap = ClientCapabilities(elicitation=ElicitationCapability())
-                supports_elicitation = ctx.session.check_client_capability(elicitation_cap)
-                
-                if supports_elicitation and not force:
-                    # If client supports elicitation, ask for confirmation
-                    try:
-                        await ctx.elicit(
-                            f"Directory '{path}' is not empty. Do you want to delete it and all its contents?",
-                            response_type=None
-                        )
-                        force = True
-                    except Exception as e:
-                        dependencies.logger.warning(f"Elicitation failed: {e}")
-                        # If elicitation fails, fall back to force parameter
-                        pass
-            except Exception as e:
-                dependencies.logger.warning(f"Error checking elicitation capability: {e}")
-            
-            if not force:
-                return f"Error: Directory '{path}' is not empty. Use force=True to delete it and its contents."
-            
-            shutil.rmtree(target_path)
-            return f"Successfully deleted directory '{path}' and all its contents."
-        else:
-            target_path.rmdir()
-            return f"Successfully deleted empty directory '{path}'"
+                # this calls windows on the client side, asking user for confirmation
+                user_agreed = await ctx.elicit(
+                    f"Are you sure you want to delete '{path}'? ", 
+                    response_type=bool
+                )
+                if user_agreed:
+                    # delete recursively
+                    shutil.rmtree(target_path)
+                    return "Deleted via elicitation."
+                else:
+                    return "Cancelled by user."
+            except:
+                pass 
 
-    except Exception as e:
-        return f"Error deleting directory: {str(e)}"
+        # fallback message
+        return (
+            "⚠️To delete it, you must explicitely confirm.\n"
+            "Please ask the user for permission, then call this tool again with `confirm=True` and try again."
+        )
+
+    shutil.rmtree(target_path)
+    return f"Successfully deleted '{path}' (Confirmed)."
 
 async def filesystem_summary(path: str, ctx: Context) -> dict:
     """
@@ -698,9 +675,7 @@ async def filesystem_summary(path: str, ctx: Context) -> dict:
     Args:
         path: The root path for the summary.
     """
-    target_path = dependencies.check_path(path)
-    if not await dependencies.withinAllowed(target_path, ctx):
-        return {"error": f"Path '{path}' is not within allowed roots"}
+    target_path = await dependencies.validate_path(path, ctx, must_exist=True, expected_type='dir')
 
     total_size = 0
     num_files = 0
@@ -719,7 +694,7 @@ async def filesystem_summary(path: str, ctx: Context) -> dict:
         "path": str(target_path),
         "total_size": dependencies.format_size(total_size),
         "files": num_files,
-        "directories": num_dirs
+        "directories": num_dirs,
     }
 
 async def get_creative_file_description(path: str, ctx: Context) -> str:
@@ -729,21 +704,9 @@ async def get_creative_file_description(path: str, ctx: Context) -> str:
     """
     # First read the file content directly
     try:
-        target_path = dependencies.withinAllowed(path)
-        
-        if not await dependencies.withinAllowed(target_path, ctx):
-            return f"Error: Path '{path}' is not within allowed roots"
-        
-        if not target_path.exists():
-            return f"Error: File '{path}' does not exist"
-        
-        if not target_path.is_file():
-            return f"Error: Path '{path}' is not a file"
-        
-        # Read file contents directly
+        target_path = await dependencies.validate_path(path, ctx, must_exist=True, expected_type='file')
         content = target_path.read_text(encoding='utf-8')
-        content_summary = f"File: {path}\nContent preview: {content[:500]}..." if len(content) > 500 else f"File: {path}\nContent: {content}"
-        
+        content_summary = f"File: {path}\nContent preview: {content[:1000]}..." if len(content) > 1000 else f"File: {path}\nContent: {content}"
     except UnicodeDecodeError:
         return f"Error: File '{path}' contains binary data or unsupported encoding"
     except Exception as e:
@@ -751,12 +714,11 @@ async def get_creative_file_description(path: str, ctx: Context) -> str:
     
     # Check if client supports sampling
     try:
-        
         if dependencies.checkSamplingCapability(ctx.session):
             try:
                 # Use sampling with higher temperature for more creative responses
                 response = await ctx.sample(
-                    f"Based on this content, write a creative summary of what this file represents. Imagine you are a detective trying to guess what's the information for, be laconic but informative\n\n{content_summary}",
+                    f"Based on this content, write a creative summary of what this file represents. Imagine you are a detective trying to guess what information is for, be laconic but informative\n\n{content_summary}",
                     temperature=0.9,
                     max_tokens=300
                 )
@@ -774,6 +736,19 @@ async def get_creative_file_description(path: str, ctx: Context) -> str:
 
 def register(mcp):
     # group registration with the tag "filesystem"
-    mcp.tool(tags=["filesystem"])(list_files)
-    mcp.tool(tags=["filesystem"])(read_file)
-    mcp.tool(tags=["filesystem", "dangerous"])(write_file)
+    # read operations
+    mcp.tool(tags=["filesystem", "read"])(list_files)
+    mcp.tool(tags=["filesystem", "read"])(read_file)
+    mcp.tool(tags=["filesystem", "read"])(read_multiple_files)
+    mcp.tool(tags=["filesystem", "read"])(list_directory_with_sizes)
+    mcp.tool(tags=["filesystem", "read"])(search_files)
+    mcp.tool(tags=["filesystem", "read", "analysis"])(analyze_directory_security)
+    mcp.tool(tags=["filesystem", "read", "creative"])(get_creative_file_description)
+    mcp.tool(tags=["filesystem", "read", "summary"])(filesystem_summary)
+    
+    # write operations
+    mcp.tool(tags=["filesystem", "write", "dangerous"])(write_file)
+    mcp.tool(tags=["filesystem", "write"])(create_directory)
+    mcp.tool(tags=["filesystem", "write"])(move_file)
+    mcp.tool(tags=["filesystem", "write", "dangerous"])(delete_file)
+    mcp.tool(tags=["filesystem", "write", "dangerous"])(delete_directory)

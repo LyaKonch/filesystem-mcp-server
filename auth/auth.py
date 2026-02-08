@@ -9,12 +9,10 @@ from fastmcp.server.auth.providers.github import GitHubProvider
 # Same for Disk Storage, etc
 from utilities.storage import (
     RedisStore,
-    MemoryStore,
     DiskStore,
     FernetEncryptionWrapper,
 )
 
-from cryptography.fernet import Fernet
 from config import settings
 
 
@@ -33,18 +31,17 @@ def get_auth_provider() -> Optional[GitHubProvider]:
         return None
 
     # checking for keys to decide on storage type (persistent or in-memory)
-    has_keys = settings.JWT_SIGNING_KEY and settings.STORAGE_ENCRYPTION_KEY
+    #  and
+    has_keys =  settings.STORAGE_ENCRYPTION_KEY
     should_persist = settings.USE_PERSISTENT_STORAGE
-
-    client_storage = None
     jwt_key = None
+    client_storage = None
 
     if has_keys and should_persist:
         # production( with encryption and persistence) ===
         logger.info("🔒 Using PERSISTENT storage (Encrypted).")
 
         jwt_key = settings.JWT_SIGNING_KEY
-        fernet_key = Fernet(settings.STORAGE_ENCRYPTION_KEY)
 
         # (Redis or Disk)
         if settings.USE_REDIS:
@@ -56,11 +53,13 @@ def get_auth_provider() -> Optional[GitHubProvider]:
                 backend = DiskStore(".fastmcp_storage")
         else:
             # Local Disk
-            Path(".fastmcp_storage").mkdir(exist_ok=True)
-            backend = DiskStore(".fastmcp_storage")
+            storage_path = Path(".fastmcp_storage")
+            storage_path.mkdir(exist_ok=True)
+    
+            backend = DiskStore(str(storage_path / "storage.json"))
 
         # encrypting
-        client_storage = FernetEncryptionWrapper(backend, fernet_key)
+        client_storage = FernetEncryptionWrapper(backend, settings.STORAGE_ENCRYPTION_KEY)
 
     else:
         # for dev/demo or quick usage ===
@@ -74,12 +73,13 @@ def get_auth_provider() -> Optional[GitHubProvider]:
         jwt_key = secrets.token_urlsafe(32)
 
         # using in-memory storage( no point in encrypting therefore)
-        client_storage = MemoryStore()
+        client_storage = None
 
     return GitHubProvider(
         client_id=settings.FASTMCP_SERVER_AUTH_GITHUB_CLIENT_ID,
         client_secret=settings.FASTMCP_SERVER_AUTH_GITHUB_CLIENT_SECRET,
         base_url=settings.FASTMCP_SERVER_AUTH_GITHUB_BASE_URL,
         jwt_signing_key=jwt_key,  # either from config or generated on-fly
-        client_storage=client_storage,  # either encrypted(Redis/Disk), or Memory
+        client_storage=client_storage  # either encrypted(Redis/Disk), or Memory
     )
+

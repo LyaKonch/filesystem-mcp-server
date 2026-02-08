@@ -4,7 +4,7 @@ from fastmcp import FastMCP
 from auth.auth import get_auth_provider
 from config import settings
 
-from tools import filesystem, monitoring
+from tools import filesystem, monitoring, server_management
 import utilities.dependencies as dependencies
 
 from starlette.middleware import Middleware
@@ -120,7 +120,7 @@ if __name__ == "__main__":
     )
 
     filesystem.register(mcp)
-    # system.register(mcp)
+    server_management.register(mcp)
     monitoring.register(mcp)
 
     # for testing purposes

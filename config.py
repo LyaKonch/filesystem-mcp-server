@@ -17,15 +17,16 @@ class Settings(BaseSettings):
 
     FASTMCP_SERVER_AUTH_GITHUB_CLIENT_ID: Optional[str] = None
     FASTMCP_SERVER_AUTH_GITHUB_CLIENT_SECRET: Optional[str] = None
-    FASTMCP_SERVER_AUTH_GITHUB_BASE_URL: str = "http://localhost:8000"
+    FASTMCP_SERVER_AUTH_GITHUB_BASE_URL: Optional[str] = None
 
     # --- Security & Storage ---
     USE_PERSISTENT_STORAGE: bool = False
     
-    # JWT_SIGNING_KEY: Optional[str] = None
-    # STORAGE_ENCRYPTION_KEY: Optional[str] = None
+    # turns out github jwt keys are opaque,so they verify them by calling GitHub's API
+    JWT_SIGNING_KEY: Optional[str] = None
+    STORAGE_ENCRYPTION_KEY: Optional[str] = None
     USE_REDIS: bool = False
-    REDIS_HOST: str = "127.0.0.1"
+    REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
 
     # --- Filesystem Config ---
