@@ -2,20 +2,19 @@ import logging
 from typing import Literal, Optional, List
 import os
 import fastmcp
+from config import settings
 from pathlib import Path
 from mcp import ServerSession
 from mcp.types import ClientCapabilities, ElicitationCapability, RootsCapability, SamplingCapability
 from fastmcp.server.middleware import MiddlewareContext
 from urllib.parse import urlparse, unquote
 
-GLOBAL_ROOTS: list[Path] = []
-TRANSPORT = "sse"
 logger = logging.getLogger("fastmcp")
 
 async def get_combined_roots(context: fastmcp.Context) -> list[Path]:
     result_list: list[Path] = []
-    if GLOBAL_ROOTS is not None:
-        result_list = [p for p in GLOBAL_ROOTS]
+    if settings.ALLOWED_ROOTS is not None:
+        result_list = [p for p in settings.ALLOWED_ROOTS]
     if checkRootsCapability(context.session):
         clients_roots = await fetch_roots_from_client(context)
         if clients_roots is not None:
@@ -35,6 +34,8 @@ async def get_combined_roots(context: fastmcp.Context) -> list[Path]:
 
 def uri_to_path(uri: str) -> Path:
     """Convert a file:// URI to a Path object."""
+    " For example from file://C:\Program Files\ to Path('C:/Program Files')"
+    " Path must contain slash at the end and not have any spelling mistakes "
     p = urlparse(uri)
     if p.scheme != "file":
         raise ValueError(f"URI must start with file:// or another scheme but not {p.scheme}")
@@ -82,24 +83,23 @@ async def validate_path(path_str: str,
     
     return path
 
-async def fetch_roots_from_client(context: MiddlewareContext):
+async def fetch_roots_from_client(context: fastmcp.Context) -> Optional[List[Path]]:
     if checkRootsCapability(context.session):
         logger.info("Listing roots from client")
         roots = None
-        if context.fastmcp_context:
-            try:
-                roots = await context.fastmcp_context.list_roots()
-                uris: list[Path] = []
-                if roots is not None:
-                    for root in roots:
-                        file_url = uri_to_path(str(root.uri))
-                        uris.append(file_url)
-                    logger.info(f"Fetched roots from client: {uris}")
-                    return uris
-                else:
-                    logger.debug("No roots available from client")
-            except Exception as e:
-                logger.error(f"Error fetching roots from client: {e}")
+        try:
+            roots = await context.list_roots()
+            uris: list[Path] = []
+            if roots is not None:
+                for root in roots:
+                    file_url = uri_to_path(str(root.uri))
+                    uris.append(file_url)
+                logger.info(f"Fetched roots from client: {uris}")
+                return uris
+            else:
+                logger.debug("No roots available from client")
+        except Exception as e:
+            logger.error(f"Error fetching roots from client: {e}")
 
 def checkRootsCapability(session: ServerSession) -> bool:
     caps = ClientCapabilities(roots=RootsCapability())
@@ -117,7 +117,7 @@ async def withinAllowed(path: Path, ctx: fastmcp.Context) -> bool:
     """Check if a given path is within allowed scopes of Global allowed directories on server and roots from client."""
     current_scope= await get_combined_roots(ctx)
     
-    p = check_path(path)
+    p = check_path(path, check_existence=False)
     for root in current_scope:
         try:
             # Check if path is within the root

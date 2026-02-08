@@ -1,29 +1,39 @@
 import json
 import logging
+import os
 from typing import Any, Optional
 from abc import ABC, abstractmethod
+from pathlib import Path
 
-import redis.asyncio as redis
+try:
+    import redis.asyncio as redis
+except ImportError:
+    redis = None
+
 from cryptography.fernet import Fernet
 
 logger = logging.getLogger("fastmcp.storage")
 
-# base class for storage backends
 class KeyValueStore(ABC):
-    """Abstract base class for Key-Value storage."""
+    """Abstract base class for Key-Value storage complying with FastMCP interface."""
     
     @abstractmethod
-    async def read(self, key: str) -> Optional[str]:
+    async def get(self, key: str, collection: Optional[str] = None) -> Any:
         pass
 
     @abstractmethod
-    async def write(self, key: str, value: str) -> None:
+    async def put(self, key: str, value: Any, collection: Optional[str] = None, ttl: Optional[int] = None) -> None:
+        pass
+
+    @abstractmethod
+    async def delete(self, key: str, collection: Optional[str] = None) -> None:
         pass
 
 class RedisStore(KeyValueStore):
-    """Storage implementation using Redis."""
-    
     def __init__(self, host: str = "localhost", port: int = 6379, db: int = 0, password: str = None):
+        if redis is None:
+            raise ImportError("Redis library is not installed. Run 'pip install redis'")
+        
         self.redis = redis.Redis(
             host=host, 
             port=port, 
@@ -32,84 +42,107 @@ class RedisStore(KeyValueStore):
             decode_responses=True 
         )
 
-    async def read(self, key: str) -> Optional[str]:
+    def _make_key(self, key: str, collection: Optional[str]) -> str:
+        return f"{collection}:{key}" if collection else key
+
+    async def get(self, key: str, collection: Optional[str] = None) -> Optional[str]:
         try:
-            return await self.redis.get(key)
+            return await self.redis.get(self._make_key(key, collection))
         except Exception as e:
             logger.error(f"Redis read error: {e}")
             return None
 
-    async def write(self, key: str, value: str) -> None:
+    async def put(self, key: str, value: str, collection: Optional[str] = None, ttl: Optional[int] = None) -> None:
         try:
-            await self.redis.set(key, value)
+            # ex=ttl встановлює час життя ключа в секундах
+            await self.redis.set(self._make_key(key, collection), value, ex=ttl)
         except Exception as e:
             logger.error(f"Redis write error: {e}")
 
-class MemoryStore(KeyValueStore):
-    """Ephemeral in-memory storage (for dev/demo)."""
-    
-    def __init__(self):
-        self._store: dict[str, str] = {}
-
-    async def read(self, key: str) -> Optional[str]:
-        return self._store.get(key)
-
-    async def write(self, key: str, value: str) -> None:
-        self._store[key] = value
+    async def delete(self, key: str, collection: Optional[str] = None) -> None:
+        try:
+            await self.redis.delete(self._make_key(key, collection))
+        except Exception as e:
+            logger.error(f"Redis delete error: {e}")
 
 class DiskStore(KeyValueStore):
-    """Simple JSON file storage."""
-    
     def __init__(self, file_path: str = "mcp_storage.json"):
         self.file_path = file_path
 
     async def _load(self) -> dict:
         try:
+            if not os.path.exists(self.file_path):
+                return {}
             with open(self.file_path, "r") as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
 
     async def _save(self, data: dict):
-        with open(self.file_path, "w") as f:
-            json.dump(data, f)
+        try:
+            with open(self.file_path, "w") as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            logger.error(f"Disk save error: {e}")
 
-    async def read(self, key: str) -> Optional[str]:
+    async def get(self, key: str, collection: Optional[str] = None) -> Any:
         data = await self._load()
-        return data.get(key)
+        coll = collection or "default"
+        return data.get(coll, {}).get(key)
 
-    async def write(self, key: str, value: str) -> None:
+    async def put(self, key: str, value: Any, collection: Optional[str] = None, ttl: Optional[int] = None) -> None:
         data = await self._load()
-        data[key] = value
+        coll = collection or "default"
+        if coll not in data:
+            data[coll] = {}
+        data[coll][key] = value
         await self._save(data)
 
-# using Fernet symmetric encryption
+    async def delete(self, key: str, collection: Optional[str] = None) -> None:
+        data = await self._load()
+        coll = collection or "default"
+        if coll in data and key in data[coll]:
+            del data[coll][key]
+            await self._save(data)
+
 class FernetEncryptionWrapper(KeyValueStore):
-    """Decorator that encrypts values before saving to the underlying store."""
-    
     def __init__(self, store: KeyValueStore, fernet_key: str | bytes):
         self.store = store
-        # converted to bytes
         if isinstance(fernet_key, str):
             fernet_key = fernet_key.encode()
         self.fernet = Fernet(fernet_key)
 
-    async def read(self, key: str) -> Optional[str]:
-        encrypted_value = await self.store.read(key)
+    async def get(self, key: str, collection: Optional[str] = None) -> Any:
+        encrypted_value = await self.store.get(key, collection=collection)
         if not encrypted_value:
             return None
         try:
-            # Decrypt
             decrypted = self.fernet.decrypt(encrypted_value.encode()).decode()
-            return decrypted
+            
+            try:
+                return json.loads(decrypted)
+            except json.JSONDecodeError:
+                return decrypted
+
         except Exception as e:
             logger.error(f"Decryption failed for key {key}: {e}")
             return None
 
-    async def write(self, key: str, value: str) -> None:
+    async def put(self, key: str, value: Any, collection: Optional[str] = None, ttl: Optional[int] = None) -> None:
         try:
-            # Encrypt
+            if isinstance(value, dict):
+                value = json.dumps(value)
+            
+            # Якщо value це число або щось інше, перетворюємо в рядок
+            if not isinstance(value, str):
+                 value = str(value)
+
             encrypted = self.fernet.encrypt(value.encode()).decode()
-            await self.store.write(key, encrypted)
+            
+            await self.store.put(key, encrypted, collection=collection, ttl=ttl)
         except Exception as e:
             logger.error(f"Encryption failed for key {key}: {e}")
+            raise e
+
+    async def delete(self, key: str, collection: Optional[str] = None) -> None:
+        await self.store.delete(key, collection=collection)
