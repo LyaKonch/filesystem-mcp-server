@@ -1,9 +1,10 @@
 import logging
+from typing import Literal, Optional, List
 import os
 import fastmcp
 from pathlib import Path
-from mcp import RootsCapability, ServerSession
-from mcp.types import ClientCapabilities
+from mcp import ServerSession
+from mcp.types import ClientCapabilities, ElicitationCapability, RootsCapability, SamplingCapability
 from fastmcp.server.middleware import MiddlewareContext
 from urllib.parse import urlparse, unquote
 
@@ -40,21 +41,46 @@ def uri_to_path(uri: str) -> Path:
     file = Path(unquote(p.path))
     return check_path(file)
 
-def check_path(value:Path) -> Path:
+def check_path(value:Path | str, check_existence: bool = True) -> Path:
     try:
+        # explicitly converts it to Path 
+        if isinstance(value, str):
+            value = Path(value)
+
         value = Path(os.path.expanduser(value)).resolve()
 
-        if not value.exists():
+        if check_existence and not value.exists():
             raise ValueError(f"Error: Path '{value}' does not exist")
-        
-        if not value.is_dir():
-            raise ValueError(f"Error: Path '{value}' is not a directory")
-        
+    
         return value
             
     except (TypeError, ValueError, OSError) as exc:
         logger.error(f"Invalid path specified: {value}", exc_info=exc)
         raise
+
+async def validate_path(path_str: str, 
+    ctx: fastmcp.Context, 
+    must_exist:bool = True, 
+    expected_type: Optional[Literal['file','dir']]='None'
+) -> Path:
+    """Validate a path string and return a Path object if valid, otherwise raise an error."""
+    # a bit strange to set ceck_existance to false, but i want to control exceptions here not within inner function
+    path = check_path(path_str, check_existence=False)
+    
+    if not await withinAllowed(path, ctx):
+        raise ValueError(f"Access denied: Path '{path}' is not within allowed roots.")
+    
+    if must_exist and not path.exists():
+        raise ValueError(f"Error: Path '{path}' does not exist")
+    
+    if must_exist and expected_type:
+        if expected_type == 'file' and not path.is_file():
+            raise ValueError(f"Error: Expected file, but '{path.name}' is a directory")
+        
+        if expected_type == 'dir' and not path.is_dir():
+            raise ValueError(f"Error: Expected directory, but '{path.name}' is a file")
+    
+    return path
 
 async def fetch_roots_from_client(context: MiddlewareContext):
     if checkRootsCapability(context.session):
@@ -79,6 +105,13 @@ def checkRootsCapability(session: ServerSession) -> bool:
     caps = ClientCapabilities(roots=RootsCapability())
     return session.check_client_capability(caps)
 
+def checkElicitationCapability(session: ServerSession) -> bool:
+    caps = ClientCapabilities(elicitation=ElicitationCapability())
+    return session.check_client_capability(caps)
+
+def checkSamplingCapability(session: ServerSession) -> bool:
+    caps = ClientCapabilities(sampling=SamplingCapability())
+    return session.check_client_capability(caps)
 
 async def withinAllowed(path: Path, ctx: fastmcp.Context) -> bool:
     """Check if a given path is within allowed scopes of Global allowed directories on server and roots from client."""
@@ -94,5 +127,39 @@ async def withinAllowed(path: Path, ctx: fastmcp.Context) -> bool:
             continue
     return False
 
+## Helper functions------
+def format_timestamp(timestamp: float) -> str:
+    """Format timestamp to readable string."""
+    from datetime import datetime
+    return datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
 
 
+def format_size(size: int) -> str:
+    """Format file size in human readable format."""
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if size < 1024.0:
+            return f"{size:.1f} {unit}"
+        size /= 1024.0
+    return f"{size:.1f} PB"
+
+
+
+def should_include_file(file_path: Path, base_path: Path, exclude_patterns: List[str]) -> bool:
+    """Check if file should be included based on exclude patterns."""
+    import fnmatch
+    
+    try:
+        # Get relative path for pattern matching
+        rel_path = file_path.relative_to(base_path)
+        rel_path_str = str(rel_path).replace('\\', '/')
+        
+        for pattern in exclude_patterns:
+            if fnmatch.fnmatch(rel_path_str, pattern):
+                return False
+            # Also check just the filename
+            if fnmatch.fnmatch(file_path.name, pattern):
+                return False
+    except Exception:
+        pass
+    
+    return True
