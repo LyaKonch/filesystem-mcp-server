@@ -8,3 +8,5 @@ wheels/
 .vscode/
 # Virtual environments
 .venv
+debug.log
+fastmcp.log
