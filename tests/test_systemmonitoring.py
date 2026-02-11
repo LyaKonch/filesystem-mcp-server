@@ -3,7 +3,7 @@ import asyncio
 import logging
 from unittest.mock import MagicMock, patch, AsyncMock
 from pathlib import Path
-import systemmonitoring
+import tests.systemmonitoring as systemmonitoring
 import os
 
 logger = logging.getLogger("test_systemmonitoring")

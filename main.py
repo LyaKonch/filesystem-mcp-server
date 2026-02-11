@@ -124,7 +124,7 @@ if __name__ == "__main__":
     monitoring.register(mcp)
 
     # for testing purposes
-    import systemmonitoring
+    import tests.systemmonitoring as systemmonitoring
 
     systemmonitoring._init_systemmonitoring(
         dependencies.logger, dependencies.check_path, dependencies.withinAllowed

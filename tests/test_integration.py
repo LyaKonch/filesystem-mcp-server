@@ -2,7 +2,7 @@ import pytest
 import psutil
 from pathlib import Path
 from unittest.mock import MagicMock
-import systemmonitoring
+import tests.systemmonitoring as systemmonitoring
 
 DOCKER_TEST_ROOT = Path("/tmp/mcp_test_env")
 
