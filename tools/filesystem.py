@@ -4,6 +4,8 @@ from fastmcp import Context
 from utilities import dependencies
 from typing import List
 import os
+from utilities.filereader import FileReader
+from utilities.imagereader import ImageReader
 
 async def list_files(path: str, ctx: Context) -> str:
     """List files and directories at the given path."""
@@ -18,16 +20,60 @@ async def list_files(path: str, ctx: Context) -> str:
         return "\n".join(sorted(items))
     except Exception as e:
         return f"Error: {str(e)}"
+
+
+async def read_file(path: str, ctx: Context, include_images: bool = False):
+    """
+    Read file content.
     
-async def read_file(path: str, ctx: Context) -> str:
-    """Read file content."""
+    Args:
+        path: Path to the file to read
+        include_images: Whether to include image data in the result (Sample their description)
+        BEWARE: Use with caution and only when necessary. 
+        Its like adding images to the prompt, thus your limit can be reached very fast, especially with files containing many images.
+        Also not every client supports sampling and not every model supports OCR/vision, therefore, if you need this tool, you should check those info beforehand.
+    """
     try:
-        target_path = await dependencies.validate_path(path, ctx,must_exist=True, expected_type='file')
+        target_path = await dependencies.validate_path(path, ctx, must_exist=True, expected_type='file')
         
-        # Read file contents
-        content = target_path.read_text(encoding='utf-8')
+        reader = None
+        if include_images:
+            if dependencies.checkSamplingCapability(ctx.session):
+                reader = ImageReader()
+            else:
+                ctx.info("Client does not support sampling, cannot include image descriptions.")
+                include_images = False
+        
+        result = FileReader([target_path], include_images=include_images).read()
+        
+        if result and len(result) > 0:
+            file_data = result[0]
+            file_content = file_data.get("content", {})
             
-        return content
+            # for docx files, file_content has "pages" key with list of page dicts
+            if isinstance(file_content, dict) and "pages" in file_content:
+                pages = file_content["pages"]
+                
+                # If include_images and reader is available, describe images
+                if include_images and reader:
+                    for page in pages:
+                        for obj in page.get("media", []):
+                            if obj["kind"] == "image":
+                                try:
+                                    image_b64 = obj["data"].get("bytes_b64", "")
+                                    mime_type = obj["data"].get("mime_type", "image/png")
+                                    if image_b64:
+                                        description = await reader.describe_base64(image_b64, ctx, mime_type)
+                                        obj["description"] = description
+                                    obj["data"].pop("bytes_b64", None)
+                                    #obj["data"].pop("sha1", None)
+                                except Exception as e:
+                                    dependencies.logger.warning(f"Failed to describe image {obj['id']}: {e}")
+            
+            return file_data
+        
+        return {"metadata": {}, "content": {}}
+        
     except UnicodeDecodeError:
         return f"Error: File '{path}' contains binary data or unsupported encoding"
     except Exception as e:

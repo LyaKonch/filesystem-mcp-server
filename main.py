@@ -4,9 +4,8 @@ from fastmcp import FastMCP
 from auth.auth import get_auth_provider
 from config import settings
 
-from tools import filesystem, monitoring, server_management
-import utilities.dependencies as dependencies
-
+from tools import filesystem, monitoring, server_management, file_transfer
+from utilities import dependencies
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 
@@ -118,7 +117,8 @@ if __name__ == "__main__":
         instructions="Secure filesystem access and system monitoring.",
         auth=auth_provider,
     )
-
+    
+    file_transfer.ft_register_routes(mcp)
     filesystem.register(mcp)
     server_management.register(mcp)
     monitoring.register(mcp)
