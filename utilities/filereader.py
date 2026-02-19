@@ -2,15 +2,16 @@ import base64
 from pathlib import Path
 from utilities.dependencies import logger 
 from docx import Document
-from docx.text.paragraph import Paragraph
 from docx.text.paragraph import Run
-from docx.table import Table
-
+from docx.document import Document as doctwo
+from docx.oxml.table import CT_Tbl
+from docx.oxml.text.paragraph import CT_P
+from docx.table import _Cell, Table
+from docx.text.paragraph import Paragraph
 from docx.drawing import Drawing
 from docx.image.image import Image
 from docx.text.hyperlink import Hyperlink
 import fitz  # PyMuPDF
-
 
 class FileReader:    
 
@@ -22,7 +23,8 @@ class FileReader:
             '.docx': self._read_docx,
             '.pdf': self._read_pdf,
             '.epub': self._read_epub,  # ebooklib
-            '.rtf': self._read_rtf,    # striprtf
+            '.rtf': self._read_rtf,
+                # striprtf
         }
 
     #dispatch method based on file extension
@@ -297,16 +299,17 @@ class FileReader:
             except Exception as e:
                 logger.error(f"Failed to extract tables from page {i}: {e}")
             
-            #  main text
+            # Add main text
             text_lines.append(text)
             
-            # image information
+            # Get detailed image information
             image_info_list = page.get_image_info(hashes=True, xrefs=True)
             
             for img_info in image_info_list:
                 img_id = f"img_{img_counter}"
                 img_counter += 1
                 
+                # Build image data structure
                 image_data = {
                     "kind": "image",
                     "id": img_id,
@@ -327,7 +330,7 @@ class FileReader:
                     }
                 }
                 
-                # actual image bytes
+                # Extract actual image bytes if include_images is enabled and xref is available
                 if self.include_images and img_info.get("xref", 0) > 0:
                     try:
                         xref = img_info["xref"]
@@ -337,15 +340,17 @@ class FileReader:
                             image_data["data"]["format"] = base_image.get("ext", "")
                             image_data["data"]["mime_type"] = base_image.get("colorspace", "")
                     except Exception as e:
+                        # If extraction fails, just skip the image data
                         logger.error(f"Failed to extract image {xref} from page {i}: {e}")
                 
                 current_page_media.append(image_data)
                 
-                # image position
+                # Insert image marker with position info
                 bbox = img_info.get("bbox", (0, 0, 0, 0))
                 marker = f"[[IMG:{img_id}]]"
                 text_lines.append(f"\n{marker} at position {bbox}")
             
+            # Process links
             links = page.get_links()
             for link in links:
                 link_id = f"link_{link_counter}"
@@ -368,12 +373,12 @@ class FileReader:
                 }
                 current_page_media.append(link_data)
                 
-                # position info
+                # Insert link marker with position info
                 if link_uri:
                     marker = f"[[LINK:{link_id}]]"
                     text_lines.append(f"\n{marker} -> {link_uri} at {link_rect}")
             
-            # all text
+            # Combine all text
             final_text = "\n".join(text_lines)
             
             pages.append({
@@ -385,6 +390,7 @@ class FileReader:
         metadata = doc.metadata
         doc.close()
         
+        # Resulting type should be a dict like this
         return { 
             "pages": pages,
             "pdf-metadata": metadata
@@ -400,3 +406,67 @@ class FileReader:
     
     def _read_rtf(self, file_path:Path):
         return {"text": "This is an rtf file", "type": "rtf"}
+    
+
+    def iter_block_items(parent):
+        """
+        Yield each paragraph and table child within *parent*, in document order.
+        Each returned value is an instance of either Table or Paragraph. *parent*
+        would most commonly be a reference to a main Document object, but
+        also works for a _Cell object, which itself can contain paragraphs and tables.
+        """
+        if isinstance(parent, doctwo):
+            parent_elm = parent.element.body
+        elif isinstance(parent, _Cell):
+            parent_elm = parent._tc
+        else:
+            raise ValueError("something's not right")
+
+        for child in parent_elm.iterchildren():
+            if isinstance(child, CT_P):
+                yield Paragraph(child, parent)
+            elif isinstance(child, CT_Tbl):
+                yield Table(child, parent)
+
+    
+
+# структура
+# {
+#   "file_name": "file.pdf",
+#   "type": "pdf",
+#   "meta": {
+#     "pages": 12,
+#     "size_bytes": 523456,
+#     "mtime": 1739280000
+#   },
+#   "pages": [
+#     {
+#       "page": 1,
+#       "text": "Intro text ... [[IMG:img_1]] ... more text ... [[LINK:link_1]]",
+#       "objects": [
+#         {
+#           "id": "img_1",
+#           "kind": "image",
+#           "pos": { "start": 15, "end": 26 },
+#           "data": {
+#             "name": "figure1.png",
+#             "format": "png",
+#             "width": 640,
+#             "height": 480,
+#             "bytes_b64": "iVBORw0KGgo..."
+#           },
+#           "description": "Diagram of system flow"
+#         },
+#         {
+#           "id": "link_1",
+#           "kind": "link",
+#           "pos": { "start": 58, "end": 70 },
+#           "data": {
+#             "url": "https://example.com",
+#             "text": "example.com"
+#           }
+#         }
+#       ]
+#     }
+#   ]
+# }
