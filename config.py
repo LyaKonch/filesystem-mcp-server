@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import List, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import Field, field_validator
 
 class Settings(BaseSettings):
     # --- Server Configuration ---
@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     FASTMCP_SERVER_AUTH_GITHUB_CLIENT_ID: Optional[str] = None
     FASTMCP_SERVER_AUTH_GITHUB_CLIENT_SECRET: Optional[str] = None
     FASTMCP_SERVER_AUTH_GITHUB_BASE_URL: Optional[str] = None
+    
+    # admin GitHub user IDs 
+    # write users in .env that you want to have access to potentially dangerous operations (delete, write, modify roots, etc.)
+    # (comma-separated in .env: ADMIN_GITHUB_IDS=user1,user2,user3)
+    ADMIN_GITHUB_IDS: List[str] = Field(default_factory=list)
 
     # --- Security & Storage ---
     USE_PERSISTENT_STORAGE: bool = False
@@ -47,6 +52,17 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore"
     )
+    
+    @field_validator('ADMIN_GITHUB_IDS', mode='before')
+    @classmethod
+    def parse_admin_ids(cls, v):
+        """Parse comma-separated admin IDs from environment variable"""
+        if isinstance(v, str):
+            # split by comma and strip whitespace
+            return [id.strip() for id in v.split(',') if id.strip()]
+        elif isinstance(v, list):
+            return v
+        return []
     
 settings = Settings()    
 

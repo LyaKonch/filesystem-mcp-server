@@ -24,11 +24,22 @@ def get_auth_provider() -> Optional[GitHubProvider]:
 
     if not settings.AUTH_ENABLED:
         logger.warning("🚫 Authentication DISABLED.")
+        logger.warning("   All users have FULL ACCESS to all tools!")
+        logger.warning("   Remove --no-auth flag to enable authentication.")
         return None
 
     if not settings.FASTMCP_SERVER_AUTH_GITHUB_CLIENT_ID:
         logger.error("❌ Auth enabled but Client ID missing via .env or CLI.")
         return None
+
+    if settings.ADMIN_GITHUB_IDS:
+        logger.info(f"👑 Admin users configured: {len(settings.ADMIN_GITHUB_IDS)}")
+        for admin_id in settings.ADMIN_GITHUB_IDS:
+            logger.info(f"   - {admin_id}")
+    else:
+        logger.warning("⚠️  No admin users configured!")
+        logger.warning("   All authenticated users will have READ-ONLY access.")
+        logger.warning("   Add ADMIN_GITHUB_IDS to .env for admin privileges.")
 
     # checking for keys to decide on storage type (persistent or in-memory)
     #  and

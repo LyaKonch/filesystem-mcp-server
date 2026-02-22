@@ -2,6 +2,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from fastmcp import FastMCP
 from auth.auth import get_auth_provider
+from auth.auth_middleware import create_auth_middleware
 from config import settings
 
 from tools import filesystem, monitoring, server_management, file_transfer
@@ -118,6 +119,11 @@ if __name__ == "__main__":
         auth=auth_provider,
     )
     
+    if settings.AUTH_ENABLED:
+        authmiddleware = create_auth_middleware()
+        mcp.add_middleware(authmiddleware)
+        dependencies.logger.info("🔐 Auth middleware registered .")
+
     file_transfer.ft_register_routes(mcp)
     filesystem.register(mcp)
     server_management.register(mcp)
