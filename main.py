@@ -109,7 +109,7 @@ def parse_command_line_args():
 
 if __name__ == "__main__":
     parse_command_line_args()
-    initialize_logging()
+    
 
     auth_provider = get_auth_provider()
 
@@ -118,6 +118,8 @@ if __name__ == "__main__":
         instructions="Secure filesystem access and system monitoring.",
         auth=auth_provider,
     )
+
+    initialize_logging()
     
     if settings.AUTH_ENABLED:
         authmiddleware = create_auth_middleware()
