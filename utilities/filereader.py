@@ -3,15 +3,13 @@ from pathlib import Path
 from utilities.dependencies import logger 
 from docx import Document
 from docx.text.paragraph import Run
-from docx.document import Document as doctwo
-from docx.oxml.table import CT_Tbl
-from docx.oxml.text.paragraph import CT_P
-from docx.table import _Cell, Table
 from docx.text.paragraph import Paragraph
 from docx.drawing import Drawing
+from docx.table import Table
 from docx.image.image import Image
 from docx.text.hyperlink import Hyperlink
 import fitz  # PyMuPDF
+from openpyxl import load_workbook
 
 class FileReader:    
 
@@ -22,9 +20,12 @@ class FileReader:
             '.txt': self._read_text,
             '.docx': self._read_docx,
             '.pdf': self._read_pdf,
-            '.epub': self._read_epub,  # ebooklib
-            '.rtf': self._read_rtf,
-                # striprtf
+            '.epub': self._read_pdf,
+            '.rtf': self._read_pdf,
+            '.xlsx': self._read_excel,
+            '.xls': self._read_excel,
+            '.csv': self._read_text,
+            '.log': self._read_text
         }
 
     #dispatch method based on file extension
@@ -393,42 +394,90 @@ class FileReader:
         # Resulting type should be a dict like this
         return { 
             "pages": pages,
-            "pdf-metadata": metadata
+            "metadata": metadata
         }
 
     def _read_text(self,file_path:Path):
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
             text = f.read()
         return text
-    
-    def _read_epub(self,file_path:Path):
-        return {"text": "This is an epub file", "type": "epub"}
-    
-    def _read_rtf(self, file_path:Path):
-        return {"text": "This is an rtf file", "type": "rtf"}
-    
 
-    def iter_block_items(parent):
+    def _read_excel(self, file_path:Path):
+        """Читає Excel файл з витяганням даних по листам та рядкам.
+        
+        Повертає структуру:
+        {
+            "pages": [
+                {
+                    "number": 1,
+                    "sheet_name": "Sheet1",
+                    "text": "форматована таблиця",
+                    "raw_data": [
+                        ["header1", "header2", ...],
+                        ["value1", "value2", ...],
+                        ...
+                    ]
+                }
+            ]
+        }
         """
-        Yield each paragraph and table child within *parent*, in document order.
-        Each returned value is an instance of either Table or Paragraph. *parent*
-        would most commonly be a reference to a main Document object, but
-        also works for a _Cell object, which itself can contain paragraphs and tables.
-        """
-        if isinstance(parent, doctwo):
-            parent_elm = parent.element.body
-        elif isinstance(parent, _Cell):
-            parent_elm = parent._tc
-        else:
-            raise ValueError("something's not right")
+        
+        
+        workbook = load_workbook(file_path, data_only=True)
+        pages = []
+        
+        def format_table(rows: list[list[str]]) -> list[str]:
+            """Format table in text representation, same as DOCX and PDF"""
+            if not rows:
+                return []
+            col_count = max(len(row) for row in rows) if rows else 0
+            normalized = [row + [""] * (col_count - len(row)) for row in rows]
+            widths = [
+                max(len(str(cell).replace("\n", " ").strip()) for cell in col) if col else 0
+                for col in zip(*normalized)
+            ]
 
-        for child in parent_elm.iterchildren():
-            if isinstance(child, CT_P):
-                yield Paragraph(child, parent)
-            elif isinstance(child, CT_Tbl):
-                yield Table(child, parent)
+            def format_row(row: list[str]) -> str:
+                padded = [str(cell).replace("\n", " ").strip().ljust(widths[i]) if widths[i] > 0 else str(cell).replace("\n", " ").strip() for i, cell in enumerate(row)]
+                return "| " + " | ".join(padded) + " |"
 
-    
+            sep = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
+            output = [sep]
+            for row in normalized:
+                output.append(format_row(row))
+                output.append(sep)
+            return output
+        
+        for sheet_index, sheet_name in enumerate(workbook.sheetnames, 1):
+            worksheet = workbook[sheet_name]
+            raw_data = []
+            
+            for row in worksheet.iter_rows(values_only=True):
+                processed_row = [str(cell) if cell is not None else "" for cell in row]
+
+                processed_row = [cell for cell in processed_row if cell]
+                if processed_row:  # only non empry rows
+                    raw_data.append(processed_row)
+            
+            # try to format the table, if it fails just return raw data without formatting
+            formatted_table = []
+            try:
+                formatted_table = format_table(raw_data) if raw_data else []
+            except Exception:
+                formatted_table = []
+            
+            pages.append({
+                "number": sheet_index,
+                "sheet_name": sheet_name,
+                "text": "\n".join(formatted_table),
+                "raw_data": raw_data
+            })
+        
+        workbook.close()
+        
+        return {
+            "pages": pages
+        }
 
 # структура
 # {
