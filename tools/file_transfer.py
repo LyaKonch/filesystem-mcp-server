@@ -5,6 +5,7 @@ from starlette.responses import Response, JSONResponse, FileResponse, HTMLRespon
 from config import settings
 from utilities import dependencies
 from pathlib import Path
+from auth.permissions import require_auth
 
 def ensure_download_dir():
     if not os.path.exists(settings.DOWNLOAD_DIR):
@@ -12,6 +13,7 @@ def ensure_download_dir():
         return True
     return False
 
+@require_auth(operation="prepare_file_for_download")
 async def prepare_file_for_download(file_path: str, ctx: Context) -> Path:
     '''
     Prepares a file for download by copying it to the server's designated download directory.
