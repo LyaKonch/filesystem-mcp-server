@@ -40,7 +40,7 @@ class Settings(BaseSettings):
         default=False,
         description="Allow access to current working directory if no roots specified"
     )
-    DOWNLOAD_DIR: str = "./for_download"
+    # DOWNLOAD_DIR: str = "./for_download"
 
     # RECURSIVE: bool = Field(
     #     default=True,
