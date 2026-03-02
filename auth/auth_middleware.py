@@ -2,7 +2,7 @@ import logging
 from config import settings
 from fastmcp import Context
 from fastmcp.server.middleware import Middleware, MiddlewareContext
-from auth.permissions import get_github_user_id
+from auth.permissions import get_github_user_id, is_admin
 
 module_logger = logging.getLogger("auth_middleware")
 
@@ -60,13 +60,13 @@ class AuthMiddleware(Middleware):
             module_logger.warning("⚠️ No context available for tool filtering")
             return result
         
-        user_info = get_github_user_id(ctx)
-        module_logger.info(f"User info: {user_info}")
+        result_list =[]
+        for tool in result:
+            if not "admin" in tool.tags:
+                result_list.append(tool)
 
-        if not user_info:
-            module_logger.warning("🚫 User is not authenticated")
-            raise ValueError("User is not authenticated")
-        
+        # Update the result with filtered tools
+        result = result_list
         return result
     
     

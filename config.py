@@ -1,7 +1,9 @@
 from pathlib import Path
 from typing import List, Optional
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict,NoDecode
 from pydantic import Field, field_validator
+from typing import Annotated
+
 
 class Settings(BaseSettings):
     # --- Server Configuration ---
@@ -21,8 +23,8 @@ class Settings(BaseSettings):
     
     # admin GitHub user IDs 
     # write users in .env that you want to have access to potentially dangerous operations (delete, write, modify roots, etc.)
-    # (comma-separated in .env: ADMIN_GITHUB_IDS=user1,user2,user3)
-    ADMIN_GITHUB_IDS: List[str] = Field(default_factory=list)
+    # (comma-separated in .env: ADMIN_GITHUB_IDS=githubid,githubid2)])
+    ADMIN_GITHUB_IDS: Annotated[List[str], NoDecode] = Field(default_factory=list)
 
     # --- Security & Storage ---
     USE_PERSISTENT_STORAGE: bool = False
@@ -35,6 +37,9 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6379
 
     # --- Filesystem Config ---
+    # Please specify allowed root directories for file operations 
+    # (comma-separated as list items in .env: ALLOWED_ROOTS=["path1","path2"])
+    # in other formats pydantic validator will complain 
     ALLOWED_ROOTS: List[Path] = Field(default_factory=list)
     ALLOW_CWD: bool = Field(
         default=False,
@@ -55,7 +60,7 @@ class Settings(BaseSettings):
     
     @field_validator('ADMIN_GITHUB_IDS', mode='before')
     @classmethod
-    def parse_admin_ids(cls, v):
+    def parse_admin_ids(cls, v)-> List[str]:
         """Parse comma-separated admin IDs from environment variable"""
         if isinstance(v, str):
             # split by comma and strip whitespace
@@ -64,5 +69,15 @@ class Settings(BaseSettings):
             return v
         return []
     
+    @field_validator('ALLOWED_ROOTS', mode='before')
+    @classmethod
+    def parse_allowed_roots(cls, v) -> List[Path]:
+        """Parse comma-separated paths from environment variable"""
+        if isinstance(v, str):
+            return [Path(p.strip()) for p in v.split(',') if p.strip()]
+        elif isinstance(v, list):
+            return [Path(p) if not isinstance(p, Path) else p for p in v]
+        return []
+
 settings = Settings()    
 
