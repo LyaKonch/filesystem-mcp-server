@@ -793,8 +793,8 @@ def register(mcp):
     mcp.tool(tags=["filesystem", "read", "summary"])(filesystem_summary)
     
     # write operations
-    mcp.tool(tags=["filesystem", "write", "dangerous"])(write_file)
+    mcp.tool(tags=["filesystem", "write", "dangerous", "admin"])(write_file)
     mcp.tool(tags=["filesystem", "write"])(create_directory)
-    mcp.tool(tags=["filesystem", "write"])(move_file)
-    mcp.tool(tags=["filesystem", "write", "dangerous"])(delete_file)
-    mcp.tool(tags=["filesystem", "write", "dangerous"])(delete_directory)
+    mcp.tool(tags=["filesystem", "write", "admin"])(move_file)
+    mcp.tool(tags=["filesystem", "write", "dangerous", "admin"])(delete_file)
+    mcp.tool(tags=["filesystem", "write", "dangerous", "admin"])(delete_directory)
