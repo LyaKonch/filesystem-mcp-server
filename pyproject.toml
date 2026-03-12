@@ -21,3 +21,24 @@ dev = [
     "bandit>=1.9.2",
     "locust>=2.42.6",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+exclude = [
+    "__pycache__",
+    ".pytest_cache",
+    ".venv",
+    "tests"
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
