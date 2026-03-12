@@ -75,7 +75,6 @@ python -m ruff check . --statistics
 Вона запускає:
 - `ruff-check --fix`
 - `ruff-format`
-- `mypy`
 
 Налаштування хуків локально:
 
@@ -84,6 +83,8 @@ python -m pip install pre-commit
 pre-commit install
 pre-commit run --all-files
 ```
+
+Примітка: `mypy` не включений у pre-commit хуки, оскільки потребує повного встановленого оточення проєкту. Натомість `mypy` запускається у CI на кожен push і pull request.
 
 стандартно pre-commit запускається перед створенням коміту
 
