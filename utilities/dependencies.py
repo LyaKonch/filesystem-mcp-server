@@ -1,13 +1,14 @@
 import logging
-from typing import Literal, Optional, List
 import os
-import fastmcp
-from config import settings
 from pathlib import Path
+from typing import Literal
+from urllib.parse import unquote, urlparse
+
+import fastmcp
 from mcp import ServerSession
 from mcp.types import ClientCapabilities, ElicitationCapability, RootsCapability, SamplingCapability
-from fastmcp.server.middleware import MiddlewareContext
-from urllib.parse import urlparse, unquote
+
+from config import settings
 
 logger = logging.getLogger("fastmcp")
 
@@ -62,7 +63,7 @@ def check_path(value:Path | str, check_existence: bool = True) -> Path:
 async def validate_path(path_str: str, 
     ctx: fastmcp.Context, 
     must_exist:bool = True, 
-    expected_type: Optional[Literal['file','dir']]='None'
+    expected_type: Literal['file', 'dir'] | None='None'
 ) -> Path:
     """Validate a path string and return a Path object if valid, otherwise raise an error."""
     # a bit strange to set ceck_existance to false, but i want to control exceptions here not within inner function
@@ -83,7 +84,7 @@ async def validate_path(path_str: str,
     
     return path
 
-async def fetch_roots_from_client(context: fastmcp.Context) -> Optional[List[Path]]:
+async def fetch_roots_from_client(context: fastmcp.Context) -> list[Path] | None:
     if checkRootsCapability(context.session):
         logger.info("Listing roots from client")
         roots = None
@@ -144,7 +145,7 @@ def format_size(size: int) -> str:
 
 
 
-def should_include_file(file_path: Path, base_path: Path, exclude_patterns: List[str]) -> bool:
+def should_include_file(file_path: Path, base_path: Path, exclude_patterns: list[str]) -> bool:
     """Check if file should be included based on exclude patterns."""
     import fnmatch
     

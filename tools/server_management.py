@@ -1,8 +1,10 @@
-from typing import List
 from pathlib import Path
+
 from fastmcp import Context
-from utilities import dependencies
+
 from config import settings
+from utilities import dependencies
+
 
 async def get_server_status(ctx: Context) -> dict:
     """Get information about server status, client features, and allowed roots."""
@@ -64,7 +66,7 @@ async def add_allowed_root(path: str, ctx: Context) -> str:
     except Exception as e:
         return f"Error: {str(e)}"
 
-async def update_roots(newroots: List[str]) -> str:
+async def update_roots(newroots: list[str]) -> str:
     """Update allowed roots from a list of paths.
     
     Args:

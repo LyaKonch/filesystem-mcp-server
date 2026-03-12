@@ -1,8 +1,8 @@
 from pathlib import Path
-from typing import List, Optional
-from pydantic_settings import BaseSettings, SettingsConfigDict,NoDecode
-from pydantic import Field, field_validator
 from typing import Annotated
+
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -17,21 +17,21 @@ class Settings(BaseSettings):
     # it's recommended to set these authentication variables via env/(or even os) variables or CLI, not hardcoded
     AUTH_ENABLED: bool = True
 
-    FASTMCP_SERVER_AUTH_GITHUB_CLIENT_ID: Optional[str] = None
-    FASTMCP_SERVER_AUTH_GITHUB_CLIENT_SECRET: Optional[str] = None
-    FASTMCP_SERVER_AUTH_GITHUB_BASE_URL: Optional[str] = None
+    FASTMCP_SERVER_AUTH_GITHUB_CLIENT_ID: str | None = None
+    FASTMCP_SERVER_AUTH_GITHUB_CLIENT_SECRET: str | None = None
+    FASTMCP_SERVER_AUTH_GITHUB_BASE_URL: str | None = None
     
     # admin GitHub user IDs 
     # write users in .env that you want to have access to potentially dangerous operations (delete, write, modify roots, etc.)
     # (comma-separated in .env: ADMIN_GITHUB_IDS=githubid,githubid2)])
-    ADMIN_GITHUB_IDS: Annotated[List[str], NoDecode] = Field(default_factory=list)
+    ADMIN_GITHUB_IDS: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
     # --- Security & Storage ---
     USE_PERSISTENT_STORAGE: bool = False
     
     # turns out github jwt keys are opaque,so they verify them by calling GitHub's API
-    JWT_SIGNING_KEY: Optional[str] = None
-    STORAGE_ENCRYPTION_KEY: Optional[str] = None
+    JWT_SIGNING_KEY: str | None = None
+    STORAGE_ENCRYPTION_KEY: str | None = None
     USE_REDIS: bool = False
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     # Please specify allowed root directories for file operations 
     # (comma-separated as list items in .env: ALLOWED_ROOTS=["path1","path2"])
     # in other formats pydantic validator will complain 
-    ALLOWED_ROOTS: List[Path] = Field(default_factory=list)
+    ALLOWED_ROOTS: list[Path] = Field(default_factory=list)
     ALLOW_CWD: bool = Field(
         default=False,
         description="Allow access to current working directory if no roots specified"
@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     
     @field_validator('ADMIN_GITHUB_IDS', mode='before')
     @classmethod
-    def parse_admin_ids(cls, v)-> List[str]:
+    def parse_admin_ids(cls, v)-> list[str]:
         """Parse comma-separated admin IDs from environment variable"""
         if isinstance(v, str):
             # split by comma and strip whitespace
@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     
     @field_validator('ALLOWED_ROOTS', mode='before')
     @classmethod
-    def parse_allowed_roots(cls, v) -> List[Path]:
+    def parse_allowed_roots(cls, v) -> list[Path]:
         """Parse comma-separated paths from environment variable"""
         if isinstance(v, str):
             return [Path(p.strip()) for p in v.split(',') if p.strip()]

@@ -1,22 +1,22 @@
 import secrets
-from utilities.dependencies import logger 
-from typing import Optional
 from pathlib import Path
+
 from fastmcp.server.auth.providers.github import GitHubProvider
+
+from config import settings
+from utilities.dependencies import logger
 
 # these imports down here are in plans to be implemented.
 # Redis Store for KeyValueStore interface from redis client and cryptography packets are needed
 # Same for Disk Storage, etc
 from utilities.storage import (
-    RedisStore,
     DiskStore,
     FernetEncryptionWrapper,
+    RedisStore,
 )
 
-from config import settings
 
-
-def get_auth_provider() -> Optional[GitHubProvider]:
+def get_auth_provider() -> GitHubProvider | None:
     """
     Returns the Auth Provider based on available configuration.
     There is callback with MemoryStore if no keys or wrong keys identified

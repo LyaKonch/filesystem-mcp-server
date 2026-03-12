@@ -1,12 +1,13 @@
-from fastmcp import FastMCP,Context
-from starlette.requests import Request
-from starlette.responses import Response, JSONResponse, FileResponse
-from config import settings
-from utilities import dependencies
-from pathlib import Path
-from auth.permissions import require_auth
 import secrets
 import time
+from pathlib import Path
+
+from fastmcp import Context, FastMCP
+from starlette.requests import Request
+from starlette.responses import FileResponse, JSONResponse, Response
+
+from config import settings
+from utilities import dependencies
 
  # token -> (filename, expires_at)
 _download_tokens: dict[str, tuple[Path,float]] = {}

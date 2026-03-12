@@ -1,9 +1,11 @@
-import psutil
 import platform
 import socket
 import sys
 from datetime import datetime
+
+import psutil
 from fastmcp import Context
+
 
 async def get_system_resource_usage(ctx: Context) -> dict:
     """Get current CPU and Memory usage statistics."""

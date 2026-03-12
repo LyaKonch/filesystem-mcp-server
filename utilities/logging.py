@@ -1,9 +1,9 @@
 import logging
-from typing import Any, Literal
-import fastmcp
-from fastmcp.utilities.logging import configure_logging as fastmcp_configure_logging
+
 import uvicorn
+
 from config import settings
+
 LOG_FILENAME = "fastmcp.log"
 FILE_FORMAT = "%(asctime)s [%(levelname)s] [%(name)s]: %(message)s"
 

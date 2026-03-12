@@ -1,14 +1,15 @@
-from typing import Optional, Callable
-import json
 import inspect
-from functools import wraps
-from fastmcp import Context
-from config import settings
+import json
 import logging
+from collections.abc import Callable
+from functools import wraps
+
+from fastmcp import Context
+from fastmcp.server.dependencies import get_access_token
 from mcp.server.auth.middleware.bearer_auth import AuthenticatedUser
 from mcp.server.auth.provider import AccessToken
-from fastmcp.server.dependencies import get_access_token
 
+from config import settings
 
 module_logger = logging.getLogger("auth_permissions")
 
@@ -90,7 +91,7 @@ def check_github_account(ctx: Context):
         return None
 
 
-def get_github_user_id(ctx: Context) -> Optional[str]:
+def get_github_user_id(ctx: Context) -> str | None:
     """
     Extract GitHub user ID from context.
     Returns None if no authentication or user not found.
@@ -164,7 +165,7 @@ def get_permission_level(ctx: Context) -> int:
     return PermissionLevel.GUEST
 
 
-def _extract_context_from_args(*args, **kwargs) -> Optional[Context]:
+def _extract_context_from_args(*args, **kwargs) -> Context | None:
     """Helper to extract Context from function arguments"""
     # Перевіряємо перший позиційний аргумент
     if args and isinstance(args[0], Context):

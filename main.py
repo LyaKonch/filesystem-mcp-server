@@ -1,15 +1,15 @@
 from argparse import ArgumentParser
 from pathlib import Path
-from fastmcp import FastMCP
-from auth.auth import get_auth_provider
-from auth.auth_middleware import create_auth_middleware
-from config import settings
 
-from tools import filesystem, monitoring, server_management, file_transfer
-from utilities import dependencies
+from fastmcp import FastMCP
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 
+from auth.auth import get_auth_provider
+from auth.auth_middleware import create_auth_middleware
+from config import settings
+from tools import file_transfer, filesystem, monitoring, server_management
+from utilities import dependencies
 from utilities.logging import initialize_logging
 
 

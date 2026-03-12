@@ -1,11 +1,13 @@
-from pathlib import Path
-import shutil
-from fastmcp import Context
-from utilities import dependencies
-from typing import List
 import os
+import shutil
+from pathlib import Path
+
+from fastmcp import Context
+
+from utilities import dependencies
 from utilities.filereader import FileReader
 from utilities.imagereader import ImageReader
+
 
 async def list_files(path: str, ctx: Context) -> str:
     """List files and directories at the given path."""
@@ -183,8 +185,8 @@ async def analyze_directory_security(path: str, ctx: Context) -> str:
     try:
         import hashlib
         import mimetypes
-        from datetime import datetime, timedelta
         from collections import defaultdict
+        from datetime import datetime, timedelta
         
         target_path = await dependencies.validate_path(path, ctx, must_exist=True, expected_type='dir')
         
@@ -226,7 +228,7 @@ async def analyze_directory_security(path: str, ctx: Context) -> str:
         # Known suspicious extensions and patterns
         suspicious_extensions = {'.exe', '.scr', '.bat', '.cmd', '.com', '.pif', '.vbs', '.ps1', '.jar', '.app', '.dmg'}
         executable_extensions = {'.exe', '.msi', '.deb', '.rpm', '.app', '.dmg', '.run', '.sh', '.bat', '.cmd', '.ps1'}
-        archive_extensions = {'.zip', '.rar', '.7z', '.tar', '.gz', '.bz2'}
+        #archive_extensions = {'.zip', '.rar', '.7z', '.tar', '.gz', '.bz2'}
         
         dependencies.logger.info(f"Starting comprehensive analysis of {target_path}")
         
@@ -328,13 +330,13 @@ async def analyze_directory_security(path: str, ctx: Context) -> str:
                 analysis_parts.append(f"  {mime}: {count:,}")
         
         # Time analysis
-        analysis_parts.append(f"\n⏰ TIME ANALYSIS:")
+        analysis_parts.append("\n⏰ TIME ANALYSIS:")
         analysis_parts.append(f"Recent files (last 7 days): {len(recent_files)}")
         analysis_parts.append(f"Old files (>1 year): {len(old_files)}")
         
         # Structure analysis
         max_depth = max(depth_stats.keys()) if depth_stats else 0
-        analysis_parts.append(f"\n🏗️ STRUCTURE:")
+        analysis_parts.append("\n🏗️ STRUCTURE:")
         analysis_parts.append(f"Maximum depth: {max_depth} levels")
         analysis_parts.append(f"Empty files: {len(empty_files)}")
         
@@ -401,7 +403,7 @@ async def analyze_directory_security(path: str, ctx: Context) -> str:
         
         if actual_duplicates:
             analysis_parts.append(f"\n🔄 DUPLICATE ANALYSIS (showing 3/{len(actual_duplicates)}):")
-            for i, (hash_val, files) in enumerate(list(actual_duplicates.items())[:3]):
+            for i, (_hash_val, files) in enumerate(list(actual_duplicates.items())[:3]):
                 analysis_parts.append(f"  Set {i+1}: {len(files)} identical files")
                 for file in files[:2]:  # Show first 2 of each set
                     analysis_parts.append(f"    • {Path(file).name}")
@@ -556,7 +558,7 @@ async def move_file(source: str, destination: str, ctx: Context) -> str:
         return f"Error moving file: {str(e)}"
 
 
-async def search_files(path: str, pattern: str, ctx: Context, exclude_patterns: List[str] = None) -> str:
+async def search_files(path: str, pattern: str, ctx: Context, exclude_patterns: list[str] = None) -> str:
     """Search for files matching a pattern.
     
     Args:
@@ -591,7 +593,7 @@ async def search_files(path: str, pattern: str, ctx: Context, exclude_patterns: 
     except Exception as e:
         return f"Error searching files: {str(e)}"
 
-async def read_multiple_files(paths: List[str], ctx: Context) -> str:
+async def read_multiple_files(paths: list[str], ctx: Context) -> str:
     """Read contents of multiple files simultaneously.
     
     Args:

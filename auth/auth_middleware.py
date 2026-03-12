@@ -1,8 +1,10 @@
 import logging
-from config import settings
+
 from fastmcp import Context
 from fastmcp.server.middleware import Middleware, MiddlewareContext
+
 from auth.permissions import get_github_user_id
+from config import settings
 
 module_logger = logging.getLogger("auth_middleware")
 

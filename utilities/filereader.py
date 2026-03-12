@@ -1,15 +1,17 @@
 import base64
 from pathlib import Path
-from utilities.dependencies import logger 
-from docx import Document
-from docx.text.paragraph import Run
-from docx.text.paragraph import Paragraph
-from docx.drawing import Drawing
-from docx.table import Table
-from docx.image.image import Image
-from docx.text.hyperlink import Hyperlink
+
 import fitz  # PyMuPDF
+from docx import Document
+from docx.drawing import Drawing
+from docx.image.image import Image
+from docx.table import Table
+from docx.text.hyperlink import Hyperlink
+from docx.text.paragraph import Paragraph, Run
 from openpyxl import load_workbook
+
+from utilities.dependencies import logger
+
 
 class FileReader:    
 
@@ -131,7 +133,7 @@ class FileReader:
             normalized = [row + [""] * (col_count - len(row)) for row in rows]
             widths = [
                 max(len(cell.replace("\n", " ").strip()) for cell in col)
-                for col in zip(*normalized)
+                for col in zip(*normalized, strict=False)
             ]
 
             def format_row(row: list[str]) -> str:
@@ -247,7 +249,7 @@ class FileReader:
             normalized = [row + [""] * (col_count - len(row)) for row in rows]
             widths = [
                 max(len(cell.replace("\n", " ").strip()) for cell in col)
-                for col in zip(*normalized)
+                for col in zip(*normalized, strict=False)
             ]
 
             def format_row(row: list[str]) -> str:
@@ -274,7 +276,7 @@ class FileReader:
                 tables = page.find_tables()
                 if tables and tables.tables:
                     text_lines.append("=== Page contains tables ===\n")
-                    for table_idx, table in enumerate(tables.tables):
+                    for _table_idx, table in enumerate(tables.tables):
                         table_id = f"table_{table_counter}"
                         table_counter += 1
                         
@@ -398,7 +400,7 @@ class FileReader:
         }
 
     def _read_text(self,file_path:Path):
-        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(file_path, encoding='utf-8', errors='ignore') as f:
             text = f.read()
         return text
 
@@ -434,7 +436,7 @@ class FileReader:
             normalized = [row + [""] * (col_count - len(row)) for row in rows]
             widths = [
                 max(len(str(cell).replace("\n", " ").strip()) for cell in col) if col else 0
-                for col in zip(*normalized)
+                for col in zip(*normalized, strict=False)
             ]
 
             def format_row(row: list[str]) -> str:
