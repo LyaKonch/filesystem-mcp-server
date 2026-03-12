@@ -120,14 +120,6 @@ if __name__ == "__main__":
     server_management.register(mcp)
     monitoring.register(mcp)
 
-    # for testing purposes
-    import tests.systemmonitoring as systemmonitoring
-
-    systemmonitoring._init_systemmonitoring(
-        dependencies.logger, dependencies.check_path, dependencies.withinAllowed
-    )
-    systemmonitoring.register_tools(mcp)
-
     asgi_middlewares = [
         Middleware(
             CORSMiddleware,
