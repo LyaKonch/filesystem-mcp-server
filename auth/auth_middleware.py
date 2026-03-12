@@ -2,7 +2,7 @@ import logging
 from config import settings
 from fastmcp import Context
 from fastmcp.server.middleware import Middleware, MiddlewareContext
-from auth.permissions import get_github_user_id, is_admin
+from auth.permissions import get_github_user_id
 
 module_logger = logging.getLogger("auth_middleware")
 
@@ -62,7 +62,7 @@ class AuthMiddleware(Middleware):
         
         result_list =[]
         for tool in result:
-            if not "admin" in tool.tags:
+            if "admin" not in tool.tags:
                 result_list.append(tool)
 
         # Update the result with filtered tools

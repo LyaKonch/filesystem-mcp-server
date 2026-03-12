@@ -288,7 +288,7 @@ async def analyze_directory_security(path: str, ctx: Context) -> str:
                             with open(file_path, 'rb') as f:
                                 file_hash = hashlib.sha256(f.read()).hexdigest()
                                 duplicate_files[file_hash].append(str(file_path))
-                        except:
+                        except Exception:
                             pass
                     
                     # Content sampling for analysis
@@ -297,7 +297,7 @@ async def analyze_directory_security(path: str, ctx: Context) -> str:
                             if file_size < 50000:  # Only smaller files
                                 content = file_path.read_text(encoding='utf-8', errors='ignore')[:1000]
                                 sample_files.append(f"[{ext}] {file_path.name}: {content[:150]}...")
-                        except:
+                        except Exception:
                             pass
                             
                 except (OSError, PermissionError, UnicodeDecodeError):
@@ -341,10 +341,6 @@ async def analyze_directory_security(path: str, ctx: Context) -> str:
         # Duplicates analysis
         if actual_duplicates:
             total_duplicate_files = sum(len(files) for files in actual_duplicates.values())
-            duplicate_waste = sum(
-                file_types.get(Path(files[0]).suffix.lower(), 0) * len(files) 
-                for files in actual_duplicates.values()
-            )
             analysis_parts.append(f"🔄 Duplicates: {len(actual_duplicates)} sets, {total_duplicate_files} files")
         
         # Enhanced security assessment
@@ -647,7 +643,7 @@ async def delete_file(path: str, ctx: Context, confirm: bool = False) -> str:
             supports_elicitation = False
             try:
                 supports_elicitation = dependencies.checkElicitationCapability(ctx.session)
-            except:
+            except Exception:
                 pass
             if supports_elicitation:
                 try:
@@ -662,7 +658,7 @@ async def delete_file(path: str, ctx: Context, confirm: bool = False) -> str:
                         return f"Successfully deleted file '{path}' via elicitation"
                     else:
                         return "Cancelled by user."
-                except:
+                except Exception:
                     pass 
 
             # fallback message
@@ -686,7 +682,7 @@ async def delete_directory(path: str, confirm: bool = False, ctx: Context = None
         supports_elicitation = False
         try:
             supports_elicitation = dependencies.checkElicitationCapability(ctx.session)
-        except:
+        except Exception:
             pass
 
         if supports_elicitation:
@@ -702,7 +698,7 @@ async def delete_directory(path: str, confirm: bool = False, ctx: Context = None
                     return "Deleted via elicitation."
                 else:
                     return "Cancelled by user."
-            except:
+            except Exception:
                 pass 
 
         # fallback message
