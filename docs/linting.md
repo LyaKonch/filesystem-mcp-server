@@ -68,3 +68,42 @@ python -m ruff check . --fix --unsafe-fixes
 ```powershell
 python -m ruff check . --statistics
 ```
+
+## Git hooks
+
+Для автоматичного запуску перевірок перед комітом додано конфігурацію `.pre-commit-config.yaml`.
+Вона запускає:
+- `ruff-check --fix`
+- `ruff-format`
+- `mypy`
+
+Налаштування хуків локально:
+
+```powershell
+python -m pip install pre-commit
+pre-commit install
+pre-commit run --all-files
+```
+
+стандартно pre-commit запускається перед створенням коміту
+
+## Інтеграція з процесом збірки
+
+Лінтинг і перевірки інтегровано у CI через GitHub Actions файл `.github/workflows/quality.yml`.
+Pipeline виконує послідовно:
+1. `ruff check .`
+2. `ruff format . --check`
+3. `mypy .`
+
+Це гарантує, що у процес збирання та перевірки змін потрапляє тільки код, який проходить лінтинг і статичну типізацію.
+
+## Статична типізація
+
+Для проєкту додано `mypy` та базову конфігурацію в `pyproject.toml` (`[tool.mypy]`).
+Базовий запуск:
+
+```powershell
+python -m mypy .
+```
+
+`mypy` використовується як локально (через pre-commit), так і автоматично у CI при кожному push або pull request.

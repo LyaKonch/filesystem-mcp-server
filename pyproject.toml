@@ -20,6 +20,9 @@ dependencies = [
 dev = [
     "bandit>=1.9.2",
     "locust>=2.42.6",
+    "ruff>=0.15.5",
+    "pre-commit>=4.3.0",
+    "mypy>=1.18.2",
 ]
 
 [tool.ruff]
@@ -42,3 +45,12 @@ ignore = ["E501"]
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.mypy]
+python_version = "3.13"
+ignore_missing_imports = true
+warn_unused_configs = true
+pretty = true
+show_error_codes = true
+explicit_package_bases = true
+exclude = '^(tests|\.venv|__pycache__)/'

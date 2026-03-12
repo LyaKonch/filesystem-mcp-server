@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from pathlib import Path
+from typing import Literal, cast
 
 from fastmcp import FastMCP
 from starlette.middleware import Middleware
@@ -45,24 +46,15 @@ def parse_command_line_args():
         type=str,
         help="transport method for the server. stdio/sse/http",
     )
-    parser.add_argument(
-        "--host", 
-        type=str, 
-        help="Host to bind (for SSE)")
-    parser.add_argument(
-        "--port", 
-        type=int, 
-        help="Port to bind (for SSE)")
+    parser.add_argument("--host", type=str, help="Host to bind (for SSE)")
+    parser.add_argument("--port", type=int, help="Port to bind (for SSE)")
     parser.add_argument(
         "--debug",
         action="store_true",
         help="Enable debug mode with verbose logging",
     )
 
-
-    parser.add_argument(
-        "--no-auth", action="store_true", help="Disable authentication entirely"
-    )
+    parser.add_argument("--no-auth", action="store_true", help="Disable authentication entirely")
 
     parser.add_argument(
         "--persist",
@@ -77,9 +69,7 @@ def parse_command_line_args():
 
     args = parser.parse_args()
     if args.roots:
-        valid_roots = [
-            dependencies.check_path(r, check_existence=True) for r in args.roots
-        ]
+        valid_roots = [dependencies.check_path(r, check_existence=True) for r in args.roots]
         settings.ALLOWED_ROOTS.extend(valid_roots)
     if args.allow_cwd:
         settings.ALLOW_CWD = True
@@ -109,7 +99,6 @@ def parse_command_line_args():
 
 if __name__ == "__main__":
     parse_command_line_args()
-    
 
     auth_provider = get_auth_provider()
 
@@ -120,7 +109,7 @@ if __name__ == "__main__":
     )
 
     initialize_logging()
-    
+
     if settings.AUTH_ENABLED:
         authmiddleware = create_auth_middleware()
         mcp.add_middleware(authmiddleware)
@@ -155,7 +144,7 @@ if __name__ == "__main__":
         dependencies.logger.info(f"Listening on {settings.MCP_HOST}:{settings.MCP_PORT}")
     # here it enters the loop
     mcp.run(
-        transport=settings.TRANSPORT,
+        transport=cast(Literal["stdio", "http", "sse", "streamable-http"], settings.TRANSPORT),
         host=settings.MCP_HOST,
         port=settings.MCP_PORT,
         middleware=asgi_middlewares,

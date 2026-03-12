@@ -43,7 +43,7 @@ def get_auth_provider() -> GitHubProvider | None:
 
     # checking for keys to decide on storage type (persistent or in-memory)
     #  and
-    has_keys =  settings.STORAGE_ENCRYPTION_KEY
+    has_keys = settings.STORAGE_ENCRYPTION_KEY
     should_persist = settings.USE_PERSISTENT_STORAGE
     jwt_key = None
     client_storage = None
@@ -55,6 +55,7 @@ def get_auth_provider() -> GitHubProvider | None:
         jwt_key = settings.JWT_SIGNING_KEY
 
         # (Redis or Disk)
+        backend: RedisStore | DiskStore
         if settings.USE_REDIS:
             try:
                 logger.info(f"💾 Connecting to Redis at {settings.REDIS_HOST}...")
@@ -66,7 +67,7 @@ def get_auth_provider() -> GitHubProvider | None:
             # Local Disk
             storage_path = Path(".fastmcp_storage")
             storage_path.mkdir(exist_ok=True)
-    
+
             backend = DiskStore(str(storage_path / "storage.json"))
 
         # encrypting
@@ -91,6 +92,5 @@ def get_auth_provider() -> GitHubProvider | None:
         client_secret=settings.FASTMCP_SERVER_AUTH_GITHUB_CLIENT_SECRET,
         base_url=settings.FASTMCP_SERVER_AUTH_GITHUB_BASE_URL,
         jwt_signing_key=jwt_key,  # either from config or generated on-fly
-        client_storage=client_storage  # either encrypted(Redis/Disk), or Memory
+        client_storage=client_storage,  # either encrypted(Redis/Disk), or Memory
     )
-
