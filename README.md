@@ -1,44 +1,89 @@
-## MCP Filesystem Server
+# MCP Filesystem Server
 
-Сервер файлової системи та моніторингу для Model Context Protocol (MCP). Надає безпечний доступ до файлів, аналіз директорій та моніторинг ресурсів системи.
+Сервер Model Context Protocol (MCP), який надає контрольований доступ до файлової системи, інструменти системного моніторингу та керування дозволеними root-директоріями.
 
-## Опис
+## Архітектура та структурні елементи
 
-Цей сервер реалізує MCP протокол для роботи з файловою системою та системою загалом:
-- 📂 **Файлова система:** Читання, запис, пошук, безпечне видалення файлів.
-- 🛡️ **Безпека:** Аналіз директорій на вразливості та "сміття" (`analyze_directory_security`).
-- 📊 **Моніторинг:** Перегляд використання CPU, RAM, дисків та інформації про систему.
-- ⚙️ **Керування:** Динамічне додавання/видалення дозволених директорій під час роботи.
+Проєкт включає:
+- **Application server:** Python + FastMCP (`main.py`) з інструментами файлової системи та моніторингу.
+- **Web/server transport layer:** `stdio`, `sse` або `http` (налаштовується через `--transport`).
+- **Файлове сховище:** локальна файлова система (операції читання/запису в межах `ALLOWED_ROOTS`).
+- **Сервіс кешування (опційно):** Redis для persistent auth/session storage.
+- **База даних:** не використовується в поточній архітектурі (стан зберігається в Disk/Redis storage).
+- **Інші компоненти:** middleware для auth/access control, модулі логування, CI workflow.
 
-## Встановлення
+```mermaid
+flowchart LR
+    C[MCP Client\nClaude/Cursor/etc] --> T{Transport\nstdio/sse/http}
+    T --> S[FastMCP Server\nmain.py]
 
-### Передумови
-- **Python 3.11+**
-- **uv** (рекомендовано) або **pip**
+    S --> A[Auth Layer\nauth/*]
+    S --> F[Filesystem Tools\ntools/filesystem.py]
+    S --> M[Monitoring Tools\ntools/monitoring.py]
+    S --> R[Server Management\ntools/server_management.py]
 
-### Швидкий старт (uv)
+    A --> DS[(Disk Storage)]
+    A --> RS[(Redis, optional)]
+    F --> FS[(Allowed Roots\nLocal File System)]
+```
 
-```bash
-# Клонуйте репозиторій
-git clone <repository-url>
+## Вимоги до середовища
+
+- Git
+- Python 3.13+
+- `pip` або `uv`
+- (Опційно) Redis 7+ для persistent storage
+
+## Швидкий старт
+
+```
+git clone https://github.com/LyaKonch/filesystem-mcp-server
 cd filesystem-mcp-server
 
-# Встановіть залежності
 uv sync
+# прослідкуйте щоб віртуальне середовище було активовано
 
-# Запустіть (без аутентифікації для локального використання)
 python main.py --allow-cwd --no-auth
 ```
 
-## Використання та аргументи
+Без uv:
+```bash
+git clone <repository-url>
+cd filesystem-mcp-server
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -e .
+cp .env.example .env
+# .env файл потрібно налаштувати під себе
+python main.py --allow-cwd --no-auth --transport stdio
+```
 
-### Основні параметри запуску
+```powershell
+git clone <repository-url>
+cd filesystem-mcp-server
+py -3.13 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -e .
+Copy-Item .env.example .env
+# .env файл потрібно налаштувати під себе
+python .\main.py --allow-cwd --no-auth --transport stdio
+```
 
-Сервер підтримує гнучкі налаштування через аргументи командного рядка:
+## Налаштування конфігурації
 
+Основні параметри задаються як через `.env`:
+- `MCP_HOST`, `MCP_PORT`, `TRANSPORT`
+- `AUTH_ENABLED`
+- `ALLOWED_ROOTS`
+- `USE_PERSISTENT_STORAGE`, `USE_REDIS`, `REDIS_HOST`, `REDIS_PORT`
+
+
+Так і через CLI прапорці:
 | Аргумент | Опис |
 | --- | --- |
-| `roots` | Шляхи до дозволених директорій (наприклад `python main.py /path/to/dir`). |
+| `roots` | Шляхи до дозволених директорій (наприклад `python --roots main.py /path/to/dir`). |
 | `--allow-cwd` | Дозволити доступ до поточної робочої директорії. |
 | `--no-auth` | Рекомендовано. Вимикає аутентифікацію (корисно, якщо виникають помилки з токенами). |
 | `--transport` | Тип транспорту: `stdio` (за замовчуванням), `http` або `sse`. |
@@ -46,20 +91,15 @@ python main.py --allow-cwd --no-auth
 | `--persist` | Зберігати стан сервера (дозволені клієнти) між перезапусками. |
 | `--debug` | Увімкнути детальне логування для розробки. |
 
-### Приклади запуску
+Для локальної розробки рекомендований режим:
+- `--no-auth`
+- `--allow-cwd`
+- `--transport stdio`
 
-1. Локальний режим через STDIO (для Claude Desktop)
-
-```bash
-python main.py --allow-cwd --no-auth
-```
-
-2. HTTP Server (для віддалених підключень)
-
+Приклад команди для запуску в режимі http server:
 ```bash
 python main.py --transport http --host 127.0.0.1 --port 8000 --persist
 ```
-
 ## Доступні інструменти (Tools)
 
 ### 📁 Розширена робота з файлами
@@ -134,7 +174,7 @@ python main.py --transport http --host 127.0.0.1 --port 8000 --persist
 
 ## Налаштування авторизації (GitHub OAuth)
 
-Для авторизації дивіться офіційний гайд:
+Для налаштування мехінізму авторизації дивіться офіційний гайд:
 https://gofastmcp.com/integrations/github
 
 Рекомендовано створити файл `.env` в корені сервера. `config.py` автоматично підтягне всі змінні.
@@ -157,6 +197,11 @@ https://gofastmcp.com/integrations/github
 2. Запустіть його з прапорцем `--no-auth`.
 3. Оновіть конфіг клієнта, щоб він не очікував auth-flow.
 
+Інколи буває, що інструмент mcp-remote кешує client-id в своїх конфігах, а на сервері цього користувача не впізнають, так як токени авторизації у сховищі були втрачені або змінені. В таких випадках єдиним виходом є очищення кешу mcp-remote, як правило за шляхом `~/.mcp-auth/mcp-remote-<version>`.
+
+Для траблшутінгу інших незазначених проблем переходьте за посиланням:
+`https://docs.scalekit.com/authenticate/mcp/troubleshooting/`  
+
 Аутентифікація через GitHub зараз знаходиться в стадії активної розробки. Для стабільної роботи локально рекомендується її вимикати.
 
 ### 🌐 Помилка "Connection Refused" або 404
@@ -172,10 +217,6 @@ https://gofastmcp.com/integrations/github
 
 - Використовуйте `list_allowed_roots()`, щоб побачити, куди є доступ.
 - Використовуйте `add_allowed_root("/path/to/dir")`, щоб надати доступ.
-    }
-  }
-}
-```
 
 
 ### Перевірка конфігурації
@@ -219,3 +260,24 @@ https://gofastmcp.com/integrations/github
 ---
 
 **Примітка:** Цей сервер призначений для використання в безпечному середовищі. Завжди перевіряйте права доступу та обмежуйте доступ тільки до необхідних директорій.
+
+## Документація для DevOps та експлуатації
+
+- [Production deployment guide](docs/deployment.md)
+- [Update and rollback guide](docs/update.md)
+- [Backup and restore guide](docs/backup.md)
+- [Automation scripts](docs/scripts)
+
+## Container та інфраструктурні конфіги
+
+- `dockerfile`
+- `docker-compose.yml`
+- `docs/k8s/`
+- `docs/terraform/`
+- `.github/workflows/quality.yml`
+
+## Політика документування в проєкті
+
+- `README.md` описує onboarding розробника та основні операційні кроки.
+- `docs/*.md` містять експлуатаційні інструкції для DevOps.
+- Зміни в конфігурації або процесах деплою мають супроводжуватися оновленням відповідних файлів у `docs/`.

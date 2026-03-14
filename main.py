@@ -135,9 +135,14 @@ if __name__ == "__main__":
     if settings.TRANSPORT != "stdio":
         dependencies.logger.info(f"Listening on {settings.MCP_HOST}:{settings.MCP_PORT}")
     # here it enters the loop
-    mcp.run(
-        transport=cast(Literal["stdio", "http", "sse", "streamable-http"], settings.TRANSPORT),
-        host=settings.MCP_HOST,
-        port=settings.MCP_PORT,
-        middleware=asgi_middlewares,
-    )
+    if settings.TRANSPORT == "stdio":
+        mcp.run(
+            transport=cast(Literal["stdio"], settings.TRANSPORT),
+        )
+    else:
+        mcp.run(
+            transport=cast(Literal["stdio", "http", "sse", "streamable-http"], settings.TRANSPORT),
+            host=settings.MCP_HOST,
+            port=settings.MCP_PORT,
+            middleware=asgi_middlewares,
+        )
