@@ -6,8 +6,12 @@ from typing import Any
 
 from cryptography.fernet import Fernet
 
+redis_async: Any | None
+
 try:
-    import redis.asyncio as redis_async
+    import redis.asyncio as _redis_async
+
+    redis_async = _redis_async
 except ImportError:
     redis_async = None
 

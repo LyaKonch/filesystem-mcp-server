@@ -562,6 +562,7 @@ async def get_file_info(path: str, ctx: Context) -> str:
             return f"Error: Path '{path}' does not exist"
 
         stats = target_path.stat()
+        created_ts = getattr(stats, "st_birthtime", stats.st_ctime)
 
         info = [
             f"Path: {target_path}",
@@ -569,7 +570,7 @@ async def get_file_info(path: str, ctx: Context) -> str:
             f"Type: {'Directory' if target_path.is_dir() else 'File'}",
             f"Size: {dependencies.format_size(stats.st_size)}",
             f"Modified: {dependencies.format_timestamp(stats.st_mtime)}",
-            f"Created: {dependencies.format_timestamp(stats.st_birthtime)}",
+            f"Created: {dependencies.format_timestamp(created_ts)}",
             f"Permissions: {oct(stats.st_mode)[-3:]}",
         ]
 
