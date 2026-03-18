@@ -4,12 +4,13 @@ import os
 from abc import ABC, abstractmethod
 from typing import Any
 
-try:
-    import redis.asyncio as redis
-except ImportError:
-    redis = None
-
 from cryptography.fernet import Fernet
+
+try:
+    import redis.asyncio as redis_async
+except ImportError:
+    redis_async = None
+
 
 logger = logging.getLogger("fastmcp.storage")
 
@@ -34,12 +35,16 @@ class KeyValueStore(ABC):
 
 class RedisStore(KeyValueStore):
     def __init__(
-        self, host: str = "localhost", port: int = 6379, db: int = 0, password: str = None
+        self,
+        host: str = "localhost",
+        port: int = 6379,
+        db: int = 0,
+        password: str | None = None,
     ):
-        if redis is None:
+        if redis_async is None:
             raise ImportError("Redis library is not installed. Run 'pip install redis'")
 
-        self.redis = redis.Redis(
+        self.redis = redis_async.Redis(
             host=host, port=port, db=db, password=password, decode_responses=True
         )
 

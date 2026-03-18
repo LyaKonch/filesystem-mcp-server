@@ -44,14 +44,14 @@ def cleanup_expired_tokens():
 
 
 # @require_auth(operation="prepare_file_for_download")
-async def prepare_file_for_download(file_path: str, ctx: Context) -> Path:
+async def prepare_file_for_download(file_path: str, ctx: Context) -> str:
     """
     Prepares a file for download by copying it to the server's designated download directory.
     Validates the file path against allowed roots and checks for existence before copying.
     User can then access the file via the /files/{filename} endpoint.
     """
     try:
-        file_path: Path = await dependencies.validate_path(
+        validated_path = await dependencies.validate_path(
             file_path, ctx, must_exist=True, expected_type="file"
         )
     except ValueError as e:
@@ -60,13 +60,14 @@ async def prepare_file_for_download(file_path: str, ctx: Context) -> Path:
         )
         raise
 
-    token = generate_download_token(file_path)
-    return f"File {file_path.name} prepared for download. Access it at http://{settings.MCP_HOST}:{settings.MCP_PORT}/download?token={token}. Download link is valud for 5 minutes."
+    token = generate_download_token(validated_path)
+    return f"File {validated_path.name} prepared for download. Access it at http://{settings.MCP_HOST}:{settings.MCP_PORT}/download?token={token}. Download link is valud for 5 minutes."
 
 
 def ft_register_routes(mcp: FastMCP):
 
     async def download_file(request: Request) -> Response:
+        file_path: Path | None = None
 
         cleanup_expired_tokens()
 
@@ -79,6 +80,9 @@ def ft_register_routes(mcp: FastMCP):
         elif settings.AUTH_ENABLED:
             if not hasattr(request, "user") or not request.user.is_authenticated:
                 return JSONResponse({"error": "Authentication required"}, status_code=401)
+            return JSONResponse({"error": "Download token is required"}, status_code=400)
+        else:
+            return JSONResponse({"error": "Download token is required"}, status_code=400)
 
         dependencies.logger.info(f"Received download request for file: {file_path.name}")
 
@@ -86,12 +90,23 @@ def ft_register_routes(mcp: FastMCP):
             # we dont have mcp context on custom route, so here we aren't able to check roots or permissions,
             # but we can check if file is still valid and exists before sending it to user
             # may be a security breach if roots are changed too fast
-            file_path: Path = dependencies.check_path(file_path, check_existence=True)
-            if file_path.is_file():
-                dependencies.logger.info(f"File {file_path.name} is valid and ready for download.")
-                return FileResponse(
-                    file_path, media_type="application/octet-stream", filename=file_path.name
+            checked_path = dependencies.check_path(file_path, check_existence=True)
+            if checked_path.is_file():
+                dependencies.logger.info(
+                    f"File {checked_path.name} is valid and ready for download."
                 )
+                return FileResponse(
+                    checked_path,
+                    media_type="application/octet-stream",
+                    filename=checked_path.name,
+                )
+            return JSONResponse(
+                {
+                    "status": "error",
+                    "message": f"File {checked_path.name} is not accessible or does not exist.",
+                },
+                status_code=404,
+            )
         except ValueError as e:
             dependencies.logger.warning(f"File {file_path.name} is not valid or accessible: {e}")
             return JSONResponse(

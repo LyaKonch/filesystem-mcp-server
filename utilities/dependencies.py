@@ -69,7 +69,7 @@ async def validate_path(
     path_str: str,
     ctx: fastmcp.Context,
     must_exist: bool = True,
-    expected_type: Literal["file", "dir"] | None = "None",
+    expected_type: Literal["file", "dir"] | None = None,
 ) -> Path:
     """Validate a path string and return a Path object if valid, otherwise raise an error."""
     # a bit strange to set ceck_existance to false, but i want to control exceptions here not within inner function

@@ -3,11 +3,11 @@ import json
 import logging
 from collections.abc import Callable
 from functools import wraps
+from typing import Any
 
 from fastmcp import Context
 from fastmcp.server.dependencies import get_access_token
 from mcp.server.auth.middleware.bearer_auth import AuthenticatedUser
-from mcp.server.auth.provider import AccessToken
 
 from config import settings
 
@@ -25,8 +25,8 @@ class PermissionLevel:
 def check_github_account(ctx: Context):
     """Pulls user information from context"""
     try:
-        user: AuthenticatedUser = None
-        token: AccessToken = None
+        user: AuthenticatedUser | None = None
+        token: Any | None = None
 
         # there are two ways to get access token: from request context (if available)
         # or from get_access_token() for non-request contexts
@@ -41,6 +41,9 @@ def check_github_account(ctx: Context):
         else:
             module_logger.debug("Has request_context")
             request = ctx.request_context.request
+            if request is None:
+                module_logger.debug("No request object in request_context")
+                return None
             user = request.user
             if user:
                 module_logger.debug(f"Got user: {user}")

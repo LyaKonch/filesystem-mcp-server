@@ -1,12 +1,21 @@
 import os
 import shutil
+from collections import defaultdict
 from pathlib import Path
+from typing import TypedDict
 
 from fastmcp import Context
 
 from utilities import dependencies
 from utilities.filereader import FileReader
 from utilities.imagereader import ImageReader
+
+
+class DirectoryEntry(TypedDict):
+    name: str
+    is_dir: bool
+    size: int
+    size_str: str
 
 
 async def list_files(path: str, ctx: Context) -> str:
@@ -47,7 +56,9 @@ async def read_file(path: str, ctx: Context, include_images: bool = False):
             if dependencies.checkSamplingCapability(ctx.session):
                 reader = ImageReader()
             else:
-                ctx.info("Client does not support sampling, cannot include image descriptions.")
+                await ctx.info(
+                    "Client does not support sampling, cannot include image descriptions."
+                )
                 include_images = False
 
         result = FileReader([target_path], include_images=include_images).read()
@@ -129,11 +140,14 @@ async def list_directory_with_sizes(
         sort_by: Sort by 'name' or 'size' (default: name)
     """
     try:
+        if ctx is None:
+            return "Error: No context provided"
+
         target_path = await dependencies.validate_path(
             path, ctx, must_exist=True, expected_type="dir"
         )
 
-        entries = []
+        entries: list[DirectoryEntry] = []
         total_size = 0
         total_files = 0
         total_dirs = 0
@@ -170,8 +184,8 @@ async def list_directory_with_sizes(
         for entry in entries:
             prefix = "📁" if entry["is_dir"] else "📄"
             name = f"{entry['name']}/" if entry["is_dir"] else entry["name"]
-            size = entry["size_str"].rjust(10) if entry["size_str"] else ""
-            lines.append(f"{prefix} {name:<30} {size}")
+            size_text = entry["size_str"].rjust(10) if entry["size_str"] else ""
+            lines.append(f"{prefix} {name:<30} {size_text}")
 
         # Add summary
         lines.append("")
@@ -198,7 +212,6 @@ async def analyze_directory_security(path: str, ctx: Context) -> str:
     try:
         import hashlib
         import mimetypes
-        from collections import defaultdict
         from datetime import datetime, timedelta
 
         target_path = await dependencies.validate_path(
@@ -206,16 +219,16 @@ async def analyze_directory_security(path: str, ctx: Context) -> str:
         )
 
         # Enhanced data collection
-        file_types = {}
-        mime_types = defaultdict(int)
-        suspicious_files = []
-        executable_files = []
-        large_files = []
-        hidden_files = []
-        duplicate_files = defaultdict(list)  # hash -> [files]
-        recent_files = []  # Modified in last 7 days
-        old_files = []  # Not modified in last year
-        empty_files = []
+        file_types: dict[str, int] = {}
+        mime_types: defaultdict[str, int] = defaultdict(int)
+        suspicious_files: list[str] = []
+        executable_files: list[str] = []
+        large_files: list[str] = []
+        hidden_files: list[str] = []
+        duplicate_files: defaultdict[str, list[str]] = defaultdict(list)  # hash -> [files]
+        recent_files: list[str] = []  # Modified in last 7 days
+        old_files: list[str] = []  # Not modified in last year
+        empty_files: list[str] = []
 
         # Time analysis
         now = datetime.now()
@@ -223,11 +236,11 @@ async def analyze_directory_security(path: str, ctx: Context) -> str:
         year_ago = now - timedelta(days=365)
 
         # Directory structure analysis
-        depth_stats = defaultdict(int)
-        dir_file_counts = defaultdict(int)
+        depth_stats: defaultdict[int, int] = defaultdict(int)
+        dir_file_counts: defaultdict[int, int] = defaultdict(int)
 
         # Security patterns
-        suspicious_patterns = {
+        suspicious_patterns: dict[str, list[str]] = {
             "password": [],
             "key": [],
             "token": [],
@@ -238,7 +251,7 @@ async def analyze_directory_security(path: str, ctx: Context) -> str:
         total_size = 0
         total_files = 0
         total_dirs = 0
-        sample_files = []
+        sample_files: list[str] = []
 
         # Known suspicious extensions and patterns
         suspicious_extensions = {
@@ -366,7 +379,7 @@ async def analyze_directory_security(path: str, ctx: Context) -> str:
         actual_duplicates = {h: files for h, files in duplicate_files.items() if len(files) > 1}
 
         # Generate comprehensive analysis
-        analysis_parts = []
+        analysis_parts: list[str] = []
         analysis_parts.append(f"📁 COMPREHENSIVE DIRECTORY ANALYSIS: {path}")
         analysis_parts.append(
             f"📊 Files: {total_files:,} | Directories: {total_dirs:,} | Size: {dependencies.format_size(total_size)}"
@@ -410,7 +423,7 @@ async def analyze_directory_security(path: str, ctx: Context) -> str:
         analysis_parts.append("\n🔒 ENHANCED SECURITY ASSESSMENT:")
 
         security_score = 100
-        concerns = []
+        concerns: list[str] = []
 
         # Threat scoring
         if suspicious_files:
@@ -542,7 +555,7 @@ async def get_file_info(path: str, ctx: Context) -> str:
     try:
         target_path = dependencies.check_path(Path(path))
 
-        if not dependencies.withinAllowed(target_path, ctx):
+        if not await dependencies.withinAllowed(target_path, ctx):
             return f"Error: Path '{path}' is not within allowed roots"
 
         if not target_path.exists():
@@ -599,10 +612,10 @@ async def move_file(source: str, destination: str, ctx: Context) -> str:
         source_path = dependencies.check_path(Path(source))
         dest_path = dependencies.check_path(Path(destination))
 
-        if not dependencies.withinAllowed(source_path, ctx):
+        if not await dependencies.withinAllowed(source_path, ctx):
             return f"Error: Source path '{source}' is not within allowed roots"
 
-        if not dependencies.withinAllowed(dest_path, ctx):
+        if not await dependencies.withinAllowed(dest_path, ctx):
             return f"Error: Destination path '{destination}' is not within allowed roots"
 
         if not source_path.exists():
@@ -682,7 +695,7 @@ async def read_multiple_files(paths: list[str], ctx: Context) -> str:
                 #  and also provides individual error messages for each file
                 target_path = dependencies.check_path(file_path, check_existence=True)
 
-                if not dependencies.withinAllowed(target_path, ctx):
+                if not await dependencies.withinAllowed(target_path, ctx):
                     results.append(f"{file_path}: Error - Path not within allowed roots")
                     continue
 

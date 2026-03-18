@@ -1,5 +1,6 @@
 import base64
 from pathlib import Path
+from typing import Any, cast
 
 import fitz  # PyMuPDF
 from docx import Document
@@ -105,7 +106,7 @@ class FileReader:
             ]
         }
         """
-        document = Document(file_path)
+        document = Document(str(file_path))
         pages = []
         pg_counter = 1
         current_page = []
@@ -165,7 +166,7 @@ class FileReader:
                             has_page_break = True
                         for element in run_or_hyperlink.iter_inner_content():
                             if isinstance(element, Drawing):
-                                if element.has_picture():
+                                if element.has_picture:
                                     image: Image = element.image
                                     img_id = f"img_{img_counter}"
                                     img_counter += 1
@@ -190,7 +191,8 @@ class FileReader:
                                     }
 
                                     if self.include_images:
-                                        image_data["data"]["bytes_b64"] = base64.b64encode(
+                                        image_payload = cast(dict[str, Any], image_data["data"])
+                                        image_payload["bytes_b64"] = base64.b64encode(
                                             image.blob
                                         ).decode()
 
@@ -351,11 +353,12 @@ class FileReader:
                         xref = img_info["xref"]
                         base_image = doc.extract_image(xref)
                         if base_image:
-                            image_data["data"]["bytes_b64"] = base64.b64encode(
+                            image_payload = cast(dict[str, Any], image_data["data"])
+                            image_payload["bytes_b64"] = base64.b64encode(
                                 base_image["image"]
                             ).decode()
-                            image_data["data"]["format"] = base_image.get("ext", "")
-                            image_data["data"]["mime_type"] = base_image.get("colorspace", "")
+                            image_payload["format"] = base_image.get("ext", "")
+                            image_payload["mime_type"] = base_image.get("colorspace", "")
                     except Exception as e:
                         # If extraction fails, just skip the image data
                         logger.error(f"Failed to extract image {xref} from page {i}: {e}")

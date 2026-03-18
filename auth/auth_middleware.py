@@ -37,7 +37,9 @@ class AuthMiddleware(Middleware):
 
         return await call_next(context)
 
-    async def _check_auth_for_tool_call(self, context: MiddlewareContext, call_next, ctx: Context):
+    async def _check_auth_for_tool_call(
+        self, context: MiddlewareContext, call_next, ctx: Context | None
+    ):
         """Check authentication before executing any tool"""
 
         if not ctx:
@@ -54,7 +56,7 @@ class AuthMiddleware(Middleware):
         module_logger.debug(f"✅ User {user_id} authenticated for tool call")
         return await call_next(context)
 
-    async def _filter_tools(self, context: MiddlewareContext, call_next, ctx: Context):
+    async def _filter_tools(self, context: MiddlewareContext, call_next, ctx: Context | None):
         """Filter tools list based on user permissions (optional future feature)"""
         result = await call_next(context)
 

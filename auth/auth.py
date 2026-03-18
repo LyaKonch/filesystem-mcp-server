@@ -1,5 +1,6 @@
 import secrets
 from pathlib import Path
+from typing import Any
 
 from fastmcp.server.auth.providers.github import GitHubProvider
 
@@ -43,16 +44,16 @@ def get_auth_provider() -> GitHubProvider | None:
 
     # checking for keys to decide on storage type (persistent or in-memory)
     #  and
-    has_keys = settings.STORAGE_ENCRYPTION_KEY
+    has_keys = settings.STORAGE_ENCRYPTION_KEY is not None
     should_persist = settings.USE_PERSISTENT_STORAGE
-    jwt_key = None
-    client_storage = None
+    jwt_key = secrets.token_urlsafe(32)
+    client_storage: Any = None
 
     if has_keys and should_persist:
         # production( with encryption and persistence) ===
         logger.info("🔒 Using PERSISTENT storage (Encrypted).")
 
-        jwt_key = settings.JWT_SIGNING_KEY
+        jwt_key = settings.JWT_SIGNING_KEY or secrets.token_urlsafe(32)
 
         # (Redis or Disk)
         backend: RedisStore | DiskStore
@@ -71,6 +72,9 @@ def get_auth_provider() -> GitHubProvider | None:
             backend = DiskStore(str(storage_path / "storage.json"))
 
         # encrypting
+        if settings.STORAGE_ENCRYPTION_KEY is None:
+            logger.error("Missing STORAGE_ENCRYPTION_KEY while persistence is enabled")
+            return None
         client_storage = FernetEncryptionWrapper(backend, settings.STORAGE_ENCRYPTION_KEY)
 
     else:
@@ -80,17 +84,17 @@ def get_auth_provider() -> GitHubProvider | None:
         if not has_keys:
             logger.info("   -> Reason: Encryption keys not found in .env")
 
-        # temporary key that lives only in memory
-        # (not saved anywhere, so it will be different on each restart)
-        jwt_key = secrets.token_urlsafe(32)
-
         # using in-memory storage( no point in encrypting therefore)
         client_storage = None
 
-    return GitHubProvider(
-        client_id=settings.FASTMCP_SERVER_AUTH_GITHUB_CLIENT_ID,
-        client_secret=settings.FASTMCP_SERVER_AUTH_GITHUB_CLIENT_SECRET,
-        base_url=settings.FASTMCP_SERVER_AUTH_GITHUB_BASE_URL,
-        jwt_signing_key=jwt_key,  # either from config or generated on-fly
-        client_storage=client_storage,  # either encrypted(Redis/Disk), or Memory
-    )
+    provider_kwargs: dict[str, Any] = {
+        "client_id": settings.FASTMCP_SERVER_AUTH_GITHUB_CLIENT_ID,
+        "jwt_signing_key": jwt_key,
+        "client_storage": client_storage,
+    }
+    if settings.FASTMCP_SERVER_AUTH_GITHUB_CLIENT_SECRET is not None:
+        provider_kwargs["client_secret"] = settings.FASTMCP_SERVER_AUTH_GITHUB_CLIENT_SECRET
+    if settings.FASTMCP_SERVER_AUTH_GITHUB_BASE_URL is not None:
+        provider_kwargs["base_url"] = settings.FASTMCP_SERVER_AUTH_GITHUB_BASE_URL
+
+    return GitHubProvider(**provider_kwargs)
