@@ -1,34 +1,36 @@
 import base64
 from pathlib import Path
-from utilities.dependencies import logger 
-from docx import Document
-from docx.text.paragraph import Run
-from docx.text.paragraph import Paragraph
-from docx.drawing import Drawing
-from docx.table import Table
-from docx.image.image import Image
-from docx.text.hyperlink import Hyperlink
+from typing import Any, cast
+
 import fitz  # PyMuPDF
+from docx import Document
+from docx.drawing import Drawing
+from docx.image.image import Image
+from docx.table import Table
+from docx.text.hyperlink import Hyperlink
+from docx.text.paragraph import Paragraph, Run
 from openpyxl import load_workbook
 
-class FileReader:    
+from utilities.dependencies import logger
 
+
+class FileReader:
     def __init__(self, file_pathes, include_images: bool = False):
         self.file_pathes = file_pathes
         self.include_images = include_images
-        self.readers =  {
-            '.txt': self._read_text,
-            '.docx': self._read_docx,
-            '.pdf': self._read_pdf,
-            '.epub': self._read_pdf,
-            '.rtf': self._read_pdf,
-            '.xlsx': self._read_excel,
-            '.xls': self._read_excel,
-            '.csv': self._read_text,
-            '.log': self._read_text
+        self.readers = {
+            ".txt": self._read_text,
+            ".docx": self._read_docx,
+            ".pdf": self._read_pdf,
+            ".epub": self._read_pdf,
+            ".rtf": self._read_pdf,
+            ".xlsx": self._read_excel,
+            ".xls": self._read_excel,
+            ".csv": self._read_text,
+            ".log": self._read_text,
         }
 
-    #dispatch method based on file extension
+    # dispatch method based on file extension
     # it chooses the appropriate method to read the file based on its extension
     # then reads all the data from it
     # some method should collect all the data and metadata to one single resulting dict
@@ -54,38 +56,42 @@ class FileReader:
             file_content = self.detector(file_path)
             size = Path(file_path).stat().st_size
             mtime = Path(file_path).stat().st_mtime
-            
-            result.append({
-                "metadata": {
-                    "path": str(file_path),
-                    "type": file_path.suffix.lower().lstrip('.'),
-                    "size": size,
-                    "mtime": mtime
-                },
-                "content": file_content
-            })
+
+            result.append(
+                {
+                    "metadata": {
+                        "path": str(file_path),
+                        "type": file_path.suffix.lower().lstrip("."),
+                        "size": size,
+                        "mtime": mtime,
+                    },
+                    "content": file_content,
+                }
+            )
         return result
-    
+
     # reads file extension and return reference to the function that can read it and call it
-    def detector(self, path:Path):
+    def detector(self, path: Path):
         ext = path.suffix.lower()
         try:
-            reader = self.readers.get(ext, self._read_text)  
-        except Exception as e: # fallback на text
-            logger.error(f"File with unsupported extension detected for {path}: {e}\n Falling back to text reader.")
+            reader = self.readers.get(ext, self._read_text)
+        except Exception as e:  # fallback на text
+            logger.error(
+                f"File with unsupported extension detected for {path}: {e}\n Falling back to text reader."
+            )
             reader = self._read_text
 
         return reader(path)
 
     # adapter. Should turn results into a common format for all file types
     # what should this function be doing?
-    def collect(self, file:dict):
+    def collect(self, file: dict):
         return file
-    
-    #after dispatching, call the appropriate method
-    def _read_docx(self, file_path:Path):
+
+    # after dispatching, call the appropriate method
+    def _read_docx(self, file_path: Path):
         """Читає docx документ з витяганням тексту, картинок та гіперлінків.
-        
+
         Повертає структуру:
         {
             "pages": [
@@ -100,7 +106,7 @@ class FileReader:
             ]
         }
         """
-        document = Document(file_path)
+        document = Document(str(file_path))
         pages = []
         pg_counter = 1
         current_page = []
@@ -116,11 +122,13 @@ class FileReader:
 
         def flush_page() -> None:
             if current_page:
-                pages.append({
-                    "number": pg_counter,
-                    "text": "\n".join(current_page),
-                    "media": current_page_media[:]
-                })
+                pages.append(
+                    {
+                        "number": pg_counter,
+                        "text": "\n".join(current_page),
+                        "media": current_page_media[:],
+                    }
+                )
                 current_page.clear()
                 current_page_media.clear()
 
@@ -131,11 +139,13 @@ class FileReader:
             normalized = [row + [""] * (col_count - len(row)) for row in rows]
             widths = [
                 max(len(cell.replace("\n", " ").strip()) for cell in col)
-                for col in zip(*normalized)
+                for col in zip(*normalized, strict=False)
             ]
 
             def format_row(row: list[str]) -> str:
-                padded = [cell.replace("\n", " ").strip().ljust(widths[i]) for i, cell in enumerate(row)]
+                padded = [
+                    cell.replace("\n", " ").strip().ljust(widths[i]) for i, cell in enumerate(row)
+                ]
                 return "| " + " | ".join(padded) + " |"
 
             sep = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
@@ -144,25 +154,25 @@ class FileReader:
                 output.append(format_row(row))
                 output.append(sep)
             return output
-        
+
         for block in document.iter_inner_content():
             if isinstance(block, Paragraph):
-                paragraph_text = ''
+                paragraph_text = ""
                 has_page_break = False
-                
+
                 for run_or_hyperlink in block.iter_inner_content():
                     if isinstance(run_or_hyperlink, Run):
                         if run_or_hyperlink.contains_page_break:
                             has_page_break = True
                         for element in run_or_hyperlink.iter_inner_content():
                             if isinstance(element, Drawing):
-                                if element.has_picture():
+                                if element.has_picture:
                                     image: Image = element.image
                                     img_id = f"img_{img_counter}"
                                     img_counter += 1
-                                    
+
                                     paragraph_text += f"[[IMG:{img_id}]]"
-                                    
+
                                     image_data = {
                                         "kind": "image",
                                         "id": img_id,
@@ -176,29 +186,32 @@ class FileReader:
                                             "height_inches": float(image.height),
                                             "dpi_horizontal": image.horz_dpi,
                                             "dpi_vertical": image.vert_dpi,
-                                            #"sha1": image.sha1
-                                        }
+                                            # "sha1": image.sha1
+                                        },
                                     }
 
                                     if self.include_images:
-                                        image_data["data"]["bytes_b64"] = base64.b64encode(image.blob).decode()
+                                        image_payload = cast(dict[str, Any], image_data["data"])
+                                        image_payload["bytes_b64"] = base64.b64encode(
+                                            image.blob
+                                        ).decode()
 
                                     append_media(image_data)
-                                    
+
                             elif isinstance(element, str):
                                 paragraph_text += element
                             else:
                                 paragraph_text += str(element)
-                                
+
                     elif isinstance(run_or_hyperlink, Hyperlink):
                         if run_or_hyperlink.contains_page_break:
                             has_page_break = True
                         link_id = f"link_{link_counter}"
                         link_counter += 1
-                        
+
                         link_text = run_or_hyperlink.text
                         paragraph_text += f"{link_text}[[LINK:{link_id}]]"
-                        
+
                         link_data = {
                             "kind": "link",
                             "id": link_id,
@@ -207,38 +220,35 @@ class FileReader:
                                 "url": run_or_hyperlink.url,
                                 "address": run_or_hyperlink.address,
                                 "fragment": run_or_hyperlink.fragment,
-                            }
+                            },
                         }
                         append_media(link_data)
                     else:
                         paragraph_text += str(run_or_hyperlink)
-                
+
                 append_line(paragraph_text)
                 if has_page_break:
                     flush_page()
                     pg_counter += 1
 
-                
             elif isinstance(block, Table):
                 rows = []
                 for row in block.rows:
                     rows.append([cell.text for cell in row.cells])
                 for line in format_table(rows):
                     append_line(line)
-        
-        flush_page()
-        
-        return {
-            "pages": pages
-        }
 
-    def _read_pdf(self, file_path:Path):
+        flush_page()
+
+        return {"pages": pages}
+
+    def _read_pdf(self, file_path: Path):
         doc = fitz.open(file_path)
         pages = []
         img_counter = 0
         link_counter = 0
         table_counter = 0
-        
+
         def format_table(rows: list[list[str]]) -> list[str]:
             """Format table in text representation, same as DOCX"""
             if not rows:
@@ -247,11 +257,13 @@ class FileReader:
             normalized = [row + [""] * (col_count - len(row)) for row in rows]
             widths = [
                 max(len(cell.replace("\n", " ").strip()) for cell in col)
-                for col in zip(*normalized)
+                for col in zip(*normalized, strict=False)
             ]
 
             def format_row(row: list[str]) -> str:
-                padded = [cell.replace("\n", " ").strip().ljust(widths[i]) for i, cell in enumerate(row)]
+                padded = [
+                    cell.replace("\n", " ").strip().ljust(widths[i]) for i, cell in enumerate(row)
+                ]
                 return "| " + " | ".join(padded) + " |"
 
             sep = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
@@ -260,24 +272,24 @@ class FileReader:
                 output.append(format_row(row))
                 output.append(sep)
             return output
-        
+
         for i in range(doc.page_count):
             page = doc.load_page(i)
             text_lines = []
             current_page_media = []
-            
+
             # Get base text
             text = page.get_text()
-            
+
             # Process tables
             try:
                 tables = page.find_tables()
                 if tables and tables.tables:
                     text_lines.append("=== Page contains tables ===\n")
-                    for table_idx, table in enumerate(tables.tables):
+                    for _table_idx, table in enumerate(tables.tables):
                         table_id = f"table_{table_counter}"
                         table_counter += 1
-                        
+
                         # Extract table data
                         table_data = table.extract()
                         if table_data:
@@ -285,31 +297,33 @@ class FileReader:
                             text_lines.append(f"\n[[TABLE:{table_id}]]\n")
                             text_lines.extend(format_table(table_data))
                             text_lines.append("")
-                            
+
                             # Store table metadata
-                            current_page_media.append({
-                                "kind": "table",
-                                "id": table_id,
-                                "data": {
-                                    "bbox": list(table.bbox),
-                                    "rows": len(table_data),
-                                    "cols": len(table_data[0]) if table_data else 0,
-                                    "cells": table_data
+                            current_page_media.append(
+                                {
+                                    "kind": "table",
+                                    "id": table_id,
+                                    "data": {
+                                        "bbox": list(table.bbox),
+                                        "rows": len(table_data),
+                                        "cols": len(table_data[0]) if table_data else 0,
+                                        "cells": table_data,
+                                    },
                                 }
-                            })
+                            )
             except Exception as e:
                 logger.error(f"Failed to extract tables from page {i}: {e}")
-            
+
             # Add main text
             text_lines.append(text)
-            
+
             # Get detailed image information
             image_info_list = page.get_image_info(hashes=True, xrefs=True)
-            
+
             for img_info in image_info_list:
                 img_id = f"img_{img_counter}"
                 img_counter += 1
-                
+
                 # Build image data structure
                 image_data = {
                     "kind": "image",
@@ -324,43 +338,48 @@ class FileReader:
                         "xres": img_info.get("xres", 0),
                         "yres": img_info.get("yres", 0),
                         "size": img_info.get("size", 0),
-                        "digest": img_info.get("digest", b"").hex() if img_info.get("digest") else "",
+                        "digest": img_info.get("digest", b"").hex()
+                        if img_info.get("digest")
+                        else "",
                         "bbox": list(img_info.get("bbox", (0, 0, 0, 0))),
                         "transform": list(img_info.get("transform", (1, 0, 0, 1, 0, 0))),
                         "has_mask": img_info.get("has-mask", False),
-                    }
+                    },
                 }
-                
+
                 # Extract actual image bytes if include_images is enabled and xref is available
                 if self.include_images and img_info.get("xref", 0) > 0:
                     try:
                         xref = img_info["xref"]
                         base_image = doc.extract_image(xref)
                         if base_image:
-                            image_data["data"]["bytes_b64"] = base64.b64encode(base_image["image"]).decode()
-                            image_data["data"]["format"] = base_image.get("ext", "")
-                            image_data["data"]["mime_type"] = base_image.get("colorspace", "")
+                            image_payload = cast(dict[str, Any], image_data["data"])
+                            image_payload["bytes_b64"] = base64.b64encode(
+                                base_image["image"]
+                            ).decode()
+                            image_payload["format"] = base_image.get("ext", "")
+                            image_payload["mime_type"] = base_image.get("colorspace", "")
                     except Exception as e:
                         # If extraction fails, just skip the image data
                         logger.error(f"Failed to extract image {xref} from page {i}: {e}")
-                
+
                 current_page_media.append(image_data)
-                
+
                 # Insert image marker with position info
                 bbox = img_info.get("bbox", (0, 0, 0, 0))
                 marker = f"[[IMG:{img_id}]]"
                 text_lines.append(f"\n{marker} at position {bbox}")
-            
+
             # Process links
             links = page.get_links()
             for link in links:
                 link_id = f"link_{link_counter}"
                 link_counter += 1
-                
+
                 link_rect = link.get("from", [])
                 link_uri = link.get("uri", "")
                 link_type = link.get("kind", 0)
-                
+
                 link_data = {
                     "kind": "link",
                     "id": link_id,
@@ -369,42 +388,35 @@ class FileReader:
                         "type": link_type,
                         "rect": link_rect,
                         "page": link.get("page", -1),
-                        "to": link.get("to", [])
-                    }
+                        "to": link.get("to", []),
+                    },
                 }
                 current_page_media.append(link_data)
-                
+
                 # Insert link marker with position info
                 if link_uri:
                     marker = f"[[LINK:{link_id}]]"
                     text_lines.append(f"\n{marker} -> {link_uri} at {link_rect}")
-            
+
             # Combine all text
             final_text = "\n".join(text_lines)
-            
-            pages.append({
-                "page": i + 1,
-                "text": final_text,
-                "media": current_page_media
-            })
-        
+
+            pages.append({"page": i + 1, "text": final_text, "media": current_page_media})
+
         metadata = doc.metadata
         doc.close()
-        
-        # Resulting type should be a dict like this
-        return { 
-            "pages": pages,
-            "metadata": metadata
-        }
 
-    def _read_text(self,file_path:Path):
-        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+        # Resulting type should be a dict like this
+        return {"pages": pages, "metadata": metadata}
+
+    def _read_text(self, file_path: Path):
+        with open(file_path, encoding="utf-8", errors="ignore") as f:
             text = f.read()
         return text
 
-    def _read_excel(self, file_path:Path):
+    def _read_excel(self, file_path: Path):
         """Читає Excel файл з витяганням даних по листам та рядкам.
-        
+
         Повертає структуру:
         {
             "pages": [
@@ -421,11 +433,10 @@ class FileReader:
             ]
         }
         """
-        
-        
+
         workbook = load_workbook(file_path, data_only=True)
         pages = []
-        
+
         def format_table(rows: list[list[str]]) -> list[str]:
             """Format table in text representation, same as DOCX and PDF"""
             if not rows:
@@ -434,11 +445,16 @@ class FileReader:
             normalized = [row + [""] * (col_count - len(row)) for row in rows]
             widths = [
                 max(len(str(cell).replace("\n", " ").strip()) for cell in col) if col else 0
-                for col in zip(*normalized)
+                for col in zip(*normalized, strict=False)
             ]
 
             def format_row(row: list[str]) -> str:
-                padded = [str(cell).replace("\n", " ").strip().ljust(widths[i]) if widths[i] > 0 else str(cell).replace("\n", " ").strip() for i, cell in enumerate(row)]
+                padded = [
+                    str(cell).replace("\n", " ").strip().ljust(widths[i])
+                    if widths[i] > 0
+                    else str(cell).replace("\n", " ").strip()
+                    for i, cell in enumerate(row)
+                ]
                 return "| " + " | ".join(padded) + " |"
 
             sep = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
@@ -447,37 +463,38 @@ class FileReader:
                 output.append(format_row(row))
                 output.append(sep)
             return output
-        
+
         for sheet_index, sheet_name in enumerate(workbook.sheetnames, 1):
             worksheet = workbook[sheet_name]
             raw_data = []
-            
+
             for row in worksheet.iter_rows(values_only=True):
                 processed_row = [str(cell) if cell is not None else "" for cell in row]
 
                 processed_row = [cell for cell in processed_row if cell]
                 if processed_row:  # only non empry rows
                     raw_data.append(processed_row)
-            
+
             # try to format the table, if it fails just return raw data without formatting
             formatted_table = []
             try:
                 formatted_table = format_table(raw_data) if raw_data else []
             except Exception:
                 formatted_table = []
-            
-            pages.append({
-                "number": sheet_index,
-                "sheet_name": sheet_name,
-                "text": "\n".join(formatted_table),
-                "raw_data": raw_data
-            })
-        
+
+            pages.append(
+                {
+                    "number": sheet_index,
+                    "sheet_name": sheet_name,
+                    "text": "\n".join(formatted_table),
+                    "raw_data": raw_data,
+                }
+            )
+
         workbook.close()
-        
-        return {
-            "pages": pages
-        }
+
+        return {"pages": pages}
+
 
 # структура
 # {

@@ -1,19 +1,21 @@
-from typing import List
 from pathlib import Path
+
 from fastmcp import Context
-from utilities import dependencies
+
 from config import settings
+from utilities import dependencies
+
 
 async def get_server_status(ctx: Context) -> dict:
     """Get information about server status, client features, and allowed roots."""
     dependencies.logger.info("Checking server status")
-    
+
     features = {
         "elicitation": dependencies.checkElicitationCapability(ctx.session),
         "sampling": dependencies.checkSamplingCapability(ctx.session),
         "roots": dependencies.checkRootsCapability(ctx.session),
     }
-    
+
     client_roots_list = []
     if features["roots"]:
         try:
@@ -22,20 +24,21 @@ async def get_server_status(ctx: Context) -> dict:
                 client_roots_list = [str(r) for r in roots]
         except Exception as e:
             dependencies.logger.warning(f"Error getting client roots: {e}")
-            
+
     return {
         "transport": settings.TRANSPORT,
         "auth_enabled": settings.AUTH_ENABLED,
         "client_features": features,
         "client_roots": client_roots_list,
-        "server_roots": [str(path) for path in settings.ALLOWED_ROOTS]
+        "server_roots": [str(path) for path in settings.ALLOWED_ROOTS],
     }
+
 
 async def list_allowed_roots(ctx: Context) -> str:
     """Get a formatted list of all currently allowed root directories."""
     try:
         combined_roots = await dependencies.get_combined_roots(ctx)
-        
+
         if not combined_roots:
             return "No allowed roots configured."
 
@@ -43,30 +46,32 @@ async def list_allowed_roots(ctx: Context) -> str:
         for i, root in enumerate(combined_roots, 1):
             source = "Server" if root in settings.ALLOWED_ROOTS else "Client"
             lines.append(f"{i}. {root} ({source})")
-            
+
         return "\n".join(lines)
     except Exception as e:
         return f"Error: {str(e)}"
+
 
 async def add_allowed_root(path: str, ctx: Context) -> str:
     """Add a path to the server's allowed roots whitelist at runtime."""
     try:
         path_obj = dependencies.check_path(path, check_existence=True)
-        
+
         if not path_obj.is_dir():
             return f"Error: '{path}' is not a directory"
 
         if path_obj not in settings.ALLOWED_ROOTS:
             settings.ALLOWED_ROOTS.append(path_obj)
             return f"Successfully added '{path_obj}' to allowed roots."
-        
+
         return f"Path '{path_obj}' is already in allowed roots."
     except Exception as e:
         return f"Error: {str(e)}"
 
-async def update_roots(newroots: List[str]) -> str:
+
+async def update_roots(newroots: list[str]) -> str:
     """Update allowed roots from a list of paths.
-    
+
     Args:
         ctx: List of new root paths
     """
@@ -74,23 +79,24 @@ async def update_roots(newroots: List[str]) -> str:
         new_roots = []
         for p in newroots:
             try:
-                path_obj = dependencies.check_path(Path(p),check_existence=True)
+                path_obj = dependencies.check_path(Path(p), check_existence=True)
                 if path_obj.is_dir():
                     new_roots.append(path_obj)
                 else:
                     return f"Error: Path '{p}' does not exist or is not a directory"
             except Exception as e:
                 return f"Error processing path '{p}': {str(e)}"
-        
+
         if not new_roots:
             return "Error: No valid directories provided"
-        
+
         settings.ALLOWED_ROOTS.clear()
         settings.ALLOWED_ROOTS.extend(new_roots)
         return f"Updated allowed roots to {len(new_roots)} directories"
-    
+
     except Exception as e:
         return f"Error updating roots: {str(e)}"
+
 
 async def remove_root(root: str) -> str:
     """Remove a single allowed root path."""

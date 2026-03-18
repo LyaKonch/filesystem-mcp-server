@@ -1,6 +1,8 @@
-from cryptography.fernet import Fernet
 import secrets
-# here you can generate a random JWT signing key and a Fernet key for encryption. 
+
+from cryptography.fernet import Fernet
+
+# here you can generate a random JWT signing key and a Fernet key for encryption.
 # You can run this script and copy the output into your .env file.
 jwt_key = secrets.token_urlsafe(32)
 

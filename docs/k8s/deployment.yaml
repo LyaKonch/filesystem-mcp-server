@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: filesystem-mcp-server
+  labels:
+    app: filesystem-mcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: filesystem-mcp-server
+  template:
+    metadata:
+      labels:
+        app: filesystem-mcp-server
+    spec:
+      containers:
+        - name: filesystem-mcp-server
+          image: ghcr.io/example/filesystem-mcp-server:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: MCP_HOST
+              value: "0.0.0.0"
+            - name: MCP_PORT
+              value: "8000"
+          command: ["python", "main.py", "--transport", "http", "--host", "0.0.0.0", "--port", "8000", "--persist"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: filesystem-mcp-server
+spec:
+  selector:
+    app: filesystem-mcp-server
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: ClusterIP

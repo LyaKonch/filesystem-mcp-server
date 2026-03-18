@@ -1,0 +1,33 @@
+version: "3.9"
+
+services:
+  filesystem-mcp-server:
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: filesystem-mcp-server
+    env_file:
+      - .env
+    environment:
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 8000
+    ports:
+      - "8000:8000"
+    command: ["python", "main.py", "--transport", "http", "--host", "0.0.0.0", "--port", "8000", "--persist"]
+    restart: unless-stopped
+    volumes:
+      - ./.fastmcp_storage:/app/.fastmcp_storage
+      - ./debug.log:/app/debug.log
+      - ./fastmcp.log:/app/fastmcp.log
+
+  redis:
+    image: redis:7-alpine
+    container_name: filesystem-mcp-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:
