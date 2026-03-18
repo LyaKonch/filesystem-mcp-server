@@ -73,15 +73,14 @@ class ImageReader:
         try:
             return json.loads(raw_text)
         except json.JSONDecodeError:
-            return {
-                "description": raw_text.strip()
-            }
+            return {"description": raw_text.strip()}
 
-    async def describe_from_docx_image(self, image_object: dict[str, Any], ctx: Context) -> dict[str, Any]:
+    async def describe_from_docx_image(
+        self, image_object: dict[str, Any], ctx: Context
+    ) -> dict[str, Any]:
         data = image_object.get("data", {})
         image_b64 = data.get("bytes_b64", "")
         mime_type = data.get("content_type", "image/png")
         if not image_b64:
             raise ValueError("bytes_b64 is required in image_object.data")
         return await self.describe_base64(image_b64=image_b64, ctx=ctx, mime_type=mime_type)
-

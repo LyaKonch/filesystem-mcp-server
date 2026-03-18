@@ -26,13 +26,14 @@ def patch_uvicorn_config():
         "encoding": "utf-8",
         "formatter": "file_fmt",
     }
-    
+
     for logger_name in ["uvicorn", "uvicorn.error", "uvicorn.access"]:
         if logger_name in uvicorn.config.LOGGING_CONFIG["loggers"]:
             handlers = uvicorn.config.LOGGING_CONFIG["loggers"][logger_name].get("handlers", [])
             if "file" not in handlers:
                 handlers.append("file")
                 uvicorn.config.LOGGING_CONFIG["loggers"][logger_name]["handlers"] = handlers
+
 
 # def patched_configure_logging(
 #     level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] | int = "INFO",
@@ -41,62 +42,69 @@ def patch_uvicorn_config():
 #     **rich_kwargs: Any,
 # ) -> None:
 #     fastmcp_configure_logging(level=level, logger=logger, enable_rich_tracebacks=enable_rich_tracebacks, **rich_kwargs)
-    
+
 #     loggers_to_capture = [
 #         "fastmcp", "mcp", "uvicorn", "uvicorn.error", "uvicorn.access", "asyncio",
-#         "auth", "auth_middleware", "permissions",  
-#         "tools", "utilities" 
+#         "auth", "auth_middleware", "permissions",
+#         "tools", "utilities"
 #     ]
 
 #     for logger_name in loggers_to_capture:
 #         target_logger = logging.getLogger(logger_name)
-        
-#         has_same_file_handler = any(isinstance(h, logging.FileHandler) 
+
+#         has_same_file_handler = any(isinstance(h, logging.FileHandler)
 #                                 and getattr(h, 'baseFilename', None) == file_handler.baseFilename
 #                                 for h in target_logger.handlers)
 #         if not has_same_file_handler:
 #             target_logger.addHandler(file_handler)
-        
+
 #         target_logger.setLevel(logging.DEBUG)
 #         target_logger.propagate = True
 
 
-
 def initialize_logging():
     """Initialize logging for the FastMCP server and all modules."""
-    
+
     loggers_to_capture = [
-        "fastmcp", "mcp", "uvicorn", "uvicorn.error", "uvicorn.access", "asyncio",
-        "auth", "auth_middleware", "permissions",  
-        "tools", "utilities" 
+        "fastmcp",
+        "mcp",
+        "uvicorn",
+        "uvicorn.error",
+        "uvicorn.access",
+        "asyncio",
+        "auth",
+        "auth_middleware",
+        "permissions",
+        "tools",
+        "utilities",
     ]
-    
+
     for logger_name in loggers_to_capture:
         target_logger = logging.getLogger(logger_name)
-        
+
         has_same_file_handler = any(
-            isinstance(h, logging.FileHandler) 
-            and getattr(h, 'baseFilename', None) == file_handler.baseFilename
+            isinstance(h, logging.FileHandler)
+            and getattr(h, "baseFilename", None) == file_handler.baseFilename
             for h in target_logger.handlers
         )
-        
+
         if not has_same_file_handler:
             target_logger.addHandler(file_handler)
-        
+
         target_logger.setLevel(logging.DEBUG)
         target_logger.propagate = True
-    
+
     if settings.DEBUG:
         logging.basicConfig(
             level=logging.DEBUG,
             format="%(asctime)s [%(levelname)s] %(message)s",
             handlers=[
                 logging.FileHandler("debug.log"),
-            ]
+            ],
         )
 
     # ovveride uvicorn logging configuration
     patch_uvicorn_config()
-    
+
     # patch fastmcp logging configuration because all handlers are automatically cleared by starting server and i add them manually here for proper logging
     # fastmcp.utilities.logging.configure_logging = patched_configure_logging

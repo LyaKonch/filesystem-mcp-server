@@ -13,11 +13,14 @@ from config import settings
 
 module_logger = logging.getLogger("auth_permissions")
 
+
 class PermissionLevel:
     """Permission levels for users"""
-    GUEST = 0      # No auth, no access
-    USER = 1       # Authenticated, read-only access
-    ADMIN = 2      # Authenticated admin, full access
+
+    GUEST = 0  # No auth, no access
+    USER = 1  # Authenticated, read-only access
+    ADMIN = 2  # Authenticated admin, full access
+
 
 def check_github_account(ctx: Context):
     """Pulls user information from context"""
@@ -87,7 +90,9 @@ def check_github_account(ctx: Context):
             },
         }
     except Exception as e:
-        module_logger.error(f"Error in check_github_account: {type(e).__name__}: {e}", exc_info=True)
+        module_logger.error(
+            f"Error in check_github_account: {type(e).__name__}: {e}", exc_info=True
+        )
         return None
 
 
@@ -100,7 +105,7 @@ def get_github_user_id(ctx: Context) -> str | None:
         token_info = check_github_account(ctx)
         if token_info and token_info.get("user_id"):
             return str(token_info["user_id"])
-        
+
         return None
     except Exception as e:
         module_logger.debug(f"Could not extract GitHub user ID: {e}")
@@ -111,7 +116,7 @@ def is_authenticated(ctx: Context) -> bool:
     """Check if user is authenticated (has valid GitHub session)"""
     if not settings.AUTH_ENABLED:
         return True  # аuth disabled = everyone is "authenticated"
-    
+
     user_id = get_github_user_id(ctx)
     return user_id is not None
 
@@ -119,7 +124,7 @@ def is_authenticated(ctx: Context) -> bool:
 def is_admin(ctx: Context) -> bool:
     """
     Check if the authenticated user is an admin.
-    
+
     Returns:
         True if user is admin or if auth is disabled
         False if user is not admin or not authenticated
@@ -128,26 +133,26 @@ def is_admin(ctx: Context) -> bool:
         return True  # auth disabled = everyone is admin
 
     user_id = get_github_user_id(ctx)
-    
+
     if not user_id:
         module_logger.debug("No user ID found - not admin")
         return False
-    
+
     # сheck against admin list
     is_admin_user = user_id in settings.ADMIN_GITHUB_IDS
-    
+
     if is_admin_user:
         module_logger.debug(f"User {user_id} is admin")
     else:
         module_logger.debug(f"User {user_id} is not in admin list")
-    
+
     return is_admin_user
 
 
 def get_permission_level(ctx: Context) -> int:
     """
     Get permission level for current user.
-    
+
     Returns:
         PermissionLevel.ADMIN (2) - full access
         PermissionLevel.USER (1) - read-only access
@@ -155,13 +160,13 @@ def get_permission_level(ctx: Context) -> int:
     """
     if not settings.AUTH_ENABLED:
         return PermissionLevel.ADMIN  # No auth = full access
-    
+
     if is_admin(ctx):
         return PermissionLevel.ADMIN
-    
+
     if is_authenticated(ctx):
         return PermissionLevel.USER
-    
+
     return PermissionLevel.GUEST
 
 
@@ -170,13 +175,13 @@ def _extract_context_from_args(*args, **kwargs) -> Context | None:
     # Перевіряємо перший позиційний аргумент
     if args and isinstance(args[0], Context):
         return args[0]
-    
+
     # Перевіряємо kwargs
-    if 'ctx' in kwargs:
-        return kwargs['ctx']
-    if 'context' in kwargs:
-        return kwargs['context']
-    
+    if "ctx" in kwargs:
+        return kwargs["ctx"]
+    if "context" in kwargs:
+        return kwargs["context"]
+
     return None
 
 
@@ -184,62 +189,63 @@ def require_admin(operation: str = "this operation"):
     """
     Decorator to require admin privileges for a function/method.
     Auto-extracts Context from function arguments (first arg or 'ctx'/'context' kwarg).
-    
+
     Usage:
         @require_admin("delete file")
         async def delete_file(ctx: Context, path: str):
             ...
-    
+
     Args:
         operation: Description of the operation (for error message)
-    
+
     Raises:
         PermissionError: If user is not admin
         ValueError: If Context cannot be extracted from arguments
     """
+
     def decorator(func: Callable):
         @wraps(func)
         async def async_wrapper(*args, **kwargs):
             ctx = _extract_context_from_args(*args, **kwargs)
-            
+
             if not ctx:
                 raise ValueError(f"Could not extract Context from {func.__name__} arguments")
-            
+
             if not is_admin(ctx):
                 user_id = get_github_user_id(ctx) or "anonymous"
                 error_msg = f"Admin privileges required for {operation}. User: {user_id}"
                 module_logger.warning(f"🚫 Access denied: {error_msg}")
                 raise PermissionError(error_msg)
-            
+
             user_id = get_github_user_id(ctx)
             module_logger.info(f"✅ Admin operation authorized: {operation} by {user_id}")
-            
+
             return await func(*args, **kwargs)
-        
+
         @wraps(func)
         def sync_wrapper(*args, **kwargs):
             ctx = _extract_context_from_args(*args, **kwargs)
-            
+
             if not ctx:
                 raise ValueError(f"Could not extract Context from {func.__name__} arguments")
-            
+
             if not is_admin(ctx):
                 user_id = get_github_user_id(ctx) or "anonymous"
                 error_msg = f"Admin privileges required for {operation}. User: {user_id}"
                 module_logger.warning(f"🚫 Access denied: {error_msg}")
                 raise PermissionError(error_msg)
-            
+
             user_id = get_github_user_id(ctx)
             module_logger.info(f"✅ Admin operation authorized: {operation} by {user_id}")
-            
+
             return func(*args, **kwargs)
-        
+
         # server have sync and async tools, so it should be checked to return proper wrapper
         if inspect.iscoroutinefunction(func):
             return async_wrapper
         else:
             return sync_wrapper
-    
+
     return decorator
 
 
@@ -247,85 +253,87 @@ def require_auth(operation: str = "this operation"):
     """
     Decorator to require authentication for a function/method.
     Auto-extracts Context from function arguments (first arg or 'ctx'/'context' kwarg).
-    
+
     Usage:
         @require_auth("write file")
         async def write_file(ctx: Context, path: str, content: str):
             ...
-    
+
     Args:
         operation: Description of the operation (for error message)
-    
+
     Raises:
         PermissionError: If user is not authenticated
         ValueError: If Context cannot be extracted from arguments
     """
+
     def decorator(func: Callable):
         @wraps(func)
         async def async_wrapper(*args, **kwargs):
             ctx = _extract_context_from_args(*args, **kwargs)
-            
+
             if not ctx:
                 raise ValueError(f"Could not extract Context from {func.__name__} arguments")
-            
+
             # Перевірка автентифікації
             if not is_authenticated(ctx):
                 error_msg = f"Authentication required for {operation}"
                 module_logger.warning(f"🚫 Access denied: {error_msg}")
                 raise PermissionError(error_msg)
-            
+
             user_id = get_github_user_id(ctx)
             module_logger.debug(f"✅ Operation authorized: {operation} by {user_id}")
-            
+
             return await func(*args, **kwargs)
-        
+
         @wraps(func)
         def sync_wrapper(*args, **kwargs):
             ctx = _extract_context_from_args(*args, **kwargs)
-            
+
             if not ctx:
                 raise ValueError(f"Could not extract Context from {func.__name__} arguments")
-            
+
             # Перевірка автентифікації
             if not is_authenticated(ctx):
                 error_msg = f"Authentication required for {operation}"
                 module_logger.warning(f"🚫 Access denied: {error_msg}")
                 raise PermissionError(error_msg)
-            
+
             user_id = get_github_user_id(ctx)
             module_logger.debug(f"✅ Operation authorized: {operation} by {user_id}")
-            
+
             return func(*args, **kwargs)
-        
+
         # Визначаємо чи функція асинхронна
         if inspect.iscoroutinefunction(func):
             return async_wrapper
         else:
             return sync_wrapper
-    
+
     return decorator
+
 
 # should be expanded and elaborated
 # def can_access_tool(ctx: Context, tool_tags: list[str]) -> bool:
-#     
+#
 #     if not settings.AUTH_ENABLED:
 #         return True  # Auth disabled = all tools accessible
-    
+
 #     permission_level = get_permission_level(ctx)
-    
+
 #     # guest - no access
 #     if permission_level == PermissionLevel.GUEST:
 #         return False
-    
+
 #     # check for admin-only tags
 #     admin_tags = {'admin', 'dangerous'}
 #     if any(tag in admin_tags for tag in tool_tags):
 #         return permission_level == PermissionLevel.ADMIN
-    
+
 #     # Check for write operations (requires at least USER level)
 #     if 'write' in tool_tags:
 #         return permission_level >= PermissionLevel.USER
-    
+
 #     # Read-only operations - accessible to authenticated users
 #     return permission_level >= PermissionLevel.USER
 
@@ -333,7 +341,7 @@ def require_auth(operation: str = "this operation"):
 def log_user_connection(ctx: Context, event: str = "connected"):
     """
     Log user connection/disconnection events.
-    
+
     Args:
         ctx: FastMCP context
         event: Event type (connected, disconnected, etc.)
@@ -341,25 +349,25 @@ def log_user_connection(ctx: Context, event: str = "connected"):
     try:
         user_id = get_github_user_id(ctx) or "anonymous"
         permission_level = get_permission_level(ctx)
-        
+
         level_name = {
             PermissionLevel.GUEST: "GUEST",
             PermissionLevel.USER: "USER",
-            PermissionLevel.ADMIN: "ADMIN"
+            PermissionLevel.ADMIN: "ADMIN",
         }.get(permission_level, "UNKNOWN")
-        
+
         module_logger.info(f"👤 User {event}: {user_id} (Level: {level_name})")
-        
+
         # Additional metadata logging
-        if hasattr(ctx, 'session'):
+        if hasattr(ctx, "session"):
             session_info = {
                 "user_id": user_id,
                 "permission_level": level_name,
                 "event": event,
-                "auth_enabled": settings.AUTH_ENABLED
+                "auth_enabled": settings.AUTH_ENABLED,
             }
             module_logger.debug(f"Session info: {session_info}")
-            
+
     except Exception as e:
         module_logger.error(f"Error logging user connection: {e}")
 
@@ -367,23 +375,23 @@ def log_user_connection(ctx: Context, event: str = "connected"):
 def get_user_info(ctx: Context) -> dict:
     """
     Get formatted user information for logging/debugging.
-    
+
     Returns:
         Dictionary with user information
     """
     user_id = get_github_user_id(ctx)
     permission_level = get_permission_level(ctx)
-    
+
     level_name = {
         PermissionLevel.GUEST: "guest",
         PermissionLevel.USER: "user",
-        PermissionLevel.ADMIN: "admin"
+        PermissionLevel.ADMIN: "admin",
     }.get(permission_level, "unknown")
-    
+
     return {
         "user_id": user_id or "anonymous",
         "authenticated": is_authenticated(ctx),
         "is_admin": is_admin(ctx),
         "permission_level": level_name,
-        "auth_enabled": settings.AUTH_ENABLED
+        "auth_enabled": settings.AUTH_ENABLED,
     }

@@ -13,32 +13,34 @@ from cryptography.fernet import Fernet
 
 logger = logging.getLogger("fastmcp.storage")
 
+
 class KeyValueStore(ABC):
     """Abstract base class for Key-Value storage complying with FastMCP interface."""
-    
+
     @abstractmethod
     async def get(self, key: str, collection: str | None = None) -> Any:
         pass
 
     @abstractmethod
-    async def put(self, key: str, value: Any, collection: str | None = None, ttl: int | None = None) -> None:
+    async def put(
+        self, key: str, value: Any, collection: str | None = None, ttl: int | None = None
+    ) -> None:
         pass
 
     @abstractmethod
     async def delete(self, key: str, collection: str | None = None) -> None:
         pass
 
+
 class RedisStore(KeyValueStore):
-    def __init__(self, host: str = "localhost", port: int = 6379, db: int = 0, password: str = None):
+    def __init__(
+        self, host: str = "localhost", port: int = 6379, db: int = 0, password: str = None
+    ):
         if redis is None:
             raise ImportError("Redis library is not installed. Run 'pip install redis'")
-        
+
         self.redis = redis.Redis(
-            host=host, 
-            port=port, 
-            db=db, 
-            password=password, 
-            decode_responses=True 
+            host=host, port=port, db=db, password=password, decode_responses=True
         )
 
     def _make_key(self, key: str, collection: str | None) -> str:
@@ -51,7 +53,9 @@ class RedisStore(KeyValueStore):
             logger.error(f"Redis read error: {e}")
             return None
 
-    async def put(self, key: str, value: str, collection: str | None = None, ttl: int | None = None) -> None:
+    async def put(
+        self, key: str, value: str, collection: str | None = None, ttl: int | None = None
+    ) -> None:
         try:
             # ex=ttl встановлює час життя ключа в секундах
             await self.redis.set(self._make_key(key, collection), value, ex=ttl)
@@ -63,6 +67,7 @@ class RedisStore(KeyValueStore):
             await self.redis.delete(self._make_key(key, collection))
         except Exception as e:
             logger.error(f"Redis delete error: {e}")
+
 
 class DiskStore(KeyValueStore):
     def __init__(self, file_path: str = "mcp_storage.json"):
@@ -89,7 +94,9 @@ class DiskStore(KeyValueStore):
         coll = collection or "default"
         return data.get(coll, {}).get(key)
 
-    async def put(self, key: str, value: Any, collection: str | None = None, ttl: int | None = None) -> None:
+    async def put(
+        self, key: str, value: Any, collection: str | None = None, ttl: int | None = None
+    ) -> None:
         data = await self._load()
         coll = collection or "default"
         if coll not in data:
@@ -104,6 +111,7 @@ class DiskStore(KeyValueStore):
             del data[coll][key]
             await self._save(data)
 
+
 class FernetEncryptionWrapper(KeyValueStore):
     def __init__(self, store: KeyValueStore, fernet_key: str | bytes):
         self.store = store
@@ -117,7 +125,7 @@ class FernetEncryptionWrapper(KeyValueStore):
             return None
         try:
             decrypted = self.fernet.decrypt(encrypted_value.encode()).decode()
-            
+
             try:
                 return json.loads(decrypted)
             except json.JSONDecodeError:
@@ -127,17 +135,19 @@ class FernetEncryptionWrapper(KeyValueStore):
             logger.error(f"Decryption failed for key {key}: {e}")
             return None
 
-    async def put(self, key: str, value: Any, collection: str | None = None, ttl: int | None = None) -> None:
+    async def put(
+        self, key: str, value: Any, collection: str | None = None, ttl: int | None = None
+    ) -> None:
         try:
             if isinstance(value, dict):
                 value = json.dumps(value)
-            
+
             # Якщо value це число або щось інше, перетворюємо в рядок
             if not isinstance(value, str):
-                 value = str(value)
+                value = str(value)
 
             encrypted = self.fernet.encrypt(value.encode()).decode()
-            
+
             await self.store.put(key, encrypted, collection=collection, ttl=ttl)
         except Exception as e:
             logger.error(f"Encryption failed for key {key}: {e}")

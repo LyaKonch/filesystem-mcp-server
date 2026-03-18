@@ -20,15 +20,15 @@ class Settings(BaseSettings):
     FASTMCP_SERVER_AUTH_GITHUB_CLIENT_ID: str | None = None
     FASTMCP_SERVER_AUTH_GITHUB_CLIENT_SECRET: str | None = None
     FASTMCP_SERVER_AUTH_GITHUB_BASE_URL: str | None = None
-    
-    # admin GitHub user IDs 
+
+    # admin GitHub user IDs
     # write users in .env that you want to have access to potentially dangerous operations (delete, write, modify roots, etc.)
     # (comma-separated in .env: ADMIN_GITHUB_IDS=githubid,githubid2)])
     ADMIN_GITHUB_IDS: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
     # --- Security & Storage ---
     USE_PERSISTENT_STORAGE: bool = False
-    
+
     # turns out github jwt keys are opaque,so they verify them by calling GitHub's API
     JWT_SIGNING_KEY: str | None = None
     STORAGE_ENCRYPTION_KEY: str | None = None
@@ -37,13 +37,12 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6379
 
     # --- Filesystem Config ---
-    # Please specify allowed root directories for file operations 
+    # Please specify allowed root directories for file operations
     # (comma-separated as list items in .env: ALLOWED_ROOTS=["path1","path2"])
-    # in other formats pydantic validator will complain 
+    # in other formats pydantic validator will complain
     ALLOWED_ROOTS: list[Path] = Field(default_factory=list)
     ALLOW_CWD: bool = Field(
-        default=False,
-        description="Allow access to current working directory if no roots specified"
+        default=False, description="Allow access to current working directory if no roots specified"
     )
     # DOWNLOAD_DIR: str = "./for_download"
 
@@ -52,32 +51,28 @@ class Settings(BaseSettings):
     #     description="Allow access to subdirectories within roots (default: True)"
     # )
 
-    model_config = SettingsConfigDict(
-        env_file=".env", 
-        env_file_encoding="utf-8",
-        extra="ignore"
-    )
-    
-    @field_validator('ADMIN_GITHUB_IDS', mode='before')
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    @field_validator("ADMIN_GITHUB_IDS", mode="before")
     @classmethod
-    def parse_admin_ids(cls, v)-> list[str]:
+    def parse_admin_ids(cls, v) -> list[str]:
         """Parse comma-separated admin IDs from environment variable"""
         if isinstance(v, str):
             # split by comma and strip whitespace
-            return [id.strip() for id in v.split(',') if id.strip()]
+            return [id.strip() for id in v.split(",") if id.strip()]
         elif isinstance(v, list):
             return v
         return []
-    
-    @field_validator('ALLOWED_ROOTS', mode='before')
+
+    @field_validator("ALLOWED_ROOTS", mode="before")
     @classmethod
     def parse_allowed_roots(cls, v) -> list[Path]:
         """Parse comma-separated paths from environment variable"""
         if isinstance(v, str):
-            return [Path(p.strip()) for p in v.split(',') if p.strip()]
+            return [Path(p.strip()) for p in v.split(",") if p.strip()]
         elif isinstance(v, list):
             return [Path(p) if not isinstance(p, Path) else p for p in v]
         return []
 
-settings = Settings()    
 
+settings = Settings()

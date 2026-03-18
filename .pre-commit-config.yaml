@@ -2,6 +2,11 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.5
     hooks:
-      - id: ruff-check
-        args: [--fix]
       - id: ruff-format
+        args: [.]
+        pass_filenames: false
+        always_run: true
+      - id: ruff-check
+        args: [--fix, .]
+        pass_filenames: false
+        always_run: true
