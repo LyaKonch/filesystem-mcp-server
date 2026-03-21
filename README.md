@@ -80,6 +80,8 @@ python .\main.py --allow-cwd --no-auth --transport stdio
 - `USE_PERSISTENT_STORAGE`, `USE_REDIS`, `REDIS_HOST`, `REDIS_PORT`
 - `LOG_LEVEL`, `LOG_JSON`, `LOG_FILE`, `LOG_MAX_BYTES`, `LOG_BACKUP_COUNT`
 - `ERROR_LOCALE` (`uk` або `en`) для локалізації користувацьких повідомлень про помилки
+- `ERROR_REPORTS_FILE` (шлях до JSONL-файлу звітів про помилки від користувачів)
+- `ALERT_WEBHOOK_URL`, `ALERT_WEBHOOK_TIMEOUT_SEC` (вебхук для оповіщень про `CRITICAL` помилки)
 
 
 Так і через CLI прапорці:
@@ -108,6 +110,8 @@ python .\main.py --allow-cwd --no-auth --transport stdio
 - Для необроблених винятків встановлено глобальні hooks (`sys.excepthook`, `threading.excepthook`) з `error_id` (UUID).
 - Для критичних помилок сервера у `main.py` записується `error_id`, який можна дати користувачу для діагностики.
 - Для tool-викликів помилки проходять через єдиний error-boundary: користувач отримує локалізоване повідомлення, `Error ID`, короткі кроки відновлення та підказку повідомити ID у підтримку.
+- Для `CRITICAL` логів підтримано опційні webhook-оповіщення (якщо задано `ALERT_WEBHOOK_URL`).
+- Додано механізм збору технічних даних від користувача через tool `submit_error_report` (summary, error_id, кроки відтворення, system info, attachments) зі збереженням у `ERROR_REPORTS_FILE`.
 
 Для локальної розробки рекомендований режим:
 - `--no-auth`
@@ -145,6 +149,7 @@ python main.py --transport http --host 127.0.0.1 --port 8000 --persist
 - `list_allowed_roots()` - Показати всі доступні папки.
 - `add_allowed_root(path)` - Додати нову папку в білий список без перезапуску сервера.
 - `remove_root(path)` - Забрати доступ до папки.
+- `submit_error_report(summary, error_id?, reproduction_steps?, system_info?, attachments?)` - Надіслати технічний звіт про помилку для підтримки.
 
 ## Налаштування MCP Клієнта (Claude Desktop / Cursor)
 

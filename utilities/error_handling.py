@@ -5,6 +5,7 @@ from functools import wraps
 from typing import Any, cast
 
 from config import settings
+from utilities import logging as log_context
 from utilities.logging import log_exception_with_id
 
 _MESSAGES: dict[str, dict[str, str]] = {
@@ -62,6 +63,7 @@ def format_localized_error(
     *,
     error_code: str,
     error_id: str,
+    trace_id: str | None = None,
     details: str | None = None,
 ) -> str:
     locale = _locale()
@@ -86,6 +88,8 @@ def format_localized_error(
         lines.append(f"{i18n['details']}: {details}")
 
     lines.append(f"Error ID: {error_id}")
+    if trace_id:
+        lines.append(f"Trace ID: {trace_id}")
     lines.append(f"{i18n['actions']}:")
     lines.extend(actions)
     lines.append(i18n["report"])
@@ -100,24 +104,32 @@ def build_error_response(
     exc: Exception | None = None,
     **context: Any,
 ) -> str:
+    trace_id = log_context.trace_id_ctx.get()
     if exc is not None:
         error_id = log_exception_with_id(
             logger,
             "Tool execution failed",
             exc,
             error_code=error_code,
+            trace_id=trace_id,
             **context,
         )
     else:
         error_id = str(uuid.uuid4())
         logger.error(
             "Tool returned recoverable error",
-            extra={"error_id": error_id, "error_code": error_code, **context},
+            extra={
+                "error_id": error_id,
+                "trace_id": trace_id,
+                "error_code": error_code,
+                **context,
+            },
         )
 
     return format_localized_error(
         error_code=error_code,
         error_id=error_id,
+        trace_id=trace_id if trace_id != "-" else None,
         details=technical_details,
     )
 

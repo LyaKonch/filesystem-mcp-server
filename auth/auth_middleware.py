@@ -53,14 +53,42 @@ class AuthMiddleware(Middleware):
         user_id = get_github_user_id(ctx)
         return user_id if user_id else "-"
 
+    @staticmethod
+    def _extract_trace_id(context: MiddlewareContext, request_id: str) -> str:
+        message = getattr(context, "message", None)
+        if isinstance(message, Mapping):
+            direct = message.get("trace_id")
+            if isinstance(direct, str) and direct:
+                return direct
+
+            params = message.get("params")
+            if isinstance(params, Mapping):
+                param_trace = params.get("trace_id")
+                if isinstance(param_trace, str) and param_trace:
+                    return param_trace
+
+                meta = params.get("meta")
+                if isinstance(meta, Mapping):
+                    meta_trace = meta.get("trace_id")
+                    if isinstance(meta_trace, str) and meta_trace:
+                        return meta_trace
+
+        return request_id
+
     # this will be a dispatch method
     async def __call__(self, context: MiddlewareContext, call_next):
         request_id = str(uuid.uuid4())
         fastmcp_ctx: Context | None = context.fastmcp_context
         operation = self._extract_operation(context)
+        trace_id = self._extract_trace_id(context, request_id)
         user_id = self._extract_user_id(fastmcp_ctx)
 
-        set_log_context(request_id=request_id, user_id=user_id, operation=operation)
+        set_log_context(
+            request_id=request_id,
+            trace_id=trace_id,
+            user_id=user_id,
+            operation=operation,
+        )
         module_logger.debug("🔐 AuthMiddleware: Processing method %s", context.method)
 
         try:

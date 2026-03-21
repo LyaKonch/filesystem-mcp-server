@@ -1,4 +1,5 @@
 import datetime as dt
+import json
 import logging
 import logging.config
 import logging.handlers
@@ -8,6 +9,7 @@ import uuid
 from contextvars import ContextVar
 from pathlib import Path
 from typing import Any
+from urllib import request
 
 from config import settings
 
@@ -38,6 +40,7 @@ LOG_RECORD_BUILTIN_ATTRS = {
 }
 
 request_id_ctx: ContextVar[str] = ContextVar("request_id", default="-")
+trace_id_ctx: ContextVar[str] = ContextVar("trace_id", default="-")
 user_id_ctx: ContextVar[str] = ContextVar("user_id", default="-")
 operation_ctx: ContextVar[str] = ContextVar("operation", default="-")
 
@@ -92,16 +95,59 @@ class ErrorOnlyFilter(logging.Filter):
 class ContextFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         record.request_id = request_id_ctx.get()
+        record.trace_id = trace_id_ctx.get()
         record.user_id = user_id_ctx.get()
         record.operation = operation_ctx.get()
         return True
 
 
+class CriticalWebhookHandler(logging.Handler):
+    def emit(self, record: logging.LogRecord) -> None:
+        if record.levelno < logging.CRITICAL:
+            return
+
+        webhook_url = settings.ALERT_WEBHOOK_URL
+        if not webhook_url:
+            return
+
+        payload = {
+            "event": "critical_log_alert",
+            "timestamp": dt.datetime.fromtimestamp(record.created, tz=dt.UTC).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "error_id": getattr(record, "error_id", None),
+            "request_id": getattr(record, "request_id", "-"),
+            "trace_id": getattr(record, "trace_id", "-"),
+            "user_id": getattr(record, "user_id", "-"),
+            "operation": getattr(record, "operation", "-"),
+        }
+
+        req = request.Request(
+            webhook_url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+
+        try:
+            with request.urlopen(req, timeout=settings.ALERT_WEBHOOK_TIMEOUT_SEC):
+                return
+        except Exception:
+            self.handleError(record)
+
+
 def set_log_context(
-    *, request_id: str | None = None, user_id: str | None = None, operation: str | None = None
+    *,
+    request_id: str | None = None,
+    trace_id: str | None = None,
+    user_id: str | None = None,
+    operation: str | None = None,
 ) -> None:
     if request_id is not None:
         request_id_ctx.set(request_id)
+    if trace_id is not None:
+        trace_id_ctx.set(trace_id)
     if user_id is not None:
         user_id_ctx.set(user_id)
     if operation is not None:
@@ -110,6 +156,7 @@ def set_log_context(
 
 def clear_log_context() -> None:
     request_id_ctx.set("-")
+    trace_id_ctx.set("-")
     user_id_ctx.set("-")
     operation_ctx.set("-")
 
@@ -123,7 +170,7 @@ def _ensure_log_dir(log_file: str) -> None:
 def _build_logging_config(log_level: str, json_logs: bool) -> dict[str, Any]:
     file_format = (
         "%(asctime)s [%(levelname)s] [%(name)s] "
-        "[request_id=%(request_id)s user_id=%(user_id)s op=%(operation)s] %(message)s"
+        "[request_id=%(request_id)s trace_id=%(trace_id)s user_id=%(user_id)s op=%(operation)s] %(message)s"
     )
 
     return {
@@ -147,6 +194,7 @@ def _build_logging_config(log_level: str, json_logs: bool) -> dict[str, Any]:
                     "module": "module",
                     "line": "lineno",
                     "request_id": "request_id",
+                    "trace_id": "trace_id",
                     "user_id": "user_id",
                     "operation": "operation",
                 },
@@ -177,10 +225,15 @@ def _build_logging_config(log_level: str, json_logs: bool) -> dict[str, Any]:
                 "backupCount": settings.LOG_BACKUP_COUNT,
                 "encoding": "utf-8",
             },
+            "critical_webhook": {
+                "class": "utilities.logging.CriticalWebhookHandler",
+                "level": "CRITICAL",
+                "filters": ["context"],
+            },
         },
         "root": {
             "level": log_level,
-            "handlers": ["stdout", "stderr", "rotating_file"],
+            "handlers": ["stdout", "stderr", "rotating_file", "critical_webhook"],
         },
         "loggers": {
             "uvicorn": {"propagate": True},
