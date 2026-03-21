@@ -1,3 +1,4 @@
+import logging
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Literal, cast
@@ -11,7 +12,7 @@ from auth.auth_middleware import create_auth_middleware
 from config import settings
 from tools import file_transfer, filesystem, monitoring, server_management
 from utilities import dependencies
-from utilities.logging import initialize_logging
+from utilities.logging import initialize_logging, log_exception_with_id
 
 
 def parse_command_line_args():
@@ -46,12 +47,31 @@ def parse_command_line_args():
         type=str,
         help="transport method for the server. stdio/sse/http",
     )
-    parser.add_argument("--host", type=str, help="Host to bind (for SSE)")
-    parser.add_argument("--port", type=int, help="Port to bind (for SSE)")
+    parser.add_argument(
+        "--host",
+        type=str,
+        help="Host to bind (for SSE)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        help="Port to bind (for SSE)",
+    )
     parser.add_argument(
         "--debug",
         action="store_true",
         help="Enable debug mode with verbose logging",
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Minimal logging level (overrides LOG_LEVEL env variable)",
+    )
+    parser.add_argument(
+        "--log-json",
+        action="store_true",
+        help="Enable JSON log format for console and file handlers",
     )
 
     parser.add_argument("--no-auth", action="store_true", help="Disable authentication entirely")
@@ -82,6 +102,11 @@ def parse_command_line_args():
     if args.port:
         settings.MCP_PORT = args.port
 
+    if args.log_level:
+        settings.LOG_LEVEL = args.log_level.upper()
+    if args.log_json:
+        settings.LOG_JSON = True
+
     dependencies.logger.info(f"Configured roots: {settings.ALLOWED_ROOTS}")
 
     if args.no_auth or args.transport == "stdio":
@@ -98,7 +123,24 @@ def parse_command_line_args():
 
 
 if __name__ == "__main__":
-    parse_command_line_args()
+    args = parse_command_line_args()
+
+    if args.debug:
+        settings.DEBUG = True
+        settings.LOG_LEVEL = "DEBUG"
+
+    initialize_logging(settings.LOG_LEVEL, settings.LOG_JSON)
+    logger = logging.getLogger("filesystem_mcp.main")
+
+    logger.info(
+        "Application startup",
+        extra={
+            "transport": settings.TRANSPORT,
+            "host": settings.MCP_HOST,
+            "port": settings.MCP_PORT,
+            "auth_enabled": settings.AUTH_ENABLED,
+        },
+    )
 
     auth_provider = get_auth_provider()
 
@@ -107,13 +149,10 @@ if __name__ == "__main__":
         instructions="Secure filesystem access and system monitoring.",
         auth=auth_provider,
     )
-
-    initialize_logging()
-
     if settings.AUTH_ENABLED:
         authmiddleware = create_auth_middleware()
         mcp.add_middleware(authmiddleware)
-        dependencies.logger.info("🔐 Auth middleware registered .")
+        logger.info("Auth middleware registered")
 
     file_transfer.ft_register_routes(mcp)
     filesystem.register(mcp)
@@ -129,20 +168,36 @@ if __name__ == "__main__":
         )
     ]
 
-    dependencies.logger.info(
+    logger.info(
         f"Starting Server | Transport: {settings.TRANSPORT} | Auth: {settings.AUTH_ENABLED}"
     )
     if settings.TRANSPORT != "stdio":
-        dependencies.logger.info(f"Listening on {settings.MCP_HOST}:{settings.MCP_PORT}")
-    # here it enters the loop
-    if settings.TRANSPORT == "stdio":
-        mcp.run(
-            transport=cast(Literal["stdio"], settings.TRANSPORT),
-        )
-    else:
-        mcp.run(
-            transport=cast(Literal["stdio", "http", "sse", "streamable-http"], settings.TRANSPORT),
+        logger.info(f"Listening on {settings.MCP_HOST}:{settings.MCP_PORT}")
+    try:
+        # here it enters the loop
+        if settings.TRANSPORT == "stdio":
+            mcp.run(
+                transport=cast(Literal["stdio"], settings.TRANSPORT),
+            )
+        else:
+            mcp.run(
+                transport=cast(
+                    Literal["stdio", "http", "sse", "streamable-http"], settings.TRANSPORT
+                ),
+                host=settings.MCP_HOST,
+                port=settings.MCP_PORT,
+                middleware=asgi_middlewares,
+            )
+    except Exception as exc:
+        error_id = log_exception_with_id(
+            logger,
+            "Fatal server error",
+            exc,
+            transport=settings.TRANSPORT,
             host=settings.MCP_HOST,
             port=settings.MCP_PORT,
-            middleware=asgi_middlewares,
         )
+        logger.error(f"Server terminated with fatal error_id={error_id}")
+        raise
+    finally:
+        logger.info("Application shutdown")
