@@ -5,6 +5,7 @@ from fastmcp import Context
 
 from config import settings
 from utilities import dependencies
+from utilities.error_handling import tool_error_boundary
 
 module_logger = logging.getLogger(__name__)
 
@@ -120,8 +121,8 @@ async def remove_root(root: str) -> str:
 
 
 def register(mcp):
-    mcp.tool(tags=["management"])(get_server_status)
-    mcp.tool(tags=["management", "admin"])(add_allowed_root)
-    mcp.tool(tags=["management"])(list_allowed_roots)
-    mcp.tool(tags=["management", "admin"])(update_roots)
-    mcp.tool(tags=["management", "admin"])(remove_root)
+    mcp.tool(tags=["management"])(tool_error_boundary(get_server_status, module_logger))
+    mcp.tool(tags=["management", "admin"])(tool_error_boundary(add_allowed_root, module_logger))
+    mcp.tool(tags=["management"])(tool_error_boundary(list_allowed_roots, module_logger))
+    mcp.tool(tags=["management", "admin"])(tool_error_boundary(update_roots, module_logger))
+    mcp.tool(tags=["management", "admin"])(tool_error_boundary(remove_root, module_logger))

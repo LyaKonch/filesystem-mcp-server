@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Literal
 from urllib.parse import unquote, urlparse
@@ -43,7 +44,30 @@ def uri_to_path(uri: str) -> Path:
     p = urlparse(uri)
     if p.scheme != "file":
         raise ValueError(f"URI must start with file:// or another scheme but not {p.scheme}")
-    file = Path(unquote(p.path))
+
+    raw_path = unquote(p.path or "")
+    raw_netloc = unquote(p.netloc or "")
+
+    if os.name == "nt":
+        if raw_netloc:
+            if raw_netloc.lower() == "localhost":
+                raw_netloc = ""
+            elif len(raw_netloc) == 2 and raw_netloc[1] == ":":
+                raw_path = f"{raw_netloc}{raw_path}"
+            elif re.match(r"^[A-Za-z]:", raw_netloc):
+                raw_path = raw_netloc
+            else:
+                raise ValueError(f"Remote file URI host '{raw_netloc}' is not supported")
+
+        if re.match(r"^/[A-Za-z]:", raw_path):
+            raw_path = raw_path[1:]
+
+        raw_path = re.sub(r"^([A-Za-z]):(?![\\/])", r"\1:/", raw_path)
+    else:
+        if raw_netloc and raw_netloc.lower() != "localhost":
+            raise ValueError(f"Remote file URI host '{raw_netloc}' is not supported")
+
+    file = Path(raw_path)
     return check_path(file)
 
 

@@ -142,16 +142,19 @@ if __name__ == "__main__":
     logger.info("Configured roots: %s", settings.ALLOWED_ROOTS)
 
     auth_provider = get_auth_provider()
+    if settings.AUTH_ENABLED and auth_provider is None:
+        logger.warning("Auth is enabled but auth provider failed to initialize; disabling auth")
+        settings.AUTH_ENABLED = False
 
     mcp = FastMCP(
         name="Filesystem & Monitor",
         instructions="Secure filesystem access and system monitoring.",
         auth=auth_provider,
     )
-    if settings.AUTH_ENABLED:
-        authmiddleware = create_auth_middleware()
-        mcp.add_middleware(authmiddleware)
-        logger.info("Auth middleware registered")
+
+    authmiddleware = create_auth_middleware()
+    mcp.add_middleware(authmiddleware)
+    logger.info("Auth middleware registered")
 
     file_transfer.ft_register_routes(mcp)
     filesystem.register(mcp)

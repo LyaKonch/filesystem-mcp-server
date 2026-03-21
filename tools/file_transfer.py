@@ -9,6 +9,7 @@ from starlette.responses import FileResponse, JSONResponse, Response
 
 from config import settings
 from utilities import dependencies
+from utilities.error_handling import tool_error_boundary
 
 module_logger = logging.getLogger(__name__)
 
@@ -118,4 +119,6 @@ def ft_register_routes(mcp: FastMCP):
             )
 
     mcp.custom_route("/download", methods=["GET"])(download_file)
-    mcp.tool("prepare_file_for_download")(prepare_file_for_download)
+    mcp.tool("prepare_file_for_download")(
+        tool_error_boundary(prepare_file_for_download, module_logger)
+    )

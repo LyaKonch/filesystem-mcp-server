@@ -24,6 +24,9 @@ class PermissionLevel:
 
 def check_github_account(ctx: Context):
     """Pulls user information from context"""
+    if not settings.AUTH_ENABLED:
+        return None
+
     try:
         user: AuthenticatedUser | None = None
         token: Any | None = None
@@ -44,7 +47,11 @@ def check_github_account(ctx: Context):
             if request is None:
                 module_logger.debug("No request object in request_context")
                 return None
-            user = request.user
+            try:
+                user = request.user
+            except AssertionError as exc:
+                module_logger.debug("request.user is unavailable: %s", exc)
+                return None
             if user:
                 module_logger.debug(f"Got user: {user}")
                 token = user.access_token
@@ -94,7 +101,7 @@ def check_github_account(ctx: Context):
         }
     except Exception as e:
         module_logger.error(
-            f"Error in check_github_account: {type(e).__name__}: {e}", exc_info=True
+            "Error in check_github_account: %s: %s", type(e).__name__, e, exc_info=True
         )
         return None
 

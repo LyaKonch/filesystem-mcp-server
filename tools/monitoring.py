@@ -1,3 +1,4 @@
+import logging
 import platform
 import socket
 import sys
@@ -5,6 +6,10 @@ from datetime import datetime
 
 import psutil
 from fastmcp import Context
+
+from utilities.error_handling import tool_error_boundary
+
+module_logger = logging.getLogger(__name__)
 
 
 async def get_system_resource_usage(ctx: Context) -> dict:
@@ -88,6 +93,6 @@ async def get_system_info(ctx: Context) -> dict:
 
 def register(mcp):
     # function for registering monitoring functions as tools in the MCP server, e.g. router
-    mcp.tool(tags=["monitoring"])(get_system_resource_usage)
-    mcp.tool(tags=["monitoring"])(get_disk_status)
-    mcp.tool(tags=["monitoring"])(get_system_info)
+    mcp.tool(tags=["monitoring"])(tool_error_boundary(get_system_resource_usage, module_logger))
+    mcp.tool(tags=["monitoring"])(tool_error_boundary(get_disk_status, module_logger))
+    mcp.tool(tags=["monitoring"])(tool_error_boundary(get_system_info, module_logger))

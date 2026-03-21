@@ -79,6 +79,7 @@ python .\main.py --allow-cwd --no-auth --transport stdio
 - `ALLOWED_ROOTS`
 - `USE_PERSISTENT_STORAGE`, `USE_REDIS`, `REDIS_HOST`, `REDIS_PORT`
 - `LOG_LEVEL`, `LOG_JSON`, `LOG_FILE`, `LOG_MAX_BYTES`, `LOG_BACKUP_COUNT`
+- `ERROR_LOCALE` (`uk` або `en`) для локалізації користувацьких повідомлень про помилки
 
 
 Так і через CLI прапорці:
@@ -106,6 +107,7 @@ python .\main.py --allow-cwd --no-auth --transport stdio
 - Підтримується контекст логування: `request_id`, `user_id`, `operation`.
 - Для необроблених винятків встановлено глобальні hooks (`sys.excepthook`, `threading.excepthook`) з `error_id` (UUID).
 - Для критичних помилок сервера у `main.py` записується `error_id`, який можна дати користувачу для діагностики.
+- Для tool-викликів помилки проходять через єдиний error-boundary: користувач отримує локалізоване повідомлення, `Error ID`, короткі кроки відновлення та підказку повідомити ID у підтримку.
 
 Для локальної розробки рекомендований режим:
 - `--no-auth`
