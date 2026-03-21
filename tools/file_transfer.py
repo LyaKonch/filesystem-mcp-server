@@ -1,3 +1,4 @@
+import logging
 import secrets
 import time
 from pathlib import Path
@@ -8,6 +9,8 @@ from starlette.responses import FileResponse, JSONResponse, Response
 
 from config import settings
 from utilities import dependencies
+
+module_logger = logging.getLogger(__name__)
 
 # token -> (filename, expires_at)
 _download_tokens: dict[str, tuple[Path, float]] = {}
@@ -55,7 +58,7 @@ async def prepare_file_for_download(file_path: str, ctx: Context) -> str:
             file_path, ctx, must_exist=True, expected_type="file"
         )
     except ValueError as e:
-        dependencies.logger.error(
+        module_logger.error(
             f"File {file_path} is not valid or accessible or not within allowed roots: {e}"
         )
         raise
@@ -84,7 +87,7 @@ def ft_register_routes(mcp: FastMCP):
         else:
             return JSONResponse({"error": "Download token is required"}, status_code=400)
 
-        dependencies.logger.info(f"Received download request for file: {file_path.name}")
+        module_logger.info("Received download request for file: %s", file_path.name)
 
         try:
             # we dont have mcp context on custom route, so here we aren't able to check roots or permissions,
@@ -92,9 +95,7 @@ def ft_register_routes(mcp: FastMCP):
             # may be a security breach if roots are changed too fast
             checked_path = dependencies.check_path(file_path, check_existence=True)
             if checked_path.is_file():
-                dependencies.logger.info(
-                    f"File {checked_path.name} is valid and ready for download."
-                )
+                module_logger.info("File %s is valid and ready for download.", checked_path.name)
                 return FileResponse(
                     checked_path,
                     media_type="application/octet-stream",
@@ -108,7 +109,7 @@ def ft_register_routes(mcp: FastMCP):
                 status_code=404,
             )
         except ValueError as e:
-            dependencies.logger.warning(f"File {file_path.name} is not valid or accessible: {e}")
+            module_logger.warning("File %s is not valid or accessible: %s", file_path.name, e)
             return JSONResponse(
                 {
                     "status": "error",

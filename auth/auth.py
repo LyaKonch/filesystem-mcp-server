@@ -1,3 +1,4 @@
+import logging
 import secrets
 from pathlib import Path
 from typing import Any
@@ -5,7 +6,6 @@ from typing import Any
 from fastmcp.server.auth.providers.github import GitHubProvider
 
 from config import settings
-from utilities.dependencies import logger
 
 # these imports down here are in plans to be implemented.
 # Redis Store for KeyValueStore interface from redis client and cryptography packets are needed
@@ -16,6 +16,8 @@ from utilities.storage import (
     RedisStore,
 )
 
+module_logger = logging.getLogger(__name__)
+
 
 def get_auth_provider() -> GitHubProvider | None:
     """
@@ -24,23 +26,23 @@ def get_auth_provider() -> GitHubProvider | None:
     """
 
     if not settings.AUTH_ENABLED:
-        logger.warning("🚫 Authentication DISABLED.")
-        logger.warning("   All users have FULL ACCESS to all tools!")
-        logger.warning("   Remove --no-auth flag to enable authentication.")
+        module_logger.warning("🚫 Authentication DISABLED.")
+        module_logger.warning("   All users have FULL ACCESS to all tools!")
+        module_logger.warning("   Remove --no-auth flag to enable authentication.")
         return None
 
     if not settings.FASTMCP_SERVER_AUTH_GITHUB_CLIENT_ID:
-        logger.error("❌ Auth enabled but Client ID missing via .env or CLI.")
+        module_logger.error("❌ Auth enabled but Client ID missing via .env or CLI.")
         return None
 
     if settings.ADMIN_GITHUB_IDS:
-        logger.info(f"👑 Admin users configured: {len(settings.ADMIN_GITHUB_IDS)}")
+        module_logger.info(f"👑 Admin users configured: {len(settings.ADMIN_GITHUB_IDS)}")
         for admin_id in settings.ADMIN_GITHUB_IDS:
-            logger.info(f"   - {admin_id}")
+            module_logger.info(f"   - {admin_id}")
     else:
-        logger.warning("⚠️  No admin users configured!")
-        logger.warning("   All authenticated users will have READ-ONLY access.")
-        logger.warning("   Add ADMIN_GITHUB_IDS to .env for admin privileges.")
+        module_logger.warning("⚠️  No admin users configured!")
+        module_logger.warning("   All authenticated users will have READ-ONLY access.")
+        module_logger.warning("   Add ADMIN_GITHUB_IDS to .env for admin privileges.")
 
     # checking for keys to decide on storage type (persistent or in-memory)
     #  and
@@ -51,7 +53,7 @@ def get_auth_provider() -> GitHubProvider | None:
 
     if has_keys and should_persist:
         # production( with encryption and persistence) ===
-        logger.info("🔒 Using PERSISTENT storage (Encrypted).")
+        module_logger.info("🔒 Using PERSISTENT storage (Encrypted).")
 
         jwt_key = settings.JWT_SIGNING_KEY or secrets.token_urlsafe(32)
 
@@ -59,10 +61,10 @@ def get_auth_provider() -> GitHubProvider | None:
         backend: RedisStore | DiskStore
         if settings.USE_REDIS:
             try:
-                logger.info(f"💾 Connecting to Redis at {settings.REDIS_HOST}...")
+                module_logger.info(f"💾 Connecting to Redis at {settings.REDIS_HOST}...")
                 backend = RedisStore(host=settings.REDIS_HOST, port=settings.REDIS_PORT)
             except Exception as e:
-                logger.error(f"❌ Redis failed: {e}. Fallback to Disk.")
+                module_logger.error(f"❌ Redis failed: {e}. Fallback to Disk.")
                 backend = DiskStore(".fastmcp_storage")
         else:
             # Local Disk
@@ -73,16 +75,16 @@ def get_auth_provider() -> GitHubProvider | None:
 
         # encrypting
         if settings.STORAGE_ENCRYPTION_KEY is None:
-            logger.error("Missing STORAGE_ENCRYPTION_KEY while persistence is enabled")
+            module_logger.error("Missing STORAGE_ENCRYPTION_KEY while persistence is enabled")
             return None
         client_storage = FernetEncryptionWrapper(backend, settings.STORAGE_ENCRYPTION_KEY)
 
     else:
         # for dev/demo or quick usage ===
-        logger.warning("⚠️  Running in EPHEMERAL mode (In-Memory).")
-        logger.warning("   -> Logins will be lost on server restart.")
+        module_logger.warning("⚠️  Running in EPHEMERAL mode (In-Memory).")
+        module_logger.warning("   -> Logins will be lost on server restart.")
         if not has_keys:
-            logger.info("   -> Reason: Encryption keys not found in .env")
+            module_logger.info("   -> Reason: Encryption keys not found in .env")
 
         # using in-memory storage( no point in encrypting therefore)
         client_storage = None

@@ -107,8 +107,6 @@ def parse_command_line_args():
     if args.log_json:
         settings.LOG_JSON = True
 
-    dependencies.logger.info(f"Configured roots: {settings.ALLOWED_ROOTS}")
-
     if args.no_auth or args.transport == "stdio":
         settings.AUTH_ENABLED = False
 
@@ -141,6 +139,7 @@ if __name__ == "__main__":
             "auth_enabled": settings.AUTH_ENABLED,
         },
     )
+    logger.info("Configured roots: %s", settings.ALLOWED_ROOTS)
 
     auth_provider = get_auth_provider()
 
@@ -169,10 +168,12 @@ if __name__ == "__main__":
     ]
 
     logger.info(
-        f"Starting Server | Transport: {settings.TRANSPORT} | Auth: {settings.AUTH_ENABLED}"
+        "Starting Server | Transport: %s | Auth: %s",
+        settings.TRANSPORT,
+        settings.AUTH_ENABLED,
     )
     if settings.TRANSPORT != "stdio":
-        logger.info(f"Listening on {settings.MCP_HOST}:{settings.MCP_PORT}")
+        logger.info("Listening on %s:%s", settings.MCP_HOST, settings.MCP_PORT)
     try:
         # here it enters the loop
         if settings.TRANSPORT == "stdio":
@@ -197,7 +198,7 @@ if __name__ == "__main__":
             host=settings.MCP_HOST,
             port=settings.MCP_PORT,
         )
-        logger.error(f"Server terminated with fatal error_id={error_id}")
+        logger.error("Server terminated with fatal error_id=%s", error_id)
         raise
     finally:
         logger.info("Application shutdown")

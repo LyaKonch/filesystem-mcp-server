@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 from collections import defaultdict
@@ -9,6 +10,8 @@ from fastmcp import Context
 from utilities import dependencies
 from utilities.filereader import FileReader
 from utilities.imagereader import ImageReader
+
+module_logger = logging.getLogger(__name__)
 
 
 class DirectoryEntry(TypedDict):
@@ -87,8 +90,8 @@ async def read_file(path: str, ctx: Context, include_images: bool = False):
                                     obj["data"].pop("bytes_b64", None)
                                     # obj["data"].pop("sha1", None)
                                 except Exception as e:
-                                    dependencies.logger.warning(
-                                        f"Failed to describe image {obj['id']}: {e}"
+                                    module_logger.warning(
+                                        "Failed to describe image %s: %s", obj["id"], e
                                     )
 
             return file_data
@@ -282,7 +285,7 @@ async def analyze_directory_security(path: str, ctx: Context) -> str:
         }
         # archive_extensions = {'.zip', '.rar', '.7z', '.tar', '.gz', '.bz2'}
 
-        dependencies.logger.info(f"Starting comprehensive analysis of {target_path}")
+        module_logger.info("Starting comprehensive analysis of %s", target_path)
 
         for root, dirs, files in os.walk(target_path):
             current_depth = len(Path(root).relative_to(target_path).parts)
@@ -535,10 +538,10 @@ async def analyze_directory_security(path: str, ctx: Context) -> str:
                     return f"{basic_analysis}\n\n🤖 AI COMPREHENSIVE ANALYSIS:\n{str(ai_response)}"
 
                 except Exception as e:
-                    dependencies.logger.warning(f"AI analysis failed: {e}")
+                    module_logger.warning("AI analysis failed: %s", e)
 
         except Exception as e:
-            dependencies.logger.warning(f"Error checking sampling capability: {e}")
+            module_logger.warning("Error checking sampling capability: %s", e)
 
         return basic_analysis
 
@@ -872,11 +875,11 @@ async def get_creative_file_description(path: str, ctx: Context) -> str:
                 )
                 return str(response)
             except Exception as e:
-                dependencies.logger.warning(f"Sampling failed: {e}")
+                module_logger.warning("Sampling failed: %s", e)
                 # Fallback if sampling fails
                 pass
     except Exception as e:
-        dependencies.logger.warning(f"Error checking sampling capability: {e}")
+        module_logger.warning("Error checking sampling capability: %s", e)
 
     # Default response without sampling
     return f"Analysis of file content:\n\n{content_summary}"

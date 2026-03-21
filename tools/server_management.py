@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from fastmcp import Context
@@ -5,10 +6,12 @@ from fastmcp import Context
 from config import settings
 from utilities import dependencies
 
+module_logger = logging.getLogger(__name__)
+
 
 async def get_server_status(ctx: Context) -> dict:
     """Get information about server status, client features, and allowed roots."""
-    dependencies.logger.info("Checking server status")
+    module_logger.info("Checking server status")
 
     features = {
         "elicitation": dependencies.checkElicitationCapability(ctx.session),
@@ -23,7 +26,7 @@ async def get_server_status(ctx: Context) -> dict:
             if roots:
                 client_roots_list = [str(r) for r in roots]
         except Exception as e:
-            dependencies.logger.warning(f"Error getting client roots: {e}")
+            module_logger.warning("Error getting client roots: %s", e)
 
     return {
         "transport": settings.TRANSPORT,

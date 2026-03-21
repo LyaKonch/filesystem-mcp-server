@@ -1,4 +1,5 @@
 import base64
+import logging
 from pathlib import Path
 from typing import Any, cast
 
@@ -11,7 +12,7 @@ from docx.text.hyperlink import Hyperlink
 from docx.text.paragraph import Paragraph, Run
 from openpyxl import load_workbook
 
-from utilities.dependencies import logger
+module_logger = logging.getLogger(__name__)
 
 
 class FileReader:
@@ -76,7 +77,7 @@ class FileReader:
         try:
             reader = self.readers.get(ext, self._read_text)
         except Exception as e:  # fallback на text
-            logger.error(
+            module_logger.error(
                 f"File with unsupported extension detected for {path}: {e}\n Falling back to text reader."
             )
             reader = self._read_text
@@ -312,7 +313,7 @@ class FileReader:
                                 }
                             )
             except Exception as e:
-                logger.error(f"Failed to extract tables from page {i}: {e}")
+                module_logger.error("Failed to extract tables from page %s: %s", i, e)
 
             # Add main text
             text_lines.append(text)
@@ -361,7 +362,9 @@ class FileReader:
                             image_payload["mime_type"] = base_image.get("colorspace", "")
                     except Exception as e:
                         # If extraction fails, just skip the image data
-                        logger.error(f"Failed to extract image {xref} from page {i}: {e}")
+                        module_logger.error(
+                            "Failed to extract image %s from page %s: %s", xref, i, e
+                        )
 
                 current_page_media.append(image_data)
 

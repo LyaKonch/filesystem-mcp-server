@@ -10,7 +10,7 @@ from mcp.types import ClientCapabilities, ElicitationCapability, RootsCapability
 
 from config import settings
 
-logger = logging.getLogger("fastmcp")
+logger = logging.getLogger(__name__)
 
 
 async def get_combined_roots(context: fastmcp.Context) -> list[Path]:
@@ -61,7 +61,7 @@ def check_path(value: Path | str, check_existence: bool = True) -> Path:
         return value
 
     except (TypeError, ValueError, OSError) as exc:
-        logger.error(f"Invalid path specified: {value}", exc_info=exc)
+        logger.error("Invalid path specified: %s", value, exc_info=exc)
         raise
 
 
@@ -102,12 +102,12 @@ async def fetch_roots_from_client(context: fastmcp.Context) -> list[Path] | None
                 for root in roots:
                     file_url = uri_to_path(str(root.uri))
                     uris.append(file_url)
-                logger.info(f"Fetched roots from client: {uris}")
+                logger.info("Fetched roots from client: %s", uris)
                 return uris
             else:
                 logger.debug("No roots available from client")
         except Exception as e:
-            logger.error(f"Error fetching roots from client: {e}")
+            logger.error("Error fetching roots from client: %s", e)
     return None
 
 
