@@ -1,3 +1,5 @@
+"""Authentication provider configuration for the MCP server."""
+
 import logging
 import secrets
 from pathlib import Path
@@ -26,7 +28,6 @@ def get_auth_provider() -> GitHubProvider | None:
         GitHubProvider | None: Provider instance, or ``None`` when auth is disabled
         or configuration is incomplete.
     """
-
     if not settings.AUTH_ENABLED:
         module_logger.warning("🚫 Authentication DISABLED.")
         module_logger.warning("   All users have FULL ACCESS to all tools!")

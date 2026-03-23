@@ -1,3 +1,5 @@
+"""Runtime management tools for server status, roots, and support reports."""
+
 import logging
 from pathlib import Path
 

@@ -1,3 +1,5 @@
+"""Structured logging configuration and runtime context helpers."""
+
 import datetime as dt
 import json
 import logging
@@ -49,10 +51,12 @@ class MyJSONFormatter(logging.Formatter):
     """Formatter that emits structured JSON logs."""
 
     def __init__(self, *, fmt_keys: dict[str, str] | None = None):
+        """Initialize formatter with mapping of output keys to record fields."""
         super().__init__()
         self.fmt_keys = fmt_keys if fmt_keys is not None else {}
 
     def format(self, record: logging.LogRecord) -> str:
+        """Serialize a log record as JSON string."""
         message = self._prepare_log_dict(record)
         import json
 
@@ -88,6 +92,7 @@ class NonErrorFilter(logging.Filter):
     """Allow only records up to INFO level."""
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """Return ``True`` when record level is INFO or lower."""
         return record.levelno <= logging.INFO
 
 
@@ -95,6 +100,7 @@ class ErrorOnlyFilter(logging.Filter):
     """Allow only WARNING and higher level records."""
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """Return ``True`` when record level is WARNING or higher."""
         return record.levelno >= logging.WARNING
 
 
@@ -102,6 +108,7 @@ class ContextFilter(logging.Filter):
     """Inject request context fields into each log record."""
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """Attach request context fields to the log record."""
         record.request_id = request_id_ctx.get()
         record.trace_id = trace_id_ctx.get()
         record.user_id = user_id_ctx.get()
@@ -113,6 +120,7 @@ class CriticalWebhookHandler(logging.Handler):
     """Send CRITICAL logs to a configured webhook endpoint."""
 
     def emit(self, record: logging.LogRecord) -> None:
+        """Send CRITICAL record payload to configured webhook endpoint."""
         if record.levelno < logging.CRITICAL:
             return
 

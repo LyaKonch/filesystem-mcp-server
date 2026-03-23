@@ -1,3 +1,5 @@
+"""Utility script for generating JWT and Fernet keys for `.env` setup."""
+
 import secrets
 
 from cryptography.fernet import Fernet

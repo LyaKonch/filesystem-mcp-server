@@ -291,6 +291,11 @@ https://gofastmcp.com/integrations/github
 - [Backup and restore guide](docs/backup.md)
 - [Automation scripts](docs/scripts)
 
+## Розширена технічна документація
+
+- [Технічне бачення та взаємодія компонентів](docs/technical_design.md)
+- [Лінтинг і статичні перевірки](docs/linting.md)
+
 ## Container та інфраструктурні конфіги
 
 - `dockerfile`

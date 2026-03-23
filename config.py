@@ -1,3 +1,5 @@
+"""Application settings model and environment parsing helpers."""
+
 from pathlib import Path
 from typing import Annotated
 
@@ -6,6 +8,8 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    """Runtime configuration loaded from `.env` and process environment."""
+
     # --- Server Configuration ---
     MCP_HOST: str = "127.0.0.1"
     MCP_PORT: int = 8000
@@ -65,7 +69,7 @@ class Settings(BaseSettings):
     @field_validator("ADMIN_GITHUB_IDS", mode="before")
     @classmethod
     def parse_admin_ids(cls, v) -> list[str]:
-        """Parse comma-separated admin IDs from environment variable"""
+        """Parse comma-separated admin IDs from environment variable."""
         if isinstance(v, str):
             # split by comma and strip whitespace
             return [id.strip() for id in v.split(",") if id.strip()]
@@ -76,7 +80,7 @@ class Settings(BaseSettings):
     @field_validator("ALLOWED_ROOTS", mode="before")
     @classmethod
     def parse_allowed_roots(cls, v) -> list[Path]:
-        """Parse comma-separated paths from environment variable"""
+        """Parse comma-separated paths from environment variable."""
         if isinstance(v, str):
             return [Path(p.strip()) for p in v.split(",") if p.strip()]
         elif isinstance(v, list):

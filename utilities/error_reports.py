@@ -1,3 +1,5 @@
+"""Persistent storage helpers for user-submitted error reports."""
+
 import json
 import logging
 import uuid
@@ -22,6 +24,22 @@ def save_error_report(
     user_id: str,
     operation: str,
 ) -> str:
+    """Append user error report to JSONL storage.
+
+    Args:
+        summary: User summary of the problem.
+        error_id: Optional server error identifier.
+        reproduction_steps: Optional steps to reproduce.
+        system_info: Optional user-provided environment info.
+        attachments: Optional related file references.
+        request_id: Request correlation id.
+        trace_id: Trace correlation id.
+        user_id: User identifier.
+        operation: Operation name where issue happened.
+
+    Returns:
+        str: Generated report identifier.
+    """
     report_id = str(uuid.uuid4())
     report_path = Path(settings.ERROR_REPORTS_FILE)
     report_path.parent.mkdir(parents=True, exist_ok=True)

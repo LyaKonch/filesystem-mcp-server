@@ -1,3 +1,5 @@
+"""Shared path-validation and capability helper functions for tools."""
+
 import logging
 import os
 import re

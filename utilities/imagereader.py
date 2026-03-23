@@ -1,3 +1,5 @@
+"""Image conversion and sampling-based image description helpers."""
+
 # it converts images here to base64 and return them as a list of dicts with keys 'name' and 'data'
 from __future__ import annotations
 
@@ -11,16 +13,21 @@ from mcp.types import ImageContent, SamplingMessage, TextContent
 
 
 class ImageReader:
+    """Read and describe images for tool responses."""
+
     def __init__(self, file_path: Path | None = None):
+        """Initialize image reader with optional file path."""
         self.file_path = file_path
 
     def read_base64(self) -> dict[str, str]:
+        """Read configured file and return base64 payload metadata."""
         if self.file_path is None:
             raise ValueError("file_path is required to read image data")
         return self.image_file_to_base64(self.file_path)
 
     @staticmethod
     def image_file_to_base64(file_path: Path) -> dict[str, str]:
+        """Convert image file bytes to base64 structure."""
         data = file_path.read_bytes()
         return {
             "name": file_path.name,
@@ -48,6 +55,7 @@ class ImageReader:
         ctx: Context,
         mime_type: str = "image/png",
     ) -> dict[str, Any]:
+        """Describe image from base64 content via sampling API."""
         if ctx is None:
             raise ValueError("ctx is required for sampling")
 
@@ -78,6 +86,7 @@ class ImageReader:
     async def describe_from_docx_image(
         self, image_object: dict[str, Any], ctx: Context
     ) -> dict[str, Any]:
+        """Describe image object extracted from DOCX payload."""
         data = image_object.get("data", {})
         image_b64 = data.get("bytes_b64", "")
         mime_type = data.get("content_type", "image/png")

@@ -1,3 +1,5 @@
+"""Token-based file download utilities and HTTP route integration."""
+
 import logging
 import secrets
 import time
@@ -70,8 +72,7 @@ def cleanup_expired_tokens():
 
 # @require_auth(operation="prepare_file_for_download")
 async def prepare_file_for_download(file_path: str, ctx: Context) -> str:
-    """
-    Prepare a validated file for one-time token-based download.
+    """Prepare a validated file for one-time token-based download.
 
     Args:
         file_path: Absolute or relative path to file.

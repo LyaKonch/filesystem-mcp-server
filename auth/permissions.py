@@ -1,3 +1,5 @@
+"""Permission helpers and decorators for authenticated MCP operations."""
+
 import inspect
 import json
 import logging
@@ -114,9 +116,9 @@ def check_github_account(ctx: Context):
 
 
 def get_github_user_id(ctx: Context) -> str | None:
-    """
-    Extract GitHub user ID from context.
-    Returns None if no authentication or user not found.
+    """Extract GitHub user ID from context.
+
+    Returns ``None`` if authentication data is unavailable.
     """
     try:
         token_info = check_github_account(ctx)
@@ -146,8 +148,7 @@ def is_authenticated(ctx: Context) -> bool:
 
 
 def is_admin(ctx: Context) -> bool:
-    """
-    Check if the authenticated user is an admin.
+    """Check if the authenticated user is an admin.
 
     Returns:
         True if user is admin or if auth is disabled
@@ -174,8 +175,7 @@ def is_admin(ctx: Context) -> bool:
 
 
 def get_permission_level(ctx: Context) -> int:
-    """
-    Get permission level for current user.
+    """Get permission level for current user.
 
     Returns:
         PermissionLevel.ADMIN (2) - full access
@@ -214,9 +214,10 @@ def _extract_context_from_args(*args, **kwargs) -> Context | None:
 
 
 def require_admin(operation: str = "this operation"):
-    """
-    Decorator to require admin privileges for a function/method.
-    Auto-extracts Context from function arguments (first arg or 'ctx'/'context' kwarg).
+    """Decorator to require admin privileges for a function/method.
+
+    Auto-extracts ``Context`` from function arguments (first arg or
+    ``ctx``/``context`` kwarg).
 
     Usage:
         @require_admin("delete file")
@@ -278,9 +279,10 @@ def require_admin(operation: str = "this operation"):
 
 
 def require_auth(operation: str = "this operation"):
-    """
-    Decorator to require authentication for a function/method.
-    Auto-extracts Context from function arguments (first arg or 'ctx'/'context' kwarg).
+    """Decorator to require authentication for a function/method.
+
+    Auto-extracts ``Context`` from function arguments (first arg or
+    ``ctx``/``context`` kwarg).
 
     Usage:
         @require_auth("write file")
@@ -367,8 +369,7 @@ def require_auth(operation: str = "this operation"):
 
 
 def log_user_connection(ctx: Context, event: str = "connected"):
-    """
-    Log user connection/disconnection events.
+    """Log user connection/disconnection events.
 
     Args:
         ctx: FastMCP context
@@ -404,8 +405,7 @@ def log_user_connection(ctx: Context, event: str = "connected"):
 
 
 def get_user_info(ctx: Context) -> dict:
-    """
-    Get formatted user information for logging/debugging.
+    """Get formatted user information for logging/debugging.
 
     Args:
         ctx: FastMCP context.

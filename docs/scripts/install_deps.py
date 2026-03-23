@@ -1,3 +1,5 @@
+"""Install runtime and optional development dependencies from `pyproject.toml`."""
+
 from __future__ import annotations
 
 import argparse
@@ -8,6 +10,11 @@ from pathlib import Path
 
 
 def main() -> int:
+    """Install dependencies listed in project metadata.
+
+    Returns:
+        int: Process exit code.
+    """
     parser = argparse.ArgumentParser(description="Install dependencies from pyproject.toml")
     parser.add_argument("--with-dev", action="store_true", help="Include dependency-groups.dev")
     args = parser.parse_args()

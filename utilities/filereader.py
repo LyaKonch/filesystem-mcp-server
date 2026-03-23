@@ -1,3 +1,5 @@
+"""Structured file readers for text, office, and PDF-like formats."""
+
 import base64
 import logging
 from pathlib import Path
@@ -16,7 +18,10 @@ module_logger = logging.getLogger(__name__)
 
 
 class FileReader:
+    """Read supported file types into normalized metadata/content structure."""
+
     def __init__(self, file_pathes, include_images: bool = False):
+        """Initialize reader with input paths and image extraction mode."""
         self.file_pathes = file_pathes
         self.include_images = include_images
         self.readers = {
@@ -36,8 +41,9 @@ class FileReader:
     # then reads all the data from it
     # some method should collect all the data and metadata to one single resulting dict
     def read(self):
-        """
-        Читає файли і повертає структуру:
+        """Read files and return normalized metadata/content payload.
+
+        Expected structure:
         {
             "metadata": {
                 "path": str,
@@ -73,6 +79,7 @@ class FileReader:
 
     # reads file extension and return reference to the function that can read it and call it
     def detector(self, path: Path):
+        """Select concrete reader by file extension."""
         ext = path.suffix.lower()
         try:
             reader = self.readers.get(ext, self._read_text)
@@ -87,6 +94,7 @@ class FileReader:
     # adapter. Should turn results into a common format for all file types
     # what should this function be doing?
     def collect(self, file: dict):
+        """Return file payload unchanged (adapter hook)."""
         return file
 
     # after dispatching, call the appropriate method
@@ -251,7 +259,7 @@ class FileReader:
         table_counter = 0
 
         def format_table(rows: list[list[str]]) -> list[str]:
-            """Format table in text representation, same as DOCX"""
+            """Format table in text representation, same as DOCX."""
             if not rows:
                 return []
             col_count = max(len(row) for row in rows)
@@ -436,12 +444,11 @@ class FileReader:
             ]
         }
         """
-
         workbook = load_workbook(file_path, data_only=True)
         pages = []
 
         def format_table(rows: list[list[str]]) -> list[str]:
-            """Format table in text representation, same as DOCX and PDF"""
+            """Format table in text representation, same as DOCX and PDF."""
             if not rows:
                 return []
             col_count = max(len(row) for row in rows) if rows else 0

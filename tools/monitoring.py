@@ -1,3 +1,5 @@
+"""System monitoring tools for resource and host diagnostics."""
+
 import logging
 import platform
 import socket

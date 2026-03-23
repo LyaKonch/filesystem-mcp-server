@@ -1,3 +1,5 @@
+"""Filesystem tools exposed through MCP with path-safety controls."""
+
 import logging
 import os
 import shutil
@@ -16,6 +18,8 @@ module_logger = logging.getLogger(__name__)
 
 
 class DirectoryEntry(TypedDict):
+    """Directory entry metadata used by size listing responses."""
+
     name: str
     is_dir: bool
     size: int
@@ -48,8 +52,7 @@ async def list_files(path: str, ctx: Context) -> str:
 
 
 async def read_file(path: str, ctx: Context, include_images: bool = False):
-    """
-    Read file content.
+    """Read file content.
 
     Args:
         path: Path to the file to read
@@ -229,8 +232,7 @@ async def list_directory_with_sizes(
 
 
 async def analyze_directory_security(path: str, ctx: Context) -> str:
-    """
-    Provides comprehensive security and content analysis of a directory.
+    """Provides comprehensive security and content analysis of a directory.
 
     Analyzes file types, potential security risks, content overview,
     and provides intelligent assessment using AI sampling if available.
@@ -795,8 +797,8 @@ async def delete_file(path: str, ctx: Context, confirm: bool = False) -> str:
 
 
 async def delete_directory(path: str, confirm: bool = False, ctx: Context | None = None) -> str:
-    """
-    Delete a directory.
+    """Delete a directory.
+
     Args:
         path: Path to delete
         confirm: Set to True to force deletion of non-empty directories.
@@ -840,8 +842,7 @@ async def delete_directory(path: str, confirm: bool = False, ctx: Context | None
 
 
 async def filesystem_summary(path: str, ctx: Context) -> dict:
-    """
-    Provides a summary of the filesystem at a given path.
+    """Provides a summary of the filesystem at a given path.
 
     Args:
         path: The root path for the summary.
@@ -873,8 +874,8 @@ async def filesystem_summary(path: str, ctx: Context) -> dict:
 
 
 async def get_creative_file_description(path: str, ctx: Context) -> str:
-    """
-    Generates a creative, imaginative description of a file's contents.
+    """Generate a creative summary of file contents.
+
     Uses sampling for more creative responses if the feature is supported.
     """
     # First read the file content directly

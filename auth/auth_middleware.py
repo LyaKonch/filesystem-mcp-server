@@ -1,3 +1,5 @@
+"""Authentication middleware for FastMCP tool requests."""
+
 import logging
 import uuid
 from collections.abc import Mapping
@@ -13,13 +15,13 @@ module_logger = logging.getLogger("auth_middleware")
 
 
 class AuthMiddleware(Middleware):
-    """
-    Middleware that applies authentication and tool visibility checks.
+    """Middleware that applies authentication and tool visibility checks.
 
     The middleware also injects request-scoped logging context.
     """
 
     def __init__(self):
+        """Initialize middleware runtime state."""
         # possibly session info
         self.connected_users = set()
 
@@ -78,6 +80,15 @@ class AuthMiddleware(Middleware):
 
     # this will be a dispatch method
     async def __call__(self, context: MiddlewareContext, call_next):
+        """Process MCP request through authentication middleware chain.
+
+        Args:
+            context: Middleware request context.
+            call_next: Next middleware function.
+
+        Returns:
+            Any: Response from next middleware or handler.
+        """
         request_id = str(uuid.uuid4())
         fastmcp_ctx: Context | None = context.fastmcp_context
         operation = self._extract_operation(context)
@@ -120,7 +131,6 @@ class AuthMiddleware(Middleware):
         Returns:
             Any: Result from downstream middleware/tool handler.
         """
-
         if not ctx:
             module_logger.warning("⚠️ No context available for authentication check")
             raise PermissionError("Authentication required")

@@ -1,3 +1,5 @@
+"""Unified error formatting, localization, and tool exception boundaries."""
+
 import logging
 import uuid
 from collections.abc import Awaitable, Callable
@@ -171,6 +173,16 @@ def build_error_response(
 
 
 def tool_error_boundary[F: Callable[..., Awaitable[Any]]](func: F, logger: logging.Logger) -> F:
+    """Wrap tool call with standardized exception handling.
+
+    Args:
+        func: Async tool function.
+        logger: Logger for error events.
+
+    Returns:
+        F: Wrapped function with uniform error boundary.
+    """
+
     @wraps(func)
     async def wrapped(*args: Any, **kwargs: Any):
         try:

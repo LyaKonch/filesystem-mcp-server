@@ -108,3 +108,48 @@ python -m mypy .
 ```
 
 `mypy` використовується як локально (через pre-commit), так і автоматично у CI при кожному push або pull request.
+
+## Перевірка якості документації (рекомендації)
+
+Для контролю якості docstring і покриття документації варто додати окремі перевірки:
+
+### 1) interrogate — покриття docstring
+
+Перевіряє, який відсоток публічних елементів має docstring.
+
+```powershell
+python -m pip install interrogate
+interrogate .
+```
+
+Приклад порогового контролю:
+
+```powershell
+interrogate . --fail-under 80
+```
+
+### 2) pydocstyle — стиль docstring
+
+Перевіряє стилістичні правила оформлення docstring (PEP257 та пов'язані checks).
+
+```powershell
+python -m pip install pydocstyle
+pydocstyle .
+```
+
+### 3) pydoclint — узгодженість сигнатур і docstring
+
+Перевіряє відповідність секцій `Args`/`Returns` фактичним параметрам і типам.
+
+```powershell
+python -m pip install pydoclint
+pydoclint .
+```
+
+### Мінімальний практичний набір для цього проєкту
+
+1. `interrogate` для метрики покриття;
+2. `pydocstyle` для єдиного стилю;
+3. `pydoclint` для перевірки консистентності опису параметрів.
+
+Такі перевірки можна запускати локально перед комітом і додати окремим job у CI разом із Ruff/Mypy.

@@ -1,3 +1,5 @@
+"""Entrypoint for Filesystem MCP Server startup and tool registration."""
+
 import logging
 from argparse import ArgumentParser
 from pathlib import Path

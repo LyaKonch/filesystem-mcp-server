@@ -1,3 +1,5 @@
+"""Storage abstractions and implementations for auth/session persistence."""
+
 import json
 import logging
 import os
@@ -70,6 +72,7 @@ class RedisStore(KeyValueStore):
         db: int = 0,
         password: str | None = None,
     ):
+        """Initialize Redis-backed store client."""
         if redis_async is None:
             raise ImportError("Redis library is not installed. Run 'pip install redis'")
 
@@ -81,6 +84,7 @@ class RedisStore(KeyValueStore):
         return f"{collection}:{key}" if collection else key
 
     async def get(self, key: str, collection: str | None = None) -> str | None:
+        """Get value from Redis by key and optional collection."""
         try:
             return await self.redis.get(self._make_key(key, collection))
         except Exception as e:
@@ -90,6 +94,7 @@ class RedisStore(KeyValueStore):
     async def put(
         self, key: str, value: str, collection: str | None = None, ttl: int | None = None
     ) -> None:
+        """Store value in Redis with optional TTL."""
         try:
             # ex=ttl встановлює час життя ключа в секундах
             await self.redis.set(self._make_key(key, collection), value, ex=ttl)
@@ -97,6 +102,7 @@ class RedisStore(KeyValueStore):
             logger.error("Redis write error: %s", e)
 
     async def delete(self, key: str, collection: str | None = None) -> None:
+        """Delete value from Redis by key and optional collection."""
         try:
             await self.redis.delete(self._make_key(key, collection))
         except Exception as e:
@@ -107,6 +113,7 @@ class DiskStore(KeyValueStore):
     """Disk-backed JSON ``KeyValueStore`` implementation."""
 
     def __init__(self, file_path: str = "mcp_storage.json"):
+        """Initialize disk store using JSON file path."""
         self.file_path = file_path
 
     async def _load(self) -> dict:
@@ -126,6 +133,7 @@ class DiskStore(KeyValueStore):
             logger.error("Disk save error: %s", e)
 
     async def get(self, key: str, collection: str | None = None) -> Any:
+        """Get value from JSON-backed store."""
         data = await self._load()
         coll = collection or "default"
         return data.get(coll, {}).get(key)
@@ -133,6 +141,7 @@ class DiskStore(KeyValueStore):
     async def put(
         self, key: str, value: Any, collection: str | None = None, ttl: int | None = None
     ) -> None:
+        """Store value in JSON-backed store."""
         data = await self._load()
         coll = collection or "default"
         if coll not in data:
@@ -141,6 +150,7 @@ class DiskStore(KeyValueStore):
         await self._save(data)
 
     async def delete(self, key: str, collection: str | None = None) -> None:
+        """Delete value from JSON-backed store."""
         data = await self._load()
         coll = collection or "default"
         if coll in data and key in data[coll]:
@@ -152,12 +162,14 @@ class FernetEncryptionWrapper(KeyValueStore):
     """Encrypted wrapper over another ``KeyValueStore`` backend."""
 
     def __init__(self, store: KeyValueStore, fernet_key: str | bytes):
+        """Initialize encrypted wrapper over underlying key-value store."""
         self.store = store
         if isinstance(fernet_key, str):
             fernet_key = fernet_key.encode()
         self.fernet = Fernet(fernet_key)
 
     async def get(self, key: str, collection: str | None = None) -> Any:
+        """Read encrypted value and return decrypted payload."""
         encrypted_value = await self.store.get(key, collection=collection)
         if not encrypted_value:
             return None
@@ -176,6 +188,7 @@ class FernetEncryptionWrapper(KeyValueStore):
     async def put(
         self, key: str, value: Any, collection: str | None = None, ttl: int | None = None
     ) -> None:
+        """Encrypt and store value in underlying backend."""
         try:
             if isinstance(value, dict):
                 value = json.dumps(value)
@@ -192,4 +205,5 @@ class FernetEncryptionWrapper(KeyValueStore):
             raise e
 
     async def delete(self, key: str, collection: str | None = None) -> None:
+        """Delete value from underlying backend."""
         await self.store.delete(key, collection=collection)
