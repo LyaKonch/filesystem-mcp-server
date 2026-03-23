@@ -24,20 +24,45 @@ class KeyValueStore(ABC):
 
     @abstractmethod
     async def get(self, key: str, collection: str | None = None) -> Any:
+        """Fetch value by key and optional collection.
+
+        Args:
+            key: Storage key.
+            collection: Optional namespace.
+
+        Returns:
+            Any: Stored value or ``None``.
+        """
         pass
 
     @abstractmethod
     async def put(
         self, key: str, value: Any, collection: str | None = None, ttl: int | None = None
     ) -> None:
+        """Store value by key and optional collection.
+
+        Args:
+            key: Storage key.
+            value: Value to persist.
+            collection: Optional namespace.
+            ttl: Optional TTL in seconds.
+        """
         pass
 
     @abstractmethod
     async def delete(self, key: str, collection: str | None = None) -> None:
+        """Delete value by key and optional collection.
+
+        Args:
+            key: Storage key.
+            collection: Optional namespace.
+        """
         pass
 
 
 class RedisStore(KeyValueStore):
+    """Redis-backed ``KeyValueStore`` implementation."""
+
     def __init__(
         self,
         host: str = "localhost",
@@ -79,6 +104,8 @@ class RedisStore(KeyValueStore):
 
 
 class DiskStore(KeyValueStore):
+    """Disk-backed JSON ``KeyValueStore`` implementation."""
+
     def __init__(self, file_path: str = "mcp_storage.json"):
         self.file_path = file_path
 
@@ -122,6 +149,8 @@ class DiskStore(KeyValueStore):
 
 
 class FernetEncryptionWrapper(KeyValueStore):
+    """Encrypted wrapper over another ``KeyValueStore`` backend."""
+
     def __init__(self, store: KeyValueStore, fernet_key: str | bytes):
         self.store = store
         if isinstance(fernet_key, str):

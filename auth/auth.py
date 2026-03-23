@@ -20,9 +20,11 @@ module_logger = logging.getLogger(__name__)
 
 
 def get_auth_provider() -> GitHubProvider | None:
-    """
-    Returns the Auth Provider based on available configuration.
-    There is callback with MemoryStore if no keys or wrong keys identified
+    """Build GitHub auth provider based on configured runtime settings.
+
+    Returns:
+        GitHubProvider | None: Provider instance, or ``None`` when auth is disabled
+        or configuration is incomplete.
     """
 
     if not settings.AUTH_ENABLED:

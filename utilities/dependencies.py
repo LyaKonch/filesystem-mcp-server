@@ -15,6 +15,14 @@ logger = logging.getLogger(__name__)
 
 
 async def get_combined_roots(context: fastmcp.Context) -> list[Path]:
+    """Build combined roots list from server settings and client roots.
+
+    Args:
+        context: MCP context.
+
+    Returns:
+        list[Path]: Effective roots for path authorization.
+    """
     result_list: list[Path] = []
     if settings.ALLOWED_ROOTS is not None:
         result_list = [p for p in settings.ALLOWED_ROOTS]
@@ -38,7 +46,14 @@ async def get_combined_roots(context: fastmcp.Context) -> list[Path]:
 
 
 def uri_to_path(uri: str) -> Path:
-    """Convert a file:// URI to a Path object."""
+    """Convert ``file://`` URI into normalized local ``Path``.
+
+    Args:
+        uri: File URI.
+
+    Returns:
+        Path: Normalized local path.
+    """
     " For example from file://C:\Program Files\ to Path('C:/Program Files')"
     " Path must contain slash at the end and not have any spelling mistakes "
     p = urlparse(uri)
@@ -72,6 +87,15 @@ def uri_to_path(uri: str) -> Path:
 
 
 def check_path(value: Path | str, check_existence: bool = True) -> Path:
+    """Normalize and validate path values.
+
+    Args:
+        value: Source path as ``Path`` or string.
+        check_existence: Whether path must already exist.
+
+    Returns:
+        Path: Normalized absolute path.
+    """
     try:
         # explicitly converts it to Path
         if isinstance(value, str):
@@ -116,6 +140,14 @@ async def validate_path(
 
 
 async def fetch_roots_from_client(context: fastmcp.Context) -> list[Path] | None:
+    """Fetch roots from client if capability is available.
+
+    Args:
+        context: MCP context.
+
+    Returns:
+        list[Path] | None: Client-provided roots or ``None``.
+    """
     if checkRootsCapability(context.session):
         logger.info("Listing roots from client")
         roots = None
@@ -136,16 +168,40 @@ async def fetch_roots_from_client(context: fastmcp.Context) -> list[Path] | None
 
 
 def checkRootsCapability(session: ServerSession) -> bool:
+    """Check whether client supports roots capability.
+
+    Args:
+        session: Active MCP session.
+
+    Returns:
+        bool: ``True`` when capability is supported.
+    """
     caps = ClientCapabilities(roots=RootsCapability())
     return session.check_client_capability(caps)
 
 
 def checkElicitationCapability(session: ServerSession) -> bool:
+    """Check whether client supports elicitation capability.
+
+    Args:
+        session: Active MCP session.
+
+    Returns:
+        bool: ``True`` when capability is supported.
+    """
     caps = ClientCapabilities(elicitation=ElicitationCapability())
     return session.check_client_capability(caps)
 
 
 def checkSamplingCapability(session: ServerSession) -> bool:
+    """Check whether client supports sampling capability.
+
+    Args:
+        session: Active MCP session.
+
+    Returns:
+        bool: ``True`` when capability is supported.
+    """
     caps = ClientCapabilities(sampling=SamplingCapability())
     return session.check_client_capability(caps)
 

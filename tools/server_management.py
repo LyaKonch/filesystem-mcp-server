@@ -13,7 +13,14 @@ module_logger = logging.getLogger(__name__)
 
 
 async def get_server_status(ctx: Context) -> dict:
-    """Get information about server status, client features, and allowed roots."""
+    """Get server status, negotiated client capabilities, and allowed roots.
+
+    Args:
+        ctx: MCP context.
+
+    Returns:
+        dict: Runtime status and capabilities snapshot.
+    """
     module_logger.info("Checking server status")
 
     features = {
@@ -41,7 +48,14 @@ async def get_server_status(ctx: Context) -> dict:
 
 
 async def list_allowed_roots(ctx: Context) -> str:
-    """Get a formatted list of all currently allowed root directories."""
+    """Return a formatted list of effective allowed root directories.
+
+    Args:
+        ctx: MCP context.
+
+    Returns:
+        str: Human-readable roots list.
+    """
     try:
         combined_roots = await dependencies.get_combined_roots(ctx)
 
@@ -59,7 +73,15 @@ async def list_allowed_roots(ctx: Context) -> str:
 
 
 async def add_allowed_root(path: str, ctx: Context) -> str:
-    """Add a path to the server's allowed roots whitelist at runtime."""
+    """Add one directory to runtime allowed roots.
+
+    Args:
+        path: Candidate directory path.
+        ctx: MCP context.
+
+    Returns:
+        str: Operation result message.
+    """
     try:
         path_obj = dependencies.check_path(path, check_existence=True)
 
@@ -79,7 +101,10 @@ async def update_roots(newroots: list[str]) -> str:
     """Update allowed roots from a list of paths.
 
     Args:
-        ctx: List of new root paths
+        newroots: List of new root paths.
+
+    Returns:
+        str: Operation result message.
     """
     try:
         new_roots = []
@@ -105,7 +130,14 @@ async def update_roots(newroots: list[str]) -> str:
 
 
 async def remove_root(root: str) -> str:
-    """Remove a single allowed root path."""
+    """Remove one path from runtime allowed roots.
+
+    Args:
+        root: Root path to remove.
+
+    Returns:
+        str: Operation result message.
+    """
     try:
         path_obj = dependencies.check_path(Path(root), check_existence=True)
         if not path_obj.is_dir():
@@ -163,6 +195,11 @@ async def submit_error_report(
 
 
 def register(mcp):
+    """Register server-management tools on the MCP server instance.
+
+    Args:
+        mcp: FastMCP server object.
+    """
     mcp.tool(tags=["management"])(tool_error_boundary(get_server_status, module_logger))
     mcp.tool(tags=["management", "admin"])(tool_error_boundary(add_allowed_root, module_logger))
     mcp.tool(tags=["management"])(tool_error_boundary(list_allowed_roots, module_logger))

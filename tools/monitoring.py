@@ -13,7 +13,14 @@ module_logger = logging.getLogger(__name__)
 
 
 async def get_system_resource_usage(ctx: Context) -> dict:
-    """Get current CPU and Memory usage statistics."""
+    """Get current CPU and RAM usage snapshot.
+
+    Args:
+        ctx: MCP context.
+
+    Returns:
+        dict: CPU/RAM usage and platform metadata.
+    """
     vm = psutil.virtual_memory()
     return {
         "cpu_percent": psutil.cpu_percent(interval=0.1),
@@ -25,7 +32,14 @@ async def get_system_resource_usage(ctx: Context) -> dict:
 
 
 async def get_disk_status(ctx: Context) -> list[dict]:
-    """Get usage statistics for all mounted disk partitions."""
+    """Get storage usage across mounted disk partitions.
+
+    Args:
+        ctx: MCP context.
+
+    Returns:
+        list[dict]: Per-partition usage statistics.
+    """
     disks = []
     for partition in psutil.disk_partitions():
         try:
@@ -45,9 +59,13 @@ async def get_disk_status(ctx: Context) -> list[dict]:
 
 
 async def get_system_info(ctx: Context) -> dict:
-    """
-    Get static system information: OS details, Hardware specs, Network ID, Uptime.
-    Use this to understand the environment the server is running on.
+    """Get static host information and runtime environment details.
+
+    Args:
+        ctx: MCP context.
+
+    Returns:
+        dict: OS, hardware, runtime, and uptime metadata.
     """
     #  Uptime
     boot_time_timestamp = psutil.boot_time()
@@ -92,7 +110,11 @@ async def get_system_info(ctx: Context) -> dict:
 
 
 def register(mcp):
-    # function for registering monitoring functions as tools in the MCP server, e.g. router
+    """Register monitoring tools on the MCP server instance.
+
+    Args:
+        mcp: FastMCP server object.
+    """
     mcp.tool(tags=["monitoring"])(tool_error_boundary(get_system_resource_usage, module_logger))
     mcp.tool(tags=["monitoring"])(tool_error_boundary(get_disk_status, module_logger))
     mcp.tool(tags=["monitoring"])(tool_error_boundary(get_system_info, module_logger))

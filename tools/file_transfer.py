@@ -20,7 +20,15 @@ _download_tokens: dict[str, tuple[Path, float]] = {}
 
 
 def generate_download_token(file_path: Path, expires_in: int = 300) -> str:
-    """Generate temporary download token (expires in 5 minutes by default)"""
+    """Generate a temporary download token.
+
+    Args:
+        file_path: File path bound to generated token.
+        expires_in: Token lifetime in seconds.
+
+    Returns:
+        str: Generated token value.
+    """
     token = secrets.token_urlsafe(32)
     expires_at = time.time() + expires_in
     _download_tokens[token] = (file_path, expires_at)
@@ -28,7 +36,14 @@ def generate_download_token(file_path: Path, expires_in: int = 300) -> str:
 
 
 def is_download_token_valid(token: str) -> Path | None:
-    """Verify download token is valid and not expired"""
+    """Validate token and return associated file path.
+
+    Args:
+        token: Download token.
+
+    Returns:
+        Path | None: Bound file path when valid, otherwise ``None``.
+    """
     if token not in _download_tokens:
         return None
     file_path_expected, expires_at = _download_tokens[token]
@@ -39,7 +54,11 @@ def is_download_token_valid(token: str) -> Path | None:
 
 
 def cleanup_expired_tokens():
-    """Remove all expired tokens from memory"""
+    """Remove expired download tokens from memory.
+
+    Returns:
+        int: Number of removed tokens.
+    """
     current_time = time.time()
     expired = [
         token for token, (_, expires_at) in _download_tokens.items() if current_time > expires_at
@@ -52,9 +71,14 @@ def cleanup_expired_tokens():
 # @require_auth(operation="prepare_file_for_download")
 async def prepare_file_for_download(file_path: str, ctx: Context) -> str:
     """
-    Prepares a file for download by copying it to the server's designated download directory.
-    Validates the file path against allowed roots and checks for existence before copying.
-    User can then access the file via the /files/{filename} endpoint.
+    Prepare a validated file for one-time token-based download.
+
+    Args:
+        file_path: Absolute or relative path to file.
+        ctx: MCP context.
+
+    Returns:
+        str: Download URL with token and trace id.
     """
     try:
         validated_path = await dependencies.validate_path(
@@ -76,6 +100,12 @@ async def prepare_file_for_download(file_path: str, ctx: Context) -> str:
 
 
 def ft_register_routes(mcp: FastMCP):
+    """Register download HTTP route and related MCP tool.
+
+    Args:
+        mcp: FastMCP server object.
+    """
+
     def _with_trace(response: Response, trace_id: str) -> Response:
         response.headers["X-Trace-Id"] = trace_id
         return response

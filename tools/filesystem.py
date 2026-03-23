@@ -23,7 +23,15 @@ class DirectoryEntry(TypedDict):
 
 
 async def list_files(path: str, ctx: Context) -> str:
-    """List files and directories at the given path."""
+    """List files and directories for a target directory.
+
+    Args:
+        path: Directory path to inspect.
+        ctx: MCP context.
+
+    Returns:
+        str: Human-readable entries list.
+    """
     try:
         target_path = await dependencies.validate_path(
             path, ctx, must_exist=True, expected_type="dir"
@@ -106,6 +114,16 @@ async def read_file(path: str, ctx: Context, include_images: bool = False):
 
 
 async def write_file(path: str, content: str, ctx: Context) -> str:
+    """Create or overwrite file content.
+
+    Args:
+        path: Target file path.
+        content: UTF-8 text payload.
+        ctx: MCP context.
+
+    Returns:
+        str: Operation status message.
+    """
     try:
         # for writing we need to check the path without existence check, because we might be creating a new file or overwrite
         target_path = await dependencies.validate_path(path, ctx, must_exist=False)
@@ -123,7 +141,15 @@ async def write_file(path: str, content: str, ctx: Context) -> str:
 
 
 async def create_directory(path: str, ctx: Context) -> str:
-    """Create a new directory."""
+    """Create a directory recursively.
+
+    Args:
+        path: Target directory path.
+        ctx: MCP context.
+
+    Returns:
+        str: Operation status message.
+    """
     try:
         target_path = await dependencies.validate_path(path, ctx, must_exist=False)
         if not await dependencies.withinAllowed(target_path.parent, ctx):
@@ -819,6 +845,9 @@ async def filesystem_summary(path: str, ctx: Context) -> dict:
 
     Args:
         path: The root path for the summary.
+
+    Returns:
+        dict: Aggregated counts and total size information.
     """
     target_path = await dependencies.validate_path(path, ctx, must_exist=True, expected_type="dir")
 
@@ -887,6 +916,11 @@ async def get_creative_file_description(path: str, ctx: Context) -> str:
 
 
 def register(mcp):
+    """Register filesystem tools on MCP server.
+
+    Args:
+        mcp: FastMCP server object.
+    """
     # group registration with the tag "filesystem"
     # read operations
     mcp.tool(tags=["filesystem", "read"])(tool_error_boundary(list_files, module_logger))

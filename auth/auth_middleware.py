@@ -14,8 +14,9 @@ module_logger = logging.getLogger("auth_middleware")
 
 class AuthMiddleware(Middleware):
     """
-    Middleware to enforce authentication and admin access control.
-    Checks if the user is authenticated and if they are in the list of admin GitHub IDs for dangerous operations.
+    Middleware that applies authentication and tool visibility checks.
+
+    The middleware also injects request-scoped logging context.
     """
 
     def __init__(self):
@@ -109,7 +110,16 @@ class AuthMiddleware(Middleware):
     async def _check_auth_for_tool_call(
         self, context: MiddlewareContext, call_next, ctx: Context | None
     ):
-        """Check authentication before executing any tool"""
+        """Check authentication before executing a tool call.
+
+        Args:
+            context: Middleware request context.
+            call_next: Next middleware handler.
+            ctx: FastMCP context.
+
+        Returns:
+            Any: Result from downstream middleware/tool handler.
+        """
 
         if not ctx:
             module_logger.warning("⚠️ No context available for authentication check")
@@ -126,7 +136,16 @@ class AuthMiddleware(Middleware):
         return await call_next(context)
 
     async def _filter_tools(self, context: MiddlewareContext, call_next, ctx: Context | None):
-        """Filter tools list based on user permissions (optional future feature)"""
+        """Filter visible tools list based on current auth mode.
+
+        Args:
+            context: Middleware request context.
+            call_next: Next middleware handler.
+            ctx: FastMCP context.
+
+        Returns:
+            list: Filtered tool definitions.
+        """
         result = await call_next(context)
 
         if not settings.AUTH_ENABLED:
@@ -147,7 +166,11 @@ class AuthMiddleware(Middleware):
 
 
 def create_auth_middleware():
-    """Factory function to create auth middleware instance"""
+    """Create and initialize ``AuthMiddleware`` instance.
+
+    Returns:
+        AuthMiddleware: Configured middleware object.
+    """
     middleware = AuthMiddleware()
 
     if settings.AUTH_ENABLED:

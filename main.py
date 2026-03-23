@@ -16,7 +16,11 @@ from utilities.logging import initialize_logging, log_exception_with_id
 
 
 def parse_command_line_args():
-    """Parse command line arguments for MCP server configuration."""
+    """Parse CLI arguments and apply runtime configuration overrides.
+
+    Returns:
+        argparse.Namespace: Parsed command-line arguments.
+    """
     parser = ArgumentParser(
         description="MCP Filesystem Server",
         epilog="Example: python main.py /path/to/dir1 /path/to/dir2 --allow-cwd --transport sse/http",

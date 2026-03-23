@@ -15,7 +15,7 @@ module_logger = logging.getLogger("auth_permissions")
 
 
 class PermissionLevel:
-    """Permission levels for users"""
+    """Permission level constants used by access-control helpers."""
 
     GUEST = 0  # No auth, no access
     USER = 1  # Authenticated, read-only access
@@ -23,7 +23,14 @@ class PermissionLevel:
 
 
 def check_github_account(ctx: Context):
-    """Pulls user information from context"""
+    """Extract GitHub account and token details from request context.
+
+    Args:
+        ctx: FastMCP context.
+
+    Returns:
+        dict | None: Parsed token/account payload when available.
+    """
     if not settings.AUTH_ENABLED:
         return None
 
@@ -123,7 +130,14 @@ def get_github_user_id(ctx: Context) -> str | None:
 
 
 def is_authenticated(ctx: Context) -> bool:
-    """Check if user is authenticated (has valid GitHub session)"""
+    """Check whether current request has valid authentication context.
+
+    Args:
+        ctx: FastMCP context.
+
+    Returns:
+        bool: Authentication status.
+    """
     if not settings.AUTH_ENABLED:
         return True  # аuth disabled = everyone is "authenticated"
 
@@ -181,7 +195,11 @@ def get_permission_level(ctx: Context) -> int:
 
 
 def _extract_context_from_args(*args, **kwargs) -> Context | None:
-    """Helper to extract Context from function arguments"""
+    """Extract ``Context`` object from positional or keyword arguments.
+
+    Returns:
+        Context | None: Extracted context object.
+    """
     # Перевіряємо перший позиційний аргумент
     if args and isinstance(args[0], Context):
         return args[0]
@@ -355,6 +373,9 @@ def log_user_connection(ctx: Context, event: str = "connected"):
     Args:
         ctx: FastMCP context
         event: Event type (connected, disconnected, etc.)
+
+    Returns:
+        None
     """
     try:
         user_id = get_github_user_id(ctx) or "anonymous"
@@ -386,8 +407,11 @@ def get_user_info(ctx: Context) -> dict:
     """
     Get formatted user information for logging/debugging.
 
+    Args:
+        ctx: FastMCP context.
+
     Returns:
-        Dictionary with user information
+        dict: User-facing auth and permission metadata.
     """
     user_id = get_github_user_id(ctx)
     permission_level = get_permission_level(ctx)

@@ -35,6 +35,11 @@ _MESSAGES: dict[str, dict[str, str]] = {
 
 
 def _locale() -> str:
+    """Resolve active locale code for localized error responses.
+
+    Returns:
+        str: ``"uk"`` or ``"en"``.
+    """
     locale = (settings.ERROR_LOCALE or "uk").lower()
     if locale.startswith("en"):
         return "en"
@@ -42,6 +47,14 @@ def _locale() -> str:
 
 
 def _infer_error_code(error_text: str) -> str:
+    """Infer normalized error code from technical error text.
+
+    Args:
+        error_text: Raw error text.
+
+    Returns:
+        str: Normalized error code key.
+    """
     lowered = error_text.lower()
 
     if (
@@ -66,6 +79,17 @@ def format_localized_error(
     trace_id: str | None = None,
     details: str | None = None,
 ) -> str:
+    """Build localized user-facing error message.
+
+    Args:
+        error_code: Error category key.
+        error_id: Correlation identifier.
+        trace_id: Optional request trace identifier.
+        details: Optional technical details.
+
+    Returns:
+        str: Formatted localized error text.
+    """
     locale = _locale()
     i18n = _MESSAGES[locale]
 
@@ -104,6 +128,18 @@ def build_error_response(
     exc: Exception | None = None,
     **context: Any,
 ) -> str:
+    """Create formatted error response and log event with identifiers.
+
+    Args:
+        logger: Logger to write error events.
+        error_code: Normalized error code key.
+        technical_details: Optional technical error detail.
+        exc: Optional original exception.
+        **context: Additional structured logging context.
+
+    Returns:
+        str: Localized message for client response.
+    """
     trace_id = log_context.trace_id_ctx.get()
     if exc is not None:
         error_id = log_exception_with_id(

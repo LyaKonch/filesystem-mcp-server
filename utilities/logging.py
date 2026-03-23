@@ -46,6 +46,8 @@ operation_ctx: ContextVar[str] = ContextVar("operation", default="-")
 
 
 class MyJSONFormatter(logging.Formatter):
+    """Formatter that emits structured JSON logs."""
+
     def __init__(self, *, fmt_keys: dict[str, str] | None = None):
         super().__init__()
         self.fmt_keys = fmt_keys if fmt_keys is not None else {}
@@ -83,16 +85,22 @@ class MyJSONFormatter(logging.Formatter):
 
 
 class NonErrorFilter(logging.Filter):
+    """Allow only records up to INFO level."""
+
     def filter(self, record: logging.LogRecord) -> bool:
         return record.levelno <= logging.INFO
 
 
 class ErrorOnlyFilter(logging.Filter):
+    """Allow only WARNING and higher level records."""
+
     def filter(self, record: logging.LogRecord) -> bool:
         return record.levelno >= logging.WARNING
 
 
 class ContextFilter(logging.Filter):
+    """Inject request context fields into each log record."""
+
     def filter(self, record: logging.LogRecord) -> bool:
         record.request_id = request_id_ctx.get()
         record.trace_id = trace_id_ctx.get()
@@ -102,6 +110,8 @@ class ContextFilter(logging.Filter):
 
 
 class CriticalWebhookHandler(logging.Handler):
+    """Send CRITICAL logs to a configured webhook endpoint."""
+
     def emit(self, record: logging.LogRecord) -> None:
         if record.levelno < logging.CRITICAL:
             return
@@ -144,6 +154,14 @@ def set_log_context(
     user_id: str | None = None,
     operation: str | None = None,
 ) -> None:
+    """Set request-scoped context values for structured logging.
+
+    Args:
+        request_id: Request identifier.
+        trace_id: Trace identifier.
+        user_id: Authenticated user identifier.
+        operation: Current operation name.
+    """
     if request_id is not None:
         request_id_ctx.set(request_id)
     if trace_id is not None:
@@ -155,6 +173,7 @@ def set_log_context(
 
 
 def clear_log_context() -> None:
+    """Reset request-scoped logging context to default placeholders."""
     request_id_ctx.set("-")
     trace_id_ctx.set("-")
     user_id_ctx.set("-")
@@ -269,6 +288,17 @@ def _install_global_exception_hooks() -> None:
 def log_exception_with_id(
     logger: logging.Logger, message: str, exc: Exception, **context: Any
 ) -> str:
+    """Log exception and return generated ``error_id``.
+
+    Args:
+        logger: Logger instance.
+        message: Error message prefix.
+        exc: Original exception object.
+        **context: Additional structured log fields.
+
+    Returns:
+        str: Generated error identifier.
+    """
     error_id = str(uuid.uuid4())
     logger.exception(message, extra={"error_id": error_id, **context})
     return error_id
