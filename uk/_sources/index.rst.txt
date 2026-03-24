@@ -1,8 +1,8 @@
 filesystem-mcp-server documentation
 ===================================
 
-Це базова документація проєкту з підтримкою Google-style docstrings
-через ``sphinx.ext.napoleon``.
+This is the base project documentation with support for Google-style docstrings
+through ``sphinx.ext.napoleon``.
 
 
 .. toctree::
