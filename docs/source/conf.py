@@ -22,6 +22,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
+    "sphinx.ext.intersphinx",
 ]
 
 autosummary_generate = True
@@ -42,6 +43,9 @@ napoleon_use_rtype = True
 
 templates_path: list[str] = ["_templates"]
 exclude_patterns: list[str] = []
+language = "en"
+locale_dirs: list[str] = ["locale/"]
+gettext_compact = False
 
 
 # -- Options for HTML output -------------------------------------------------

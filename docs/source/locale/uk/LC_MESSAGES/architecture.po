@@ -1,0 +1,44 @@
+# Ukrainian translations for mcp-server architecture page
+msgid ""
+msgstr ""
+"Project-Id-Version: mcp-server\n"
+"PO-Revision-Date: 2026-03-24 19:30+0100\n"
+"Last-Translator: Copilot\n"
+"Language-Team: Ukrainian\n"
+"Language: uk\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Architecture"
+msgstr "Архітектура"
+
+msgid "Project structure"
+msgstr "Структура проєкту"
+
+msgid "``main.py`` — server startup and tool registration."
+msgstr "``main.py`` — запуск сервера та реєстрація інструментів."
+
+msgid "``tools/*`` — user-facing MCP tools (filesystem, monitoring, management)."
+msgstr "``tools/*`` — MCP-інструменти для користувача (файлова система, моніторинг, керування)."
+
+msgid "``utilities/*`` — shared helpers (validation, logging, error handling, storage)."
+msgstr "``utilities/*`` — спільні допоміжні модулі (валідація, логування, обробка помилок, сховище)."
+
+msgid "``auth/*`` — authentication provider and permission middleware."
+msgstr "``auth/*`` — провайдер автентифікації та middleware прав доступу."
+
+msgid "Interaction flow"
+msgstr "Потік взаємодії"
+
+msgid "``main.py`` creates FastMCP app."
+msgstr "``main.py`` створює застосунок FastMCP."
+
+msgid "``AuthMiddleware`` processes incoming requests."
+msgstr "``AuthMiddleware`` обробляє вхідні запити."
+
+msgid "Tool handlers execute business logic."
+msgstr "Обробники інструментів виконують бізнес-логіку."
+
+msgid "Errors pass through unified formatting in ``utilities/error_handling.py``."
+msgstr "Помилки проходять через уніфіковане форматування в ``utilities/error_handling.py``."

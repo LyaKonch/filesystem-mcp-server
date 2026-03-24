@@ -16,3 +16,4 @@ bandit_report.txt
 .fastmcp_storage
 for_download/
 logs
+*.mo

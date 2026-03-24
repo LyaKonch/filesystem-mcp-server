@@ -1,0 +1,683 @@
+# Ukrainian translations for mcp-server API page
+msgid ""
+msgstr ""
+"Project-Id-Version: mcp-server\n"
+"PO-Revision-Date: 2026-03-24 19:30+0100\n"
+"Last-Translator: Copilot\n"
+"Language-Team: Ukrainian\n"
+"Language: uk\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "API reference"
+msgstr "Довідник API"
+
+msgid "Returns"
+msgstr "Повертає"
+
+msgid "Return type"
+msgstr "Тип повернення"
+
+msgid "Parameters"
+msgstr "Параметри"
+
+msgid "Raises"
+msgstr "Викликає"
+
+msgid "Usage:"
+msgstr "Використання:"
+
+msgid "None"
+msgstr "Немає"
+
+msgid "..."
+msgstr "..."
+
+msgid "Entrypoint for Filesystem MCP Server startup and tool registration."
+msgstr "Точка входу для запуску Filesystem MCP Server і реєстрації інструментів."
+
+msgid "Parse CLI arguments and apply runtime configuration overrides."
+msgstr "Розбирає аргументи CLI та застосовує перевизначення конфігурації під час виконання."
+
+msgid "Parsed command-line arguments."
+msgstr "Розібрані аргументи командного рядка."
+
+msgid "Filesystem tools exposed through MCP with path-safety controls."
+msgstr "Інструменти файлової системи, доступні через MCP, із контролем безпеки шляхів."
+
+msgid "Directory entry metadata used by size listing responses."
+msgstr "Метадані елемента директорії, що використовуються у відповідях списку з розмірами."
+
+msgid "Provides comprehensive security and content analysis of a directory."
+msgstr "Надає комплексний аналіз безпеки та вмісту директорії."
+
+msgid "Analyzes file types, potential security risks, content overview, and provides intelligent assessment using AI sampling if available."
+msgstr "Аналізує типи файлів, потенційні ризики безпеки, огляд вмісту та надає інтелектуальну оцінку за допомогою AI sampling, якщо доступно."
+
+msgid "Directory path to analyze"
+msgstr "Шлях до директорії для аналізу"
+
+msgid "MCP context for security validation and AI capabilities"
+msgstr "Контекст MCP для перевірки безпеки та можливостей AI"
+
+msgid "Create a directory recursively."
+msgstr "Створює директорію рекурсивно."
+
+msgid "Target directory path."
+msgstr "Цільовий шлях директорії."
+
+msgid "MCP context."
+msgstr "Контекст MCP."
+
+msgid "Operation status message."
+msgstr "Повідомлення про статус операції."
+
+msgid "Delete a directory."
+msgstr "Видаляє директорію."
+
+msgid "Path to delete"
+msgstr "Шлях для видалення"
+
+msgid "Set to True to force deletion of non-empty directories."
+msgstr "Встановіть True, щоб примусово видалити непорожні директорії."
+
+msgid "Delete a file."
+msgstr "Видаляє файл."
+
+msgid "Path to the file to delete"
+msgstr "Шлях до файлу для видалення"
+
+msgid "Provides a summary of the filesystem at a given path."
+msgstr "Надає зведення файлової системи за вказаним шляхом."
+
+msgid "The root path for the summary."
+msgstr "Кореневий шлях для зведення."
+
+msgid "Aggregated counts and total size information."
+msgstr "Агреговані лічильники та інформація про загальний розмір."
+
+msgid "Generate a creative summary of file contents."
+msgstr "Генерує креативний опис вмісту файлу."
+
+msgid "Uses sampling for more creative responses if the feature is supported."
+msgstr "Використовує sampling для більш креативних відповідей, якщо функція підтримується."
+
+msgid "Get detailed metadata about a file or directory."
+msgstr "Отримує детальні метадані про файл або директорію."
+
+msgid "Path to the file or directory"
+msgstr "Шлях до файлу або директорії"
+
+msgid "Get a detailed listing of files and directories with sizes."
+msgstr "Повертає детальний список файлів і директорій із розмірами."
+
+msgid "Path to list contents of"
+msgstr "Шлях для перегляду вмісту"
+
+msgid "Sort by 'name' or 'size' (default: name)"
+msgstr "Сортування за 'name' або 'size' (типово: name)"
+
+msgid "List files and directories for a target directory."
+msgstr "Показує файли та директорії для цільової директорії."
+
+msgid "Directory path to inspect."
+msgstr "Шлях директорії для перегляду."
+
+msgid "Human-readable entries list."
+msgstr "Список елементів у зручному для читання форматі."
+
+msgid "Move or rename files and directories."
+msgstr "Переміщує або перейменовує файли й директорії."
+
+msgid "Source path"
+msgstr "Вихідний шлях"
+
+msgid "Destination path"
+msgstr "Шлях призначення"
+
+msgid "Read file content."
+msgstr "Читає вміст файлу."
+
+msgid "BEWARE: Use with caution and only when necessary."
+msgstr "УВАГА: використовуйте обережно і лише за потреби."
+
+msgid "Its like adding images to the prompt, thus your limit can be reached very fast, especially with files containing many images. Also not every client supports sampling and not every model supports OCR/vision, therefore, if you need this tool, you should check those info beforehand."
+msgstr "Це подібно до додавання зображень у промпт, тому ліміт може бути досягнутий дуже швидко, особливо для файлів із великою кількістю зображень. Також не кожен клієнт підтримує sampling і не кожна модель підтримує OCR/vision, тому перед використанням інструмента це потрібно перевірити."
+
+msgid "Path to the file to read"
+msgstr "Шлях до файлу для читання"
+
+msgid "Whether to include image data in the result (Sample their description)"
+msgstr "Чи включати дані зображень у результат (із генерацією їх опису)"
+
+msgid "Read contents of multiple files simultaneously."
+msgstr "Читає вміст кількох файлів одночасно."
+
+msgid "List of file paths to read"
+msgstr "Список шляхів до файлів для читання"
+
+msgid "Register filesystem tools on MCP server."
+msgstr "Реєструє інструменти файлової системи на MCP-сервері."
+
+msgid "FastMCP server object."
+msgstr "Об'єкт сервера FastMCP."
+
+msgid "Search for files matching a pattern."
+msgstr "Шукає файли за шаблоном."
+
+msgid "Directory to search in"
+msgstr "Директорія для пошуку"
+
+msgid "Glob pattern to match (e.g., '*.py', '**/*.txt')"
+msgstr "Glob-шаблон для пошуку (наприклад, '*.py', '**/*.txt')"
+
+msgid "Optional list of patterns to exclude"
+msgstr "Необов'язковий список шаблонів для виключення"
+
+msgid "Create or overwrite file content."
+msgstr "Створює або перезаписує вміст файлу."
+
+msgid "Target file path."
+msgstr "Цільовий шлях до файлу."
+
+msgid "UTF-8 text payload."
+msgstr "Текстовий вміст у UTF-8."
+
+msgid "System monitoring tools for resource and host diagnostics."
+msgstr "Інструменти системного моніторингу для діагностики ресурсів і хоста."
+
+msgid "Get storage usage across mounted disk partitions."
+msgstr "Отримує використання сховища на змонтованих розділах диска."
+
+msgid "Per-partition usage statistics."
+msgstr "Статистика використання для кожного розділу."
+
+msgid "Get static host information and runtime environment details."
+msgstr "Отримує статичну інформацію про хост і деталі середовища виконання."
+
+msgid "OS, hardware, runtime, and uptime metadata."
+msgstr "Метадані ОС, апаратного забезпечення, runtime та часу роботи."
+
+msgid "Get current CPU and RAM usage snapshot."
+msgstr "Отримує поточний знімок використання CPU і RAM."
+
+msgid "CPU/RAM usage and platform metadata."
+msgstr "Використання CPU/RAM та метадані платформи."
+
+msgid "Register monitoring tools on the MCP server instance."
+msgstr "Реєструє інструменти моніторингу на екземплярі MCP-сервера."
+
+msgid "Runtime management tools for server status, roots, and support reports."
+msgstr "Інструменти керування під час виконання для статусу сервера, root-директорій і звітів підтримки."
+
+msgid "Add one directory to runtime allowed roots."
+msgstr "Додає одну директорію до дозволених root-директорій під час виконання."
+
+msgid "Candidate directory path."
+msgstr "Шлях до директорії-кандидата."
+
+msgid "Operation result message."
+msgstr "Повідомлення про результат операції."
+
+msgid "Get server status, negotiated client capabilities, and allowed roots."
+msgstr "Отримує статус сервера, узгоджені можливості клієнта та дозволені root-директорії."
+
+msgid "Runtime status and capabilities snapshot."
+msgstr "Знімок статусу під час виконання та можливостей."
+
+msgid "Return a formatted list of effective allowed root directories."
+msgstr "Повертає відформатований список ефективних дозволених root-директорій."
+
+msgid "Human-readable roots list."
+msgstr "Список root-директорій у зручному для читання вигляді."
+
+msgid "Register server-management tools on the MCP server instance."
+msgstr "Реєструє інструменти керування сервером на екземплярі MCP-сервера."
+
+msgid "Remove one path from runtime allowed roots."
+msgstr "Видаляє один шлях із дозволених root-директорій під час виконання."
+
+msgid "Root path to remove."
+msgstr "Root-шлях для видалення."
+
+msgid "Collect technical error details from users for diagnostics and support."
+msgstr "Збирає технічні деталі помилок від користувачів для діагностики та підтримки."
+
+msgid "Short description of the problem."
+msgstr "Короткий опис проблеми."
+
+msgid "Optional error ID returned by server."
+msgstr "Необов'язковий ID помилки, який повернув сервер."
+
+msgid "Optional reproduction steps."
+msgstr "Необов'язкові кроки відтворення."
+
+msgid "Optional environment details provided by user."
+msgstr "Необов'язкові деталі середовища, надані користувачем."
+
+msgid "Optional list of file names or references."
+msgstr "Необов'язковий список назв файлів або посилань."
+
+msgid "Update allowed roots from a list of paths."
+msgstr "Оновлює дозволені root-директорії зі списку шляхів."
+
+msgid "List of new root paths."
+msgstr "Список нових root-шляхів."
+
+msgid "Token-based file download utilities and HTTP route integration."
+msgstr "Утиліти завантаження файлів на основі токенів та інтеграція HTTP-маршрутів."
+
+msgid "Remove expired download tokens from memory."
+msgstr "Видаляє прострочені токени завантаження з пам'яті."
+
+msgid "Number of removed tokens."
+msgstr "Кількість видалених токенів."
+
+msgid "Register download HTTP route and related MCP tool."
+msgstr "Реєструє HTTP-маршрут завантаження та пов'язаний MCP-інструмент."
+
+msgid "Generate a temporary download token."
+msgstr "Генерує тимчасовий токен завантаження."
+
+msgid "File path bound to generated token."
+msgstr "Шлях до файлу, прив'язаний до згенерованого токена."
+
+msgid "Token lifetime in seconds."
+msgstr "Час життя токена в секундах."
+
+msgid "Generated token value."
+msgstr "Значення згенерованого токена."
+
+msgid "Validate token and return associated file path."
+msgstr "Перевіряє токен і повертає пов'язаний шлях до файлу."
+
+msgid "Download token."
+msgstr "Токен завантаження."
+
+msgid "Bound file path when valid, otherwise ``None``."
+msgstr "Прив'язаний шлях до файлу, якщо токен дійсний, інакше ``None``."
+
+msgid "Prepare a validated file for one-time token-based download."
+msgstr "Готує перевірений файл для одноразового завантаження за токеном."
+
+msgid "Absolute or relative path to file."
+msgstr "Абсолютний або відносний шлях до файлу."
+
+msgid "Download URL with token and trace id."
+msgstr "URL завантаження з токеном і trace id."
+
+msgid "Authentication provider configuration for the MCP server."
+msgstr "Конфігурація провайдера автентифікації для MCP-сервера."
+
+msgid "Build GitHub auth provider based on configured runtime settings."
+msgstr "Створює GitHub-провайдер автентифікації на основі налаштованих runtime-параметрів."
+
+msgid "Provider instance, or ``None`` when auth is disabled or configuration is incomplete."
+msgstr "Екземпляр провайдера або ``None``, якщо автентифікацію вимкнено чи конфігурація неповна."
+
+msgid "Authentication middleware for FastMCP tool requests."
+msgstr "Middleware автентифікації для запитів інструментів FastMCP."
+
+msgid "Middleware that applies authentication and tool visibility checks."
+msgstr "Middleware, який застосовує перевірки автентифікації та видимості інструментів."
+
+msgid "The middleware also injects request-scoped logging context."
+msgstr "Middleware також додає контекст логування в межах запиту."
+
+msgid "Process MCP request through authentication middleware chain."
+msgstr "Обробляє MCP-запит через ланцюжок middleware автентифікації."
+
+msgid "Middleware request context."
+msgstr "Контекст запиту middleware."
+
+msgid "Next middleware function."
+msgstr "Наступна функція middleware."
+
+msgid "Response from next middleware or handler."
+msgstr "Відповідь від наступного middleware або обробника."
+
+msgid "Create and initialize ``AuthMiddleware`` instance."
+msgstr "Створює й ініціалізує екземпляр ``AuthMiddleware``."
+
+msgid "Configured middleware object."
+msgstr "Налаштований об'єкт middleware."
+
+msgid "Permission helpers and decorators for authenticated MCP operations."
+msgstr "Допоміжні засоби прав доступу та декоратори для автентифікованих MCP-операцій."
+
+msgid "Permission level constants used by access-control helpers."
+msgstr "Константи рівнів доступу, що використовуються допоміжними засобами контролю доступу."
+
+msgid "Extract GitHub account and token details from request context."
+msgstr "Витягує деталі GitHub-акаунта та токена з контексту запиту."
+
+msgid "FastMCP context."
+msgstr "Контекст FastMCP."
+
+msgid "Parsed token/account payload when available."
+msgstr "Розібраний payload токена/акаунта, якщо доступний."
+
+msgid "Extract GitHub user ID from context."
+msgstr "Витягує ID користувача GitHub із контексту."
+
+msgid "Returns ``None`` if authentication data is unavailable."
+msgstr "Повертає ``None``, якщо дані автентифікації недоступні."
+
+msgid "Get permission level for current user."
+msgstr "Отримує рівень доступу для поточного користувача."
+
+msgid "PermissionLevel.ADMIN (2) - full access PermissionLevel.USER (1) - read-only access PermissionLevel.GUEST (0) - no access"
+msgstr "PermissionLevel.ADMIN (2) — повний доступ, PermissionLevel.USER (1) — доступ лише для читання, PermissionLevel.GUEST (0) — без доступу."
+
+msgid "Get formatted user information for logging/debugging."
+msgstr "Отримує відформатовану інформацію про користувача для логування/налагодження."
+
+msgid "User-facing auth and permission metadata."
+msgstr "Користувацькі метадані автентифікації та прав доступу."
+
+msgid "Check if the authenticated user is an admin."
+msgstr "Перевіряє, чи автентифікований користувач є адміністратором."
+
+msgid "True if user is admin or if auth is disabled False if user is not admin or not authenticated"
+msgstr "True, якщо користувач адміністратор або автентифікацію вимкнено; False, якщо користувач не адміністратор або не автентифікований."
+
+msgid "Check whether current request has valid authentication context."
+msgstr "Перевіряє, чи поточний запит має валідний контекст автентифікації."
+
+msgid "Authentication status."
+msgstr "Статус автентифікації."
+
+msgid "Log user connection/disconnection events."
+msgstr "Логує події підключення/відключення користувача."
+
+msgid "FastMCP context"
+msgstr "Контекст FastMCP"
+
+msgid "Event type (connected, disconnected, etc.)"
+msgstr "Тип події (connected, disconnected тощо)"
+
+msgid "Decorator to require admin privileges for a function/method."
+msgstr "Декоратор, що вимагає права адміністратора для функції/методу."
+
+msgid "Auto-extracts ``Context`` from function arguments (first arg or ``ctx``/``context`` kwarg)."
+msgstr "Автоматично витягує ``Context`` з аргументів функції (перший аргумент або іменований ``ctx``/``context``)."
+
+msgid "@require_admin(\"delete file\") async def delete_file(ctx: Context, path: str):"
+msgstr "@require_admin(\"delete file\") async def delete_file(ctx: Context, path: str):"
+
+msgid "Description of the operation (for error message)"
+msgstr "Опис операції (для повідомлення про помилку)"
+
+msgid "If user is not admin"
+msgstr "Якщо користувач не адміністратор"
+
+msgid "If Context cannot be extracted from arguments"
+msgstr "Якщо Context неможливо витягнути з аргументів"
+
+msgid "Decorator to require authentication for a function/method."
+msgstr "Декоратор, що вимагає автентифікацію для функції/методу."
+
+msgid "@require_auth(\"write file\") async def write_file(ctx: Context, path: str, content: str):"
+msgstr "@require_auth(\"write file\") async def write_file(ctx: Context, path: str, content: str):"
+
+msgid "If user is not authenticated"
+msgstr "Якщо користувач не автентифікований"
+
+msgid "Shared path-validation and capability helper functions for tools."
+msgstr "Спільні допоміжні функції валідації шляхів і перевірки можливостей для інструментів."
+
+msgid "Check whether client supports elicitation capability."
+msgstr "Перевіряє, чи клієнт підтримує можливість elicitation."
+
+msgid "Active MCP session."
+msgstr "Активна MCP-сесія."
+
+msgid "``True`` when capability is supported."
+msgstr "``True``, коли можливість підтримується."
+
+msgid "Check whether client supports roots capability."
+msgstr "Перевіряє, чи клієнт підтримує можливість roots."
+
+msgid "Check whether client supports sampling capability."
+msgstr "Перевіряє, чи клієнт підтримує можливість sampling."
+
+msgid "Normalize and validate path values."
+msgstr "Нормалізує та перевіряє значення шляхів."
+
+msgid "Source path as ``Path`` or string."
+msgstr "Вихідний шлях у вигляді ``Path`` або рядка."
+
+msgid "Whether path must already exist."
+msgstr "Чи має шлях вже існувати."
+
+msgid "Normalized absolute path."
+msgstr "Нормалізований абсолютний шлях."
+
+msgid "Fetch roots from client if capability is available."
+msgstr "Отримує roots від клієнта, якщо можливість доступна."
+
+msgid "Client-provided roots or ``None``."
+msgstr "Roots, надані клієнтом, або ``None``."
+
+msgid "Format file size in human readable format."
+msgstr "Форматує розмір файлу в людиночитний формат."
+
+msgid "Format timestamp to readable string."
+msgstr "Форматує часову мітку в читабельний рядок."
+
+msgid "Build combined roots list from server settings and client roots."
+msgstr "Формує комбінований список roots із налаштувань сервера та roots клієнта."
+
+msgid "Effective roots for path authorization."
+msgstr "Ефективні roots для авторизації шляхів."
+
+msgid "Check if file should be included based on exclude patterns."
+msgstr "Перевіряє, чи слід включати файл на основі шаблонів виключення."
+
+msgid "Convert ``file://`` URI into normalized local ``Path``."
+msgstr "Перетворює URI ``file://`` у нормалізований локальний ``Path``."
+
+msgid "File URI."
+msgstr "URI файлу."
+
+msgid "Normalized local path."
+msgstr "Нормалізований локальний шлях."
+
+msgid "Validate a path string and return a Path object if valid, otherwise raise an error."
+msgstr "Перевіряє рядок шляху і повертає об'єкт Path, якщо він валідний; інакше піднімає помилку."
+
+msgid "Check if a given path is within allowed scopes of Global allowed directories on server and roots from client."
+msgstr "Перевіряє, чи належить вказаний шлях до дозволених областей: глобальних директорій сервера та roots клієнта."
+
+msgid "Unified error formatting, localization, and tool exception boundaries."
+msgstr "Уніфіковане форматування помилок, локалізація та межі обробки винятків інструментів."
+
+msgid "Create formatted error response and log event with identifiers."
+msgstr "Створює відформатовану відповідь з помилкою та логує подію з ідентифікаторами."
+
+msgid "Logger to write error events."
+msgstr "Логер для запису подій помилок."
+
+msgid "Normalized error code key."
+msgstr "Нормалізований ключ коду помилки."
+
+msgid "Optional technical error detail."
+msgstr "Необов'язкова технічна деталь помилки."
+
+msgid "Optional original exception."
+msgstr "Необов'язковий початковий виняток."
+
+msgid "Additional structured logging context."
+msgstr "Додатковий структурований контекст логування."
+
+msgid "Localized message for client response."
+msgstr "Локалізоване повідомлення для відповіді клієнту."
+
+msgid "Build localized user-facing error message."
+msgstr "Формує локалізоване користувацьке повідомлення про помилку."
+
+msgid "Error category key."
+msgstr "Ключ категорії помилки."
+
+msgid "Correlation identifier."
+msgstr "Ідентифікатор кореляції."
+
+msgid "Optional request trace identifier."
+msgstr "Необов'язковий ідентифікатор трасування запиту."
+
+msgid "Optional technical details."
+msgstr "Необов'язкові технічні деталі."
+
+msgid "Formatted localized error text."
+msgstr "Відформатований локалізований текст помилки."
+
+msgid "Wrap tool call with standardized exception handling."
+msgstr "Обгортає виклик інструмента стандартизованою обробкою винятків."
+
+msgid "Async tool function."
+msgstr "Асинхронна функція інструмента."
+
+msgid "Logger for error events."
+msgstr "Логер для подій помилок."
+
+msgid "Wrapped function with uniform error boundary."
+msgstr "Обгорнена функція з уніфікованою межею обробки помилок."
+
+msgid "Structured logging configuration and runtime context helpers."
+msgstr "Налаштування структурованого логування та допоміжні засоби runtime-контексту."
+
+msgid "Inject request context fields into each log record."
+msgstr "Додає поля контексту запиту в кожен запис логу."
+
+msgid "Attach request context fields to the log record."
+msgstr "Приєднує поля контексту запиту до запису логу."
+
+msgid "Send CRITICAL logs to a configured webhook endpoint."
+msgstr "Надсилає CRITICAL-логи на налаштований webhook endpoint."
+
+msgid "Send CRITICAL record payload to configured webhook endpoint."
+msgstr "Надсилає payload CRITICAL-запису на налаштований webhook endpoint."
+
+msgid "Allow only WARNING and higher level records."
+msgstr "Дозволяє лише записи рівня WARNING і вище."
+
+msgid "Return ``True`` when record level is WARNING or higher."
+msgstr "Повертає ``True``, коли рівень запису WARNING або вище."
+
+msgid "Formatter that emits structured JSON logs."
+msgstr "Форматер, який генерує структуровані JSON-логи."
+
+msgid "Serialize a log record as JSON string."
+msgstr "Серіалізує запис логу у JSON-рядок."
+
+msgid "Allow only records up to INFO level."
+msgstr "Дозволяє лише записи до рівня INFO включно."
+
+msgid "Return ``True`` when record level is INFO or lower."
+msgstr "Повертає ``True``, коли рівень запису INFO або нижчий."
+
+msgid "Reset request-scoped logging context to default placeholders."
+msgstr "Скидає контекст логування в межах запиту до значень за замовчуванням."
+
+msgid "Initialize structured logging and global exception handling for the server."
+msgstr "Ініціалізує структуроване логування та глобальну обробку винятків для сервера."
+
+msgid "Log exception and return generated ``error_id``."
+msgstr "Логує виняток і повертає згенерований ``error_id``."
+
+msgid "Logger instance."
+msgstr "Екземпляр логера."
+
+msgid "Error message prefix."
+msgstr "Префікс повідомлення про помилку."
+
+msgid "Original exception object."
+msgstr "Оригінальний об'єкт винятку."
+
+msgid "Additional structured log fields."
+msgstr "Додаткові структуровані поля логу."
+
+msgid "Generated error identifier."
+msgstr "Згенерований ідентифікатор помилки."
+
+msgid "Set request-scoped context values for structured logging."
+msgstr "Встановлює значення контексту в межах запиту для структурованого логування."
+
+msgid "Request identifier."
+msgstr "Ідентифікатор запиту."
+
+msgid "Trace identifier."
+msgstr "Ідентифікатор трасування."
+
+msgid "Authenticated user identifier."
+msgstr "Ідентифікатор автентифікованого користувача."
+
+msgid "Current operation name."
+msgstr "Назва поточної операції."
+
+msgid "Storage abstractions and implementations for auth/session persistence."
+msgstr "Абстракції та реалізації сховища для персистентності auth/session."
+
+msgid "Disk-backed JSON ``KeyValueStore`` implementation."
+msgstr "Реалізація ``KeyValueStore`` на основі JSON-файлу на диску."
+
+msgid "Delete value from JSON-backed store."
+msgstr "Видаляє значення зі сховища на основі JSON."
+
+msgid "Get value from JSON-backed store."
+msgstr "Отримує значення зі сховища на основі JSON."
+
+msgid "Store value in JSON-backed store."
+msgstr "Зберігає значення у сховищі на основі JSON."
+
+msgid "Encrypted wrapper over another ``KeyValueStore`` backend."
+msgstr "Зашифрована обгортка над іншим backend ``KeyValueStore``."
+
+msgid "Delete value from underlying backend."
+msgstr "Видаляє значення з базового backend."
+
+msgid "Read encrypted value and return decrypted payload."
+msgstr "Зчитує зашифроване значення і повертає розшифрований payload."
+
+msgid "Encrypt and store value in underlying backend."
+msgstr "Шифрує і зберігає значення в базовому backend."
+
+msgid "Abstract base class for Key-Value storage complying with FastMCP interface."
+msgstr "Абстрактний базовий клас для Key-Value сховища, сумісного з інтерфейсом FastMCP."
+
+msgid "Delete value by key and optional collection."
+msgstr "Видаляє значення за ключем і необов'язковою колекцією."
+
+msgid "Storage key."
+msgstr "Ключ сховища."
+
+msgid "Optional namespace."
+msgstr "Необов'язковий namespace."
+
+msgid "Fetch value by key and optional collection."
+msgstr "Отримує значення за ключем і необов'язковою колекцією."
+
+msgid "Stored value or ``None``."
+msgstr "Збережене значення або ``None``."
+
+msgid "Store value by key and optional collection."
+msgstr "Зберігає значення за ключем і необов'язковою колекцією."
+
+msgid "Value to persist."
+msgstr "Значення для збереження."
+
+msgid "Optional TTL in seconds."
+msgstr "Необов'язковий TTL у секундах."
+
+msgid "Redis-backed ``KeyValueStore`` implementation."
+msgstr "Реалізація ``KeyValueStore`` на основі Redis."
+
+msgid "Delete value from Redis by key and optional collection."
+msgstr "Видаляє значення з Redis за ключем і необов'язковою колекцією."
+
+msgid "Get value from Redis by key and optional collection."
+msgstr "Отримує значення з Redis за ключем і необов'язковою колекцією."
+
+msgid "Store value in Redis with optional TTL."
+msgstr "Зберігає значення в Redis з необов'язковим TTL."

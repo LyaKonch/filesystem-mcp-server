@@ -1,0 +1,35 @@
+# Ukrainian translations for mcp-server usage page
+msgid ""
+msgstr ""
+"Project-Id-Version: mcp-server\n"
+"PO-Revision-Date: 2026-03-24 19:30+0100\n"
+"Last-Translator: Copilot\n"
+"Language-Team: Ukrainian\n"
+"Language: uk\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Usage"
+msgstr "Використання"
+
+msgid "Build documentation"
+msgstr "Збірка документації"
+
+msgid "From the project root on Windows:"
+msgstr "Із кореня проєкту на Windows:"
+
+msgid "Useful targets:"
+msgstr "Корисні команди:"
+
+msgid "``.\\make.bat help`` — list available builders."
+msgstr "``.\\make.bat help`` — показати доступні цілі збірки."
+
+msgid "``.\\make.bat clean`` — remove build artifacts."
+msgstr "``.\\make.bat clean`` — очистити артефакти збірки."
+
+msgid "Output path"
+msgstr "Шлях до результату"
+
+msgid "Generated HTML is available in ``build\\html\\index.html`` (or ``_build\\html`` depending on your quickstart layout)."
+msgstr "Згенерований HTML доступний у ``build\\html\\index.html`` (або ``_build\\html`` залежно від конфігурації quickstart)."
