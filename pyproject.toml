@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "filesystem-mcp-server"
 version = "0.1.0"
@@ -67,3 +71,8 @@ pretty = true
 show_error_codes = true
 explicit_package_bases = true
 exclude = '^(tests|\.venv|__pycache__)/'
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["auth*", "utilities*", "resources*", "tools*"]
+namespaces = true
