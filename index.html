@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>filesystem-mcp-server documentation &#8212; mcp-server 0.1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
+    <script src="_static/documentation_options.js?v=01f34227"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Usage" href="usage.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="filesystem-mcp-server-documentation">
+<h1>filesystem-mcp-server documentation<a class="headerlink" href="#filesystem-mcp-server-documentation" title="Link to this heading">¶</a></h1>
+<p>Це базова документація проєкту з підтримкою Google-style docstrings
+через <code class="docutils literal notranslate"><span class="pre">sphinx.ext.napoleon</span></code>.</p>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="usage.html#build-documentation">Build documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage.html#output-path">Output path</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="architecture.html#project-structure">Project structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="architecture.html#interaction-flow">Interaction flow</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api.html#main.parse_command_line_args"><code class="docutils literal notranslate"><span class="pre">parse_command_line_args()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.filesystem.DirectoryEntry"><code class="docutils literal notranslate"><span class="pre">DirectoryEntry</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.filesystem.analyze_directory_security"><code class="docutils literal notranslate"><span class="pre">analyze_directory_security()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.filesystem.create_directory"><code class="docutils literal notranslate"><span class="pre">create_directory()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.filesystem.delete_directory"><code class="docutils literal notranslate"><span class="pre">delete_directory()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.filesystem.delete_file"><code class="docutils literal notranslate"><span class="pre">delete_file()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.filesystem.filesystem_summary"><code class="docutils literal notranslate"><span class="pre">filesystem_summary()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.filesystem.get_creative_file_description"><code class="docutils literal notranslate"><span class="pre">get_creative_file_description()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.filesystem.get_file_info"><code class="docutils literal notranslate"><span class="pre">get_file_info()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.filesystem.list_directory_with_sizes"><code class="docutils literal notranslate"><span class="pre">list_directory_with_sizes()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.filesystem.list_files"><code class="docutils literal notranslate"><span class="pre">list_files()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.filesystem.move_file"><code class="docutils literal notranslate"><span class="pre">move_file()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.filesystem.read_file"><code class="docutils literal notranslate"><span class="pre">read_file()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.filesystem.read_multiple_files"><code class="docutils literal notranslate"><span class="pre">read_multiple_files()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.filesystem.register"><code class="docutils literal notranslate"><span class="pre">register()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.filesystem.search_files"><code class="docutils literal notranslate"><span class="pre">search_files()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.filesystem.write_file"><code class="docutils literal notranslate"><span class="pre">write_file()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.monitoring.get_disk_status"><code class="docutils literal notranslate"><span class="pre">get_disk_status()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.monitoring.get_system_info"><code class="docutils literal notranslate"><span class="pre">get_system_info()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.monitoring.get_system_resource_usage"><code class="docutils literal notranslate"><span class="pre">get_system_resource_usage()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.monitoring.register"><code class="docutils literal notranslate"><span class="pre">register()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.server_management.add_allowed_root"><code class="docutils literal notranslate"><span class="pre">add_allowed_root()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.server_management.get_server_status"><code class="docutils literal notranslate"><span class="pre">get_server_status()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.server_management.list_allowed_roots"><code class="docutils literal notranslate"><span class="pre">list_allowed_roots()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.server_management.register"><code class="docutils literal notranslate"><span class="pre">register()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.server_management.remove_root"><code class="docutils literal notranslate"><span class="pre">remove_root()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.server_management.submit_error_report"><code class="docutils literal notranslate"><span class="pre">submit_error_report()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.server_management.update_roots"><code class="docutils literal notranslate"><span class="pre">update_roots()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.file_transfer.cleanup_expired_tokens"><code class="docutils literal notranslate"><span class="pre">cleanup_expired_tokens()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.file_transfer.ft_register_routes"><code class="docutils literal notranslate"><span class="pre">ft_register_routes()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.file_transfer.generate_download_token"><code class="docutils literal notranslate"><span class="pre">generate_download_token()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.file_transfer.is_download_token_valid"><code class="docutils literal notranslate"><span class="pre">is_download_token_valid()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#tools.file_transfer.prepare_file_for_download"><code class="docutils literal notranslate"><span class="pre">prepare_file_for_download()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#auth.auth.get_auth_provider"><code class="docutils literal notranslate"><span class="pre">get_auth_provider()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#auth.auth_middleware.AuthMiddleware"><code class="docutils literal notranslate"><span class="pre">AuthMiddleware</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#auth.auth_middleware.create_auth_middleware"><code class="docutils literal notranslate"><span class="pre">create_auth_middleware()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#auth.permissions.PermissionLevel"><code class="docutils literal notranslate"><span class="pre">PermissionLevel</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#auth.permissions.check_github_account"><code class="docutils literal notranslate"><span class="pre">check_github_account()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#auth.permissions.get_github_user_id"><code class="docutils literal notranslate"><span class="pre">get_github_user_id()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#auth.permissions.get_permission_level"><code class="docutils literal notranslate"><span class="pre">get_permission_level()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#auth.permissions.get_user_info"><code class="docutils literal notranslate"><span class="pre">get_user_info()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#auth.permissions.is_admin"><code class="docutils literal notranslate"><span class="pre">is_admin()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#auth.permissions.is_authenticated"><code class="docutils literal notranslate"><span class="pre">is_authenticated()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#auth.permissions.log_user_connection"><code class="docutils literal notranslate"><span class="pre">log_user_connection()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#auth.permissions.require_admin"><code class="docutils literal notranslate"><span class="pre">require_admin()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#auth.permissions.require_auth"><code class="docutils literal notranslate"><span class="pre">require_auth()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.dependencies.checkElicitationCapability"><code class="docutils literal notranslate"><span class="pre">checkElicitationCapability()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.dependencies.checkRootsCapability"><code class="docutils literal notranslate"><span class="pre">checkRootsCapability()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.dependencies.checkSamplingCapability"><code class="docutils literal notranslate"><span class="pre">checkSamplingCapability()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.dependencies.check_path"><code class="docutils literal notranslate"><span class="pre">check_path()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.dependencies.fetch_roots_from_client"><code class="docutils literal notranslate"><span class="pre">fetch_roots_from_client()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.dependencies.format_size"><code class="docutils literal notranslate"><span class="pre">format_size()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.dependencies.format_timestamp"><code class="docutils literal notranslate"><span class="pre">format_timestamp()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.dependencies.get_combined_roots"><code class="docutils literal notranslate"><span class="pre">get_combined_roots()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.dependencies.should_include_file"><code class="docutils literal notranslate"><span class="pre">should_include_file()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.dependencies.uri_to_path"><code class="docutils literal notranslate"><span class="pre">uri_to_path()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.dependencies.validate_path"><code class="docutils literal notranslate"><span class="pre">validate_path()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.dependencies.withinAllowed"><code class="docutils literal notranslate"><span class="pre">withinAllowed()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.error_handling.build_error_response"><code class="docutils literal notranslate"><span class="pre">build_error_response()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.error_handling.format_localized_error"><code class="docutils literal notranslate"><span class="pre">format_localized_error()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.error_handling.tool_error_boundary"><code class="docutils literal notranslate"><span class="pre">tool_error_boundary()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.logging.ContextFilter"><code class="docutils literal notranslate"><span class="pre">ContextFilter</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.logging.CriticalWebhookHandler"><code class="docutils literal notranslate"><span class="pre">CriticalWebhookHandler</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.logging.ErrorOnlyFilter"><code class="docutils literal notranslate"><span class="pre">ErrorOnlyFilter</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.logging.MyJSONFormatter"><code class="docutils literal notranslate"><span class="pre">MyJSONFormatter</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.logging.NonErrorFilter"><code class="docutils literal notranslate"><span class="pre">NonErrorFilter</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.logging.clear_log_context"><code class="docutils literal notranslate"><span class="pre">clear_log_context()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.logging.initialize_logging"><code class="docutils literal notranslate"><span class="pre">initialize_logging()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.logging.log_exception_with_id"><code class="docutils literal notranslate"><span class="pre">log_exception_with_id()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.logging.set_log_context"><code class="docutils literal notranslate"><span class="pre">set_log_context()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.storage.DiskStore"><code class="docutils literal notranslate"><span class="pre">DiskStore</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.storage.FernetEncryptionWrapper"><code class="docutils literal notranslate"><span class="pre">FernetEncryptionWrapper</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.storage.KeyValueStore"><code class="docutils literal notranslate"><span class="pre">KeyValueStore</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="api.html#utilities.storage.RedisStore"><code class="docutils literal notranslate"><span class="pre">RedisStore</span></code></a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="#">mcp-server</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+      <li>Next: <a href="usage.html" title="next chapter">Usage</a></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2026, LyaKonch.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.1.0</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
