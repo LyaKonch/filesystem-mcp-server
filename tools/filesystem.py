@@ -54,12 +54,14 @@ async def list_files(path: str, ctx: Context) -> str:
 async def read_file(path: str, ctx: Context, include_images: bool = False):
     """Read file content.
 
+    BEWARE: Use with caution and only when necessary.
+        Its like adding images to the prompt, thus your limit can be reached very fast, especially with files containing many images.
+        Also not every client supports sampling and not every model supports OCR/vision, therefore, if you need this tool, you should check those info beforehand.
+
     Args:
         path: Path to the file to read
         include_images: Whether to include image data in the result (Sample their description)
-        BEWARE: Use with caution and only when necessary.
-        Its like adding images to the prompt, thus your limit can be reached very fast, especially with files containing many images.
-        Also not every client supports sampling and not every model supports OCR/vision, therefore, if you need this tool, you should check those info beforehand.
+        ctx: MCP context.
     """
     try:
         target_path = await dependencies.validate_path(
