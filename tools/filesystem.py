@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 from collections import defaultdict
@@ -7,8 +8,11 @@ from typing import TypedDict
 from fastmcp import Context
 
 from utilities import dependencies
+from utilities.error_handling import tool_error_boundary
 from utilities.filereader import FileReader
 from utilities.imagereader import ImageReader
+
+module_logger = logging.getLogger(__name__)
 
 
 class DirectoryEntry(TypedDict):
@@ -87,8 +91,8 @@ async def read_file(path: str, ctx: Context, include_images: bool = False):
                                     obj["data"].pop("bytes_b64", None)
                                     # obj["data"].pop("sha1", None)
                                 except Exception as e:
-                                    dependencies.logger.warning(
-                                        f"Failed to describe image {obj['id']}: {e}"
+                                    module_logger.warning(
+                                        "Failed to describe image %s: %s", obj["id"], e
                                     )
 
             return file_data
@@ -282,7 +286,7 @@ async def analyze_directory_security(path: str, ctx: Context) -> str:
         }
         # archive_extensions = {'.zip', '.rar', '.7z', '.tar', '.gz', '.bz2'}
 
-        dependencies.logger.info(f"Starting comprehensive analysis of {target_path}")
+        module_logger.info("Starting comprehensive analysis of %s", target_path)
 
         for root, dirs, files in os.walk(target_path):
             current_depth = len(Path(root).relative_to(target_path).parts)
@@ -535,10 +539,10 @@ async def analyze_directory_security(path: str, ctx: Context) -> str:
                     return f"{basic_analysis}\n\n🤖 AI COMPREHENSIVE ANALYSIS:\n{str(ai_response)}"
 
                 except Exception as e:
-                    dependencies.logger.warning(f"AI analysis failed: {e}")
+                    module_logger.warning("AI analysis failed: %s", e)
 
         except Exception as e:
-            dependencies.logger.warning(f"Error checking sampling capability: {e}")
+            module_logger.warning("Error checking sampling capability: %s", e)
 
         return basic_analysis
 
@@ -872,11 +876,11 @@ async def get_creative_file_description(path: str, ctx: Context) -> str:
                 )
                 return str(response)
             except Exception as e:
-                dependencies.logger.warning(f"Sampling failed: {e}")
+                module_logger.warning("Sampling failed: %s", e)
                 # Fallback if sampling fails
                 pass
     except Exception as e:
-        dependencies.logger.warning(f"Error checking sampling capability: {e}")
+        module_logger.warning("Error checking sampling capability: %s", e)
 
     # Default response without sampling
     return f"Analysis of file content:\n\n{content_summary}"
@@ -885,18 +889,32 @@ async def get_creative_file_description(path: str, ctx: Context) -> str:
 def register(mcp):
     # group registration with the tag "filesystem"
     # read operations
-    mcp.tool(tags=["filesystem", "read"])(list_files)
-    mcp.tool(tags=["filesystem", "read"])(read_file)
-    mcp.tool(tags=["filesystem", "read"])(read_multiple_files)
-    mcp.tool(tags=["filesystem", "read"])(list_directory_with_sizes)
-    mcp.tool(tags=["filesystem", "read"])(search_files)
-    mcp.tool(tags=["filesystem", "read", "analysis"])(analyze_directory_security)
-    mcp.tool(tags=["filesystem", "read", "creative"])(get_creative_file_description)
-    mcp.tool(tags=["filesystem", "read", "summary"])(filesystem_summary)
+    mcp.tool(tags=["filesystem", "read"])(tool_error_boundary(list_files, module_logger))
+    mcp.tool(tags=["filesystem", "read"])(tool_error_boundary(read_file, module_logger))
+    mcp.tool(tags=["filesystem", "read"])(tool_error_boundary(read_multiple_files, module_logger))
+    mcp.tool(tags=["filesystem", "read"])(
+        tool_error_boundary(list_directory_with_sizes, module_logger)
+    )
+    mcp.tool(tags=["filesystem", "read"])(tool_error_boundary(search_files, module_logger))
+    mcp.tool(tags=["filesystem", "read", "analysis"])(
+        tool_error_boundary(analyze_directory_security, module_logger)
+    )
+    mcp.tool(tags=["filesystem", "read", "creative"])(
+        tool_error_boundary(get_creative_file_description, module_logger)
+    )
+    mcp.tool(tags=["filesystem", "read", "summary"])(
+        tool_error_boundary(filesystem_summary, module_logger)
+    )
 
     # write operations
-    mcp.tool(tags=["filesystem", "write", "dangerous", "admin"])(write_file)
-    mcp.tool(tags=["filesystem", "write"])(create_directory)
-    mcp.tool(tags=["filesystem", "write", "admin"])(move_file)
-    mcp.tool(tags=["filesystem", "write", "dangerous", "admin"])(delete_file)
-    mcp.tool(tags=["filesystem", "write", "dangerous", "admin"])(delete_directory)
+    mcp.tool(tags=["filesystem", "write", "dangerous", "admin"])(
+        tool_error_boundary(write_file, module_logger)
+    )
+    mcp.tool(tags=["filesystem", "write"])(tool_error_boundary(create_directory, module_logger))
+    mcp.tool(tags=["filesystem", "write", "admin"])(tool_error_boundary(move_file, module_logger))
+    mcp.tool(tags=["filesystem", "write", "dangerous", "admin"])(
+        tool_error_boundary(delete_file, module_logger)
+    )
+    mcp.tool(tags=["filesystem", "write", "dangerous", "admin"])(
+        tool_error_boundary(delete_directory, module_logger)
+    )

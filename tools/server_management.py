@@ -1,14 +1,20 @@
+import logging
 from pathlib import Path
 
 from fastmcp import Context
 
 from config import settings
 from utilities import dependencies
+from utilities import logging as log_context
+from utilities.error_handling import tool_error_boundary
+from utilities.error_reports import save_error_report
+
+module_logger = logging.getLogger(__name__)
 
 
 async def get_server_status(ctx: Context) -> dict:
     """Get information about server status, client features, and allowed roots."""
-    dependencies.logger.info("Checking server status")
+    module_logger.info("Checking server status")
 
     features = {
         "elicitation": dependencies.checkElicitationCapability(ctx.session),
@@ -23,7 +29,7 @@ async def get_server_status(ctx: Context) -> dict:
             if roots:
                 client_roots_list = [str(r) for r in roots]
         except Exception as e:
-            dependencies.logger.warning(f"Error getting client roots: {e}")
+            module_logger.warning("Error getting client roots: %s", e)
 
     return {
         "transport": settings.TRANSPORT,
@@ -116,9 +122,52 @@ async def remove_root(root: str) -> str:
         return f"Error removing root: {str(exc)}"
 
 
+async def submit_error_report(
+    summary: str,
+    ctx: Context,
+    error_id: str | None = None,
+    reproduction_steps: str | None = None,
+    system_info: str | None = None,
+    attachments: list[str] | None = None,
+) -> str:
+    """Collect technical error details from users for diagnostics and support.
+
+    Args:
+        summary: Short description of the problem.
+        error_id: Optional error ID returned by server.
+        reproduction_steps: Optional reproduction steps.
+        system_info: Optional environment details provided by user.
+        attachments: Optional list of file names or references.
+    """
+    request_id = log_context.request_id_ctx.get()
+    trace_id = log_context.trace_id_ctx.get()
+    user_id = log_context.user_id_ctx.get()
+    operation = log_context.operation_ctx.get()
+
+    report_id = save_error_report(
+        summary=summary,
+        error_id=error_id,
+        reproduction_steps=reproduction_steps,
+        system_info=system_info,
+        attachments=attachments,
+        request_id=request_id,
+        trace_id=trace_id,
+        user_id=user_id,
+        operation=operation,
+    )
+
+    return (
+        f"Report submitted successfully. report_id={report_id}. "
+        f"trace_id={trace_id}. Please share this report ID with support if follow-up is needed."
+    )
+
+
 def register(mcp):
-    mcp.tool(tags=["management"])(get_server_status)
-    mcp.tool(tags=["management", "admin"])(add_allowed_root)
-    mcp.tool(tags=["management"])(list_allowed_roots)
-    mcp.tool(tags=["management", "admin"])(update_roots)
-    mcp.tool(tags=["management", "admin"])(remove_root)
+    mcp.tool(tags=["management"])(tool_error_boundary(get_server_status, module_logger))
+    mcp.tool(tags=["management", "admin"])(tool_error_boundary(add_allowed_root, module_logger))
+    mcp.tool(tags=["management"])(tool_error_boundary(list_allowed_roots, module_logger))
+    mcp.tool(tags=["management", "admin"])(tool_error_boundary(update_roots, module_logger))
+    mcp.tool(tags=["management", "admin"])(tool_error_boundary(remove_root, module_logger))
+    mcp.tool(tags=["management", "support"])(
+        tool_error_boundary(submit_error_report, module_logger)
+    )

@@ -59,7 +59,7 @@ class RedisStore(KeyValueStore):
         try:
             return await self.redis.get(self._make_key(key, collection))
         except Exception as e:
-            logger.error(f"Redis read error: {e}")
+            logger.error("Redis read error: %s", e)
             return None
 
     async def put(
@@ -69,13 +69,13 @@ class RedisStore(KeyValueStore):
             # ex=ttl встановлює час життя ключа в секундах
             await self.redis.set(self._make_key(key, collection), value, ex=ttl)
         except Exception as e:
-            logger.error(f"Redis write error: {e}")
+            logger.error("Redis write error: %s", e)
 
     async def delete(self, key: str, collection: str | None = None) -> None:
         try:
             await self.redis.delete(self._make_key(key, collection))
         except Exception as e:
-            logger.error(f"Redis delete error: {e}")
+            logger.error("Redis delete error: %s", e)
 
 
 class DiskStore(KeyValueStore):
@@ -96,7 +96,7 @@ class DiskStore(KeyValueStore):
             with open(self.file_path, "w") as f:
                 json.dump(data, f, indent=2)
         except Exception as e:
-            logger.error(f"Disk save error: {e}")
+            logger.error("Disk save error: %s", e)
 
     async def get(self, key: str, collection: str | None = None) -> Any:
         data = await self._load()
@@ -141,7 +141,7 @@ class FernetEncryptionWrapper(KeyValueStore):
                 return decrypted
 
         except Exception as e:
-            logger.error(f"Decryption failed for key {key}: {e}")
+            logger.error("Decryption failed for key %s: %s", key, e)
             return None
 
     async def put(
@@ -159,7 +159,7 @@ class FernetEncryptionWrapper(KeyValueStore):
 
             await self.store.put(key, encrypted, collection=collection, ttl=ttl)
         except Exception as e:
-            logger.error(f"Encryption failed for key {key}: {e}")
+            logger.error("Encryption failed for key %s: %s", key, e)
             raise e
 
     async def delete(self, key: str, collection: str | None = None) -> None:

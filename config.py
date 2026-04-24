@@ -11,6 +11,15 @@ class Settings(BaseSettings):
     MCP_PORT: int = 8000
     TRANSPORT: str = "sse"
     DEBUG: bool = False
+    LOG_LEVEL: str = "INFO"
+    LOG_JSON: bool = False
+    LOG_FILE: str = "logs/fastmcp.log"
+    LOG_MAX_BYTES: int = 5_242_880
+    LOG_BACKUP_COUNT: int = 5
+    ERROR_LOCALE: str = "uk"
+    ALERT_WEBHOOK_URL: str | None = None
+    ALERT_WEBHOOK_TIMEOUT_SEC: float = 3.0
+    ERROR_REPORTS_FILE: str = "logs/error_reports.jsonl"
 
     # --- Authentication (GitHub) ---
     # can be switched off, therefore Optional
