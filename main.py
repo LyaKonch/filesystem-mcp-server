@@ -10,8 +10,12 @@ from starlette.middleware.cors import CORSMiddleware
 from auth.auth import get_auth_provider
 from auth.auth_middleware import create_auth_middleware
 from config import settings
-from tools import file_transfer, filesystem, monitoring, server_management
+from core_tools.FileTransferManager import FileTransferManager
+from core_tools.MonitoringManager import MonitoringManager
+from core_tools.OSManager import create_os_manager
+from core_tools.ServerManager import ServerManager
 from utilities import dependencies
+from utilities.error_handling import tool_error_boundary
 from utilities.logging import initialize_logging, log_exception_with_id
 
 
@@ -120,6 +124,42 @@ def parse_command_line_args():
     return args
 
 
+def auto_register_tools(mcp, manager_instance):
+    """Scan a manager instance and auto-register methods marked by @export_tool or @export_custom_route decorators."""
+
+    # going through all attributes of manager_instance
+    for attr_name in dir(manager_instance):
+        method = getattr(manager_instance, attr_name)
+
+        # if its a tool it has _is_mcp_tool true
+        if (
+            callable(method)
+            and getattr(method, "_is_mcp_tool", False)
+            and getattr(method, "_tool_logger", False)
+        ):
+            name = method._tool_name
+            desc = method._tool_desc
+            logger = method._tool_logger
+
+            # here we wrap the method with error boundary and register as tool
+            tags = sorted(method._tool_tags) if getattr(method, "_tool_tags", None) else None
+            mcp.tool(name=name, description=desc, tags=tags)(tool_error_boundary(method, logger))
+            logger.info(f"Automatically registered tool: {name}")
+
+        if (
+            callable(method)
+            and getattr(method, "_custom_route", False)
+            and getattr(method, "_methods", False)
+        ):
+            logger = method._tool_logger
+            mcp.custom_route(method._custom_route, methods=method._methods)(
+                tool_error_boundary(method, logger)
+            )
+            logger.info(
+                f"Automatically registered route: {method._custom_route} with methods {method._methods}"
+            )
+
+
 if __name__ == "__main__":
     args = parse_command_line_args()
 
@@ -152,14 +192,20 @@ if __name__ == "__main__":
         auth=auth_provider,
     )
 
+    os_manager = create_os_manager()
+    file_transfer_manager = FileTransferManager()
+    monitoring_manager = MonitoringManager()
+    server_manager = ServerManager()
+    auto_register_tools(mcp, file_transfer_manager)
+    auto_register_tools(mcp, os_manager.filesystem)
+    auto_register_tools(mcp, monitoring_manager)
+    auto_register_tools(mcp, server_manager)
+
     authmiddleware = create_auth_middleware()
     mcp.add_middleware(authmiddleware)
     logger.info("Auth middleware registered")
 
-    file_transfer.ft_register_routes(mcp)
-    filesystem.register(mcp)
-    server_management.register(mcp)
-    monitoring.register(mcp)
+    # file_transfer.ft_register_routes(mcp)
 
     asgi_middlewares = [
         Middleware(
