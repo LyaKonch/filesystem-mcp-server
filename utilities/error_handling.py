@@ -2,6 +2,7 @@ import logging
 import uuid
 from collections.abc import Awaitable, Callable
 from functools import wraps
+from inspect import isawaitable
 from typing import Any, cast
 
 from config import settings
@@ -138,7 +139,9 @@ def tool_error_boundary[F: Callable[..., Awaitable[Any]]](func: F, logger: loggi
     @wraps(func)
     async def wrapped(*args: Any, **kwargs: Any):
         try:
-            result = await func(*args, **kwargs)
+            result = func(*args, **kwargs)
+            if isawaitable(result):
+                result = await cast(Awaitable[Any], result)
             if isinstance(result, str) and result.startswith("Error"):
                 error_code = _infer_error_code(result)
                 return build_error_response(

@@ -16,6 +16,7 @@ from utilities.logging import clear_log_context, set_log_context
 
 class FileTransferManager:
     def __init__(self):
+        # token -> (filename, expires_at)
         self._download_tokens: dict[str, tuple[Path, float]] = {}
         self.module_logger = logging.getLogger(__name__)
 
@@ -57,10 +58,10 @@ class FileTransferManager:
     # @require_auth(operation="prepare_file_for_download")
     @export_tool(name="prepare_file_for_download", logger=logging.getLogger(__name__))
     async def prepare_file_for_download(self, file_path: str, ctx: Context) -> str:
-        """
-        Prepares a file for download by copying it to the server's designated download directory.
-        Validates the file path against allowed roots and checks for existence before copying.
-        User can then access the file via the /files/{filename} endpoint.
+        """Prepare a secure temporary download link for a file.
+
+        Validates path and permissions, then returns a short-lived token URL
+        that can be used by clients to download the file safely.
         """
         try:
             validated_path = await dependencies.validate_path(
@@ -88,6 +89,11 @@ class FileTransferManager:
         custom_route="/download", methods=["GET"], logger=logging.getLogger(__name__)
     )
     async def download_file(self, request: Request) -> Response:
+        """Serve a file by download token.
+
+        Verifies token validity, checks file availability, and streams the
+        file response with trace headers for request diagnostics.
+        """
         request_id = str(uuid.uuid4())
         trace_id = request.headers.get("X-Trace-Id") or request.query_params.get("trace_id")
         if not trace_id:

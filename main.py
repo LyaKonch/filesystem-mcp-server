@@ -198,6 +198,7 @@ if __name__ == "__main__":
     server_manager = ServerManager()
     auto_register_tools(mcp, file_transfer_manager)
     auto_register_tools(mcp, os_manager.filesystem)
+    auto_register_tools(mcp, os_manager.processes)
     auto_register_tools(mcp, monitoring_manager)
     auto_register_tools(mcp, server_manager)
 
