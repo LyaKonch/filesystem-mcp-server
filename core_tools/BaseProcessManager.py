@@ -57,6 +57,15 @@ class BaseProcessManager(ABC):
             return f"Error occurred while listing processes: {e}"
 
     @export_tool(
+        name="get_current_username", logger=logging.getLogger(__name__), tags=["process_management"]
+    )
+    def get_current_username(self):
+        try:
+            return psutil.Process().username()
+        except Exception as e:
+            logging.getLogger(__name__).warning(f"Unable to get current user: {e}")
+
+    @export_tool(
         name="get_process_info", logger=logging.getLogger(__name__), tags=["process_management"]
     )
     def get_process_info(self, pid: int) -> dict[str, object]:
@@ -316,6 +325,10 @@ class BaseProcessManager(ABC):
     def suspend_process(self, process_id):
         pass
 
+    @abstractmethod
+    def resume_process(self, process_id):
+        pass
+
     def is_process_running(self, process_id):
         return psutil.pid_exists(process_id)
 
@@ -483,7 +496,7 @@ class BaseProcessManager(ABC):
                     filtered = [p for p in filtered if p.get("ppid") == value]
         return filtered
 
-    def _sort_processes(self, process_list: list[dict], sort_by) -> list[dict]:
+    def _sort_processes(self, process_list: list[dict], sort_by: str) -> list[dict]:
         if not sort_by:
             return process_list
 
@@ -493,9 +506,28 @@ class BaseProcessManager(ABC):
             reverse = True
             key = sort_by[1:]
 
+        numeric_sort_keys = {
+            "pid",
+            "ppid",
+            "cpu_percent",
+            "memory_rss",
+            "started_ts",
+            "create_time_ts",
+            "num_threads",
+        }
+
+        if key in numeric_sort_keys:
+            return sorted(
+                process_list,
+                key=lambda item: (
+                    float(item.get(key)) if isinstance(item.get(key), (int, float)) else 0.0
+                ),
+                reverse=reverse,
+            )
+
         return sorted(
             process_list,
-            key=lambda item: item.get(key) if item.get(key) is not None else "",
+            key=lambda item: str(item.get(key)).lower() if item.get(key) is not None else "",
             reverse=reverse,
         )
 

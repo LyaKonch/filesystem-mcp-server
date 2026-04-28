@@ -41,6 +41,8 @@ ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+"core_tools/BaseFilesystemManager.py" = ["B024"]
+"core_tools/BaseServiceManager.py" = ["B024"]
 
 [tool.ruff.format]
 quote-style = "double"

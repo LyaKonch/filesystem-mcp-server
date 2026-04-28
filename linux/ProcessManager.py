@@ -16,3 +16,6 @@ class ProcessManager(BaseProcessManager):
 
     def suspend_process(self, process_id):
         pass
+
+    def resume_process(self, process_id):
+        pass

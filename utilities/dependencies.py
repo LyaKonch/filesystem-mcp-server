@@ -173,7 +173,7 @@ def format_timestamp(timestamp: float) -> str:
     return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
 
 
-def format_size(size: int) -> str:
+def format_size(size: int | float) -> str:
     """Format file size in human readable format."""
     size_f: float = float(size)
     for unit in ["B", "KB", "MB", "GB", "TB"]:
