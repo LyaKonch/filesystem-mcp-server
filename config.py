@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     # (comma-separated in .env: ADMIN_GITHUB_IDS=githubid,githubid2)])
     ADMIN_GITHUB_IDS: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
+    WINDOWS_NUMBER_OF_PROCESSES_LIMIT: int = 10
+    WINDOWS_MEMORY_LIMIT_PER_PROCESS_MB: int = 2048
+    WINDOWS_MEMORY_LIMIT_PROCESSES_MB: int = 4096
+
     # --- Security & Storage ---
     USE_PERSISTENT_STORAGE: bool = False
 

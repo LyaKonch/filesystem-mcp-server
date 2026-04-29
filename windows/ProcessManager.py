@@ -3,15 +3,20 @@ import logging
 from contextvars import ContextVar
 
 import psutil
+import win32api
+import win32con
+import win32job
+import win32process
 from fastmcp import Context
 
+from config import settings
 from core_tools.BaseProcessManager import BaseProcessManager
-            stdout, stderr = await asyncio.wait_for(
-                asyncio.gather(
-                    self._read_stream(process.stdout), self._read_stream(process.stderr)
-                ),
-                timeout=timeout_sec,
-            )
+from utilities.decorators import export_tool
+from utilities.dependencies import checkElicitationCapability
+
+commands: dict = {
+    "restart_server": "restart_server",
+    "ping": ["ping"],
     "tracert": ["tracert"],
 }
 
@@ -29,6 +34,26 @@ class ProcessManager(BaseProcessManager):
     def __init__(self):
         # self.os_manager = os_manager
         self.logger = logging.getLogger(__name__)
+        self._job_handle = win32job.CreateJobObject(None, "MCP_SERVER_JOB")
+
+        global_limits = win32job.QueryInformationJobObject(
+            self._job_handle, win32job.JobObjectExtendedLimitInformation
+        )
+
+        global_limits["BasicLimitInformation"]["LimitFlags"] = (
+            win32job.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+            | win32job.JOB_OBJECT_LIMIT_ACTIVE_PROCESS
+            | win32job.JOB_OBJECT_LIMIT_JOB_MEMORY
+        )
+
+        global_limits["BasicLimitInformation"]["ActiveProcessLimit"] = (
+            settings.WINDOWS_NUMBER_OF_PROCESSES_LIMIT
+        )
+        global_limits["JobMemoryLimit"] = settings.WINDOWS_MEMORY_LIMIT_PROCESSES_MB * 1024 * 1024
+
+        win32job.SetInformationJobObject(
+            self._job_handle, win32job.JobObjectExtendedLimitInformation, global_limits
+        )
 
     @export_tool(
         name="start_process", logger=logging.getLogger(__name__), tags=["process_management"]
@@ -78,8 +103,8 @@ class ProcessManager(BaseProcessManager):
         return commands
 
     async def _run_raw_command(self, *args: str, use_shell: bool = False) -> str:
+        local_job_handle = None
         try:
-            CREATE_NO_WINDOW = 0x08000000
             timeout_sec = 60
             if use_shell:
                 raw_command = args[0] if args else ""
@@ -87,7 +112,7 @@ class ProcessManager(BaseProcessManager):
                     raw_command,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
-                    creationflags=CREATE_NO_WINDOW,
+                    creationflags=win32process.CREATE_SUSPENDED | win32process.CREATE_NO_WINDOW,
                 )
                 self.logger.info(f"Started shell command: {raw_command}, pid={process.pid}")
             else:
@@ -95,10 +120,15 @@ class ProcessManager(BaseProcessManager):
                     *args,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
-                    creationflags=CREATE_NO_WINDOW,
+                    creationflags=win32process.CREATE_SUSPENDED | win32process.CREATE_NO_WINDOW,
                 )
 
                 self.logger.info(f"Started exec: {args}, pid={process.pid}")
+
+            main_thread = psutil.Process(process.pid).threads()[0].id
+
+            # we hang this variable here so it and child processes will be automatically cleaned up when process finishes
+            local_job_handle = self._put_process_in_job_object(process.pid, main_thread)
 
             stdout, stderr = await asyncio.wait_for(
                 asyncio.gather(
@@ -126,8 +156,50 @@ class ProcessManager(BaseProcessManager):
             return f"Error: Command '{args[0]}' not found. Check if the program is installed and paths are correct."
         except Exception as e:
             return f"Unexpected error: {str(e)}"
+        finally:
+            if local_job_handle:
+                win32api.CloseHandle(local_job_handle)
 
-    async def _read_stream(self, stream: asyncio.StreamReader) -> str:
+    def _put_process_in_job_object(self, pid: int, thread_id: int):
+        try:
+            process = win32api.OpenProcess(win32con.PROCESS_ALL_ACCESS, False, pid)
+
+            local_job_handle = win32job.CreateJobObject(None, "")
+
+            local_limits = win32job.QueryInformationJobObject(
+                local_job_handle, win32job.JobObjectExtendedLimitInformation
+            )
+
+            local_limits["BasicLimitInformation"]["LimitFlags"] = (
+                win32job.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | win32job.JOB_OBJECT_LIMIT_JOB_MEMORY
+            )
+            local_limits["JobMemoryLimit"] = (
+                settings.WINDOWS_MEMORY_LIMIT_PER_PROCESS_MB * 1024 * 1024
+            )
+
+            win32job.SetInformationJobObject(
+                local_job_handle, win32job.JobObjectExtendedLimitInformation, local_limits
+            )
+
+            # so called nested jobs, windows under the hood will build hierarchy of jobs, but for us it is transparent,
+            # we just assign process to both local and global job object
+            # global jobs will control numbers of processes and overall memory usage and local jobs will control local memory usage
+            if hasattr(self, "_job_handle") and self._job_handle:
+                win32job.AssignProcessToJobObject(self._job_handle, process)
+            win32job.AssignProcessToJobObject(local_job_handle, process)
+
+            thread_handle = win32api.OpenThread(win32con.THREAD_SUSPEND_RESUME, False, thread_id)
+            win32process.ResumeThread(thread_handle)
+
+            win32api.CloseHandle(thread_handle)
+            win32api.CloseHandle(process)
+
+            self.logger.info(f"Process {pid} assigned to job object successfully.")
+            return local_job_handle
+        except Exception as e:
+            self.logger.warning(f"Failed to assign process {pid} to job object: {e}")
+
+    async def _read_stream(self, stream) -> str:
         result_str: list[str] = []
         ctx = current_mcp_ctx.get()
         async for line in stream:
