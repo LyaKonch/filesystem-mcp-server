@@ -12,12 +12,13 @@ from fastmcp import Context
 from config import settings
 from core_tools.BaseProcessManager import BaseProcessManager
 from utilities.decorators import export_tool
-from utilities.dependencies import checkElicitationCapability
+from utilities.dependencies import checkElicitationCapability, validate_path
 
 commands: dict = {
-    "restart_server": "restart_server",
+    "restart_server": "restart_server",  # marker for special handling, not actual command to execute
     "ping": ["ping"],
     "tracert": ["tracert"],
+    "servy-cli": [".\\windows\\bin\\servy\\./servy-cli"],
 }
 
 current_mcp_ctx: ContextVar[Context | None] = ContextVar("current_mcp_ctx", default=None)
@@ -421,3 +422,90 @@ class ProcessManager(BaseProcessManager):
         except Exception as e:
             self.logger.warning(f"Failed to resume process {process_id}: {e}")
             return f"Failed to resume process {process_id}: {e}"
+
+    @export_tool(
+        name="wrap_script_as_service",
+        logger=logging.getLogger(__name__),
+        tags=["service_management"],
+    )
+    async def wrap_script_as_service(
+        self,
+        ctx: Context,
+        service_name: str,
+        executor_path: str,
+        script_path: str,
+        display_name: str | None = None,
+        start_type: str = "Automatic",
+        stdout_path: str | None = None,
+        stderr_path: str | None = None,
+    ) -> str:
+        """
+        Wrap any script (Python, Node, etc.) as a background Windows service using Servy.
+
+        Args:
+            service_name: The internal name of the service (no spaces).
+            executor_path: The executable to run the script (e.g., 'python.exe' or 'node.exe').
+            script_path: The path to the script file.
+            display_name: Friendly name for the Windows Services console.
+            start_type: 'Automatic', 'AutomaticDelayedStart', 'Manual', or 'Disabled'.
+            stdout_path: (Optional) Path to save the standard output logs.
+            stderr_path: (Optional) Path to save the standard error logs.
+        """
+        current_mcp_ctx.set(ctx)
+
+        try:
+            abs_script_path = await validate_path(
+                script_path, ctx, must_exist=True, expected_type="file"
+            )
+            stdout_path = await validate_path(
+                stdout_path, ctx, must_exist=False, expected_type="file"
+            )
+            stderr_path = await validate_path(
+                stderr_path, ctx, must_exist=False, expected_type="file"
+            )
+        except ValueError as e:
+            self.logger.error(f"Script path validation failed: {e}")
+            return f"Error: Script path validation failed: {e}"
+
+        if not stdout_path:
+            stdout_path = f"{abs_script_path}.stdout.log"
+        if not stderr_path:
+            stderr_path = f"{abs_script_path}.stderr.log"
+
+        args = [
+            "install",
+            f"--name={service_name}",
+            f"--path={executor_path}",
+            f"--params={abs_script_path}",
+            f"--startupType={start_type}",
+            f"--stdout={stdout_path}",
+            f"--stderr={stderr_path}",
+            "--enableSizeRotation",
+            "--rotationSize=10",
+            "--enableHealth",
+            "--recoveryAction=RestartProcess",
+        ]
+
+        if display_name:
+            args.append(f"--displayName={display_name}")
+
+        self.logger.info(
+            f"Wrapping {abs_script_path} as service '{service_name}'. Logs will be saved to {stdout_path}"
+        )
+
+        full_command = commands["servy-cli"] + args
+
+        result = await self._run_raw_command(*full_command, use_shell=False)
+
+        return result
+
+    def __del__(self):
+        """Guaranteed cleanup of job object and all processes associated with it when ProcessManager instance is destroyed, which should happen when server is stopped or restarted."""
+
+        # Closing the job handle will automatically terminate all processes associated with it due to the JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        if hasattr(self, "_job_handle") and self._job_handle:
+            try:
+                self.logger.info("Closing global Job Object handle...")
+                win32api.CloseHandle(self._job_handle)
+            except Exception as e:
+                self.logger.error(f"Error closing global job handle: {e}")
