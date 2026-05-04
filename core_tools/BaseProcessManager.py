@@ -476,24 +476,27 @@ class BaseProcessManager(ABC):
             raise
 
     def _filter_processes(self, process_list: list[dict], filters) -> list[dict]:
-        if not filters:
+        if not filters or not isinstance(filters, dict):
             return process_list
 
-        filtered = process_list
-        if isinstance(filters, dict):
-            for key, value in filters.items():
-                if value is None:
-                    continue
-                if key == "name":
-                    filtered = [p for p in filtered if p.get("name") == value]
-                elif key == "username":
-                    filtered = [p for p in filtered if p.get("username") == value]
-                elif key == "status":
-                    filtered = [p for p in filtered if p.get("status") == value]
-                elif key == "pid":
-                    filtered = [p for p in filtered if p.get("pid") == value]
-                elif key == "ppid":
-                    filtered = [p for p in filtered if p.get("ppid") == value]
+        active_filters = {k: v for k, v in filters.items() if v is not None}
+
+        if not active_filters:
+            return process_list
+
+        filtered = []
+
+        for p in process_list:
+            match = True
+
+            for key, expected_value in active_filters.items():
+                if p.get(key) != expected_value:
+                    match = False
+                    break
+
+            if match:
+                filtered.append(p)
+
         return filtered
 
     def _sort_processes(self, process_list: list[dict], sort_by: str) -> list[dict]:

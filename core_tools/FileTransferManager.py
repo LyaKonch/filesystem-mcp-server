@@ -89,11 +89,6 @@ class FileTransferManager:
         custom_route="/download", methods=["GET"], logger=logging.getLogger(__name__)
     )
     async def download_file(self, request: Request) -> Response:
-        """Serve a file by download token.
-
-        Verifies token validity, checks file availability, and streams the
-        file response with trace headers for request diagnostics.
-        """
         request_id = str(uuid.uuid4())
         trace_id = request.headers.get("X-Trace-Id") or request.query_params.get("trace_id")
         if not trace_id:

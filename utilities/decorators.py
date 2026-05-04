@@ -5,7 +5,7 @@ def export_tool(name=None, description=None, logger=None, tags=None):
     """Decorator to mark a function as an MCP tool with optional metadata."""
 
     def decorator(func):
-        func._is_mcp_tool = True  # Ставимо "якорець"
+        func._is_mcp_tool = True
         func._tool_name = name or func.__name__
         func._tool_desc = description or func.__doc__
         func._tool_logger = logger or logging.getLogger(func.__module__)

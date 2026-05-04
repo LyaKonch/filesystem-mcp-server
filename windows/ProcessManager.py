@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from contextvars import ContextVar
 
 import psutil
 import win32api
@@ -11,8 +10,9 @@ from fastmcp import Context
 
 from config import settings
 from core_tools.BaseProcessManager import BaseProcessManager
+from utilities.contextvar import current_mcp_ctx
 from utilities.decorators import export_tool
-from utilities.dependencies import checkElicitationCapability, validate_path
+from utilities.dependencies import request_elicitation_permission
 
 commands: dict = {
     "restart_server": "restart_server",  # marker for special handling, not actual command to execute
@@ -20,8 +20,6 @@ commands: dict = {
     "tracert": ["tracert"],
     "servy-cli": [".\\windows\\bin\\servy\\./servy-cli"],
 }
-
-current_mcp_ctx: ContextVar[Context | None] = ContextVar("current_mcp_ctx", default=None)
 
 
 class ProcessManager(BaseProcessManager):
@@ -97,7 +95,7 @@ class ProcessManager(BaseProcessManager):
         logger=logging.getLogger(__name__),
         tags=["process_management"],
     )
-    async def get_available_commands(
+    def get_available_commands(
         self,
     ) -> dict[str, list[str] | str]:
         """Get a list of available commands that can be executed with start_process."""
@@ -227,16 +225,18 @@ class ProcessManager(BaseProcessManager):
             process = psutil.Process(process_id)
             summary = super()._build_process_summary(process)
 
-            if not checkElicitationCapability(ctx.session):
+            permission = await request_elicitation_permission(
+                ctx, f"Are you sure you want to terminate '{summary}'?"
+            )
+
+            if permission is None:
                 self.logger.warning(
                     f"No elicitation support to confirm termination for process {process_id}."
                 )
-
                 await ctx.error(
                     f"Cannot terminate process {process_id} due to lack of elicitation capability."
                 )
                 await ctx.info("Checking process details to confirm the action...")
-
                 if (
                     summary["pid"] != process_id
                     or summary["name"] != name
@@ -251,10 +251,7 @@ class ProcessManager(BaseProcessManager):
 
                 return f"Process {process_id} terminated successfully."
 
-            user_agreed = await ctx.elicit(
-                f"Are you sure you want to terminate '{summary}'? ", bool
-            )
-            if not user_agreed:
+            if permission is False:
                 self.logger.info(f"User declined to terminate process {process_id}.")
                 return f"Process {process_id} termination cancelled by user."
 
@@ -301,7 +298,11 @@ class ProcessManager(BaseProcessManager):
             process = psutil.Process(process_id)
             summary = super()._build_process_summary(process)
 
-            if not checkElicitationCapability(ctx.session):
+            permission = await request_elicitation_permission(
+                ctx, f"Are you sure you want to suspend '{summary}'?"
+            )
+
+            if permission is None:
                 self.logger.warning(
                     f"No elicitation support to confirm suspension for process {process_id}."
                 )
@@ -330,8 +331,7 @@ class ProcessManager(BaseProcessManager):
                 )
                 return f"Process {process_id} ({summary['name']}) suspended successfully."
 
-            user_agreed = await ctx.elicit(f"Are you sure you want to suspend '{summary}'? ", bool)
-            if not user_agreed:
+            if permission is False:
                 self.logger.info(f"User declined to suspend process {process_id}.")
                 return f"Process {process_id} suspension cancelled by user."
 
@@ -376,7 +376,11 @@ class ProcessManager(BaseProcessManager):
             process = psutil.Process(process_id)
             summary = super()._build_process_summary(process)
 
-            if not checkElicitationCapability(ctx.session):
+            permission = await request_elicitation_permission(
+                ctx, f"Are you sure you want to resume '{summary}'?"
+            )
+
+            if permission is None:
                 self.logger.warning(
                     f"No elicitation support to confirm resume for process {process_id}."
                 )
@@ -403,8 +407,7 @@ class ProcessManager(BaseProcessManager):
                 self.logger.info(f"Process {process_id} ({summary['name']}) resumed successfully.")
                 return f"Process {process_id} ({summary['name']}) resumed successfully."
 
-            user_agreed = await ctx.elicit(f"Are you sure you want to resume '{summary}'? ", bool)
-            if not user_agreed:
+            if permission is False:
                 self.logger.info(f"User declined to resume process {process_id}.")
                 return f"Process {process_id} resume cancelled by user."
 
@@ -423,81 +426,20 @@ class ProcessManager(BaseProcessManager):
             self.logger.warning(f"Failed to resume process {process_id}: {e}")
             return f"Failed to resume process {process_id}: {e}"
 
-    @export_tool(
-        name="wrap_script_as_service",
-        logger=logging.getLogger(__name__),
-        tags=["service_management"],
-    )
-    async def wrap_script_as_service(
-        self,
-        ctx: Context,
-        service_name: str,
-        executor_path: str,
-        script_path: str,
-        display_name: str | None = None,
-        start_type: str = "Automatic",
-        stdout_path: str | None = None,
-        stderr_path: str | None = None,
-    ) -> str:
+    def kill_process_tree(self, pid: int) -> str:
         """
-        Wrap any script (Python, Node, etc.) as a background Windows service using Servy.
+        Kill a process and all of its child processes.
 
         Args:
-            service_name: The internal name of the service (no spaces).
-            executor_path: The executable to run the script (e.g., 'python.exe' or 'node.exe').
-            script_path: The path to the script file.
-            display_name: Friendly name for the Windows Services console.
-            start_type: 'Automatic', 'AutomaticDelayedStart', 'Manual', or 'Disabled'.
-            stdout_path: (Optional) Path to save the standard output logs.
-            stderr_path: (Optional) Path to save the standard error logs.
+            pid: The PID of the parent process to kill.
+        Returns:
+            A message indicating the result of the operation.
         """
-        current_mcp_ctx.set(ctx)
-
-        try:
-            abs_script_path = await validate_path(
-                script_path, ctx, must_exist=True, expected_type="file"
-            )
-            stdout_path = await validate_path(
-                stdout_path, ctx, must_exist=False, expected_type="file"
-            )
-            stderr_path = await validate_path(
-                stderr_path, ctx, must_exist=False, expected_type="file"
-            )
-        except ValueError as e:
-            self.logger.error(f"Script path validation failed: {e}")
-            return f"Error: Script path validation failed: {e}"
-
-        if not stdout_path:
-            stdout_path = f"{abs_script_path}.stdout.log"
-        if not stderr_path:
-            stderr_path = f"{abs_script_path}.stderr.log"
-
-        args = [
-            "install",
-            f"--name={service_name}",
-            f"--path={executor_path}",
-            f"--params={abs_script_path}",
-            f"--startupType={start_type}",
-            f"--stdout={stdout_path}",
-            f"--stderr={stderr_path}",
-            "--enableSizeRotation",
-            "--rotationSize=10",
-            "--enableHealth",
-            "--recoveryAction=RestartProcess",
-        ]
-
-        if display_name:
-            args.append(f"--displayName={display_name}")
-
-        self.logger.info(
-            f"Wrapping {abs_script_path} as service '{service_name}'. Logs will be saved to {stdout_path}"
-        )
-
-        full_command = commands["servy-cli"] + args
-
-        result = await self._run_raw_command(*full_command, use_shell=False)
-
-        return result
+        # this should check if the server process is in the tree and block killing if that's the case, to prevent accidental self-termination
+        # plus i can use recursively process_kill function.
+        # first children and then parent
+        # if possible, graceful shutdown or equivalent.
+        pass
 
     def __del__(self):
         """Guaranteed cleanup of job object and all processes associated with it when ProcessManager instance is destroyed, which should happen when server is stopped or restarted."""

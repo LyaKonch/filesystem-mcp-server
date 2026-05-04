@@ -196,12 +196,18 @@ if __name__ == "__main__":
     file_transfer_manager = FileTransferManager()
     monitoring_manager = MonitoringManager()
     server_manager = ServerManager()
+
     auto_register_tools(mcp, file_transfer_manager)
+    auto_register_tools(mcp, os_manager)
+    auto_register_tools(mcp, os_manager.system)
     auto_register_tools(mcp, os_manager.filesystem)
     auto_register_tools(mcp, os_manager.processes)
     auto_register_tools(mcp, os_manager.services)
     auto_register_tools(mcp, monitoring_manager)
     auto_register_tools(mcp, server_manager)
+
+    if hasattr(os_manager.system, "registry"):
+        auto_register_tools(mcp, os_manager.system.registry)
 
     authmiddleware = create_auth_middleware()
     mcp.add_middleware(authmiddleware)

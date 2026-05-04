@@ -3,7 +3,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from functools import wraps
 from inspect import isawaitable
-from typing import Any, cast
+from typing import Any, cast, get_type_hints
 
 from config import settings
 from utilities import logging as log_context
@@ -160,4 +160,8 @@ def tool_error_boundary[F: Callable[..., Awaitable[Any]]](func: F, logger: loggi
                 operation=func.__name__,
             )
 
+    try:
+        wrapped.__annotations__ = get_type_hints(func)
+    except Exception as e:
+        logger.warning(f"Failed to resolve type hints for {func.__name__}: {e}")
     return cast(F, wrapped)

@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 import xml.etree.ElementTree as ET
+from typing import TYPE_CHECKING
 
 import psutil
 import pywintypes
@@ -8,9 +11,15 @@ import win32evtlog
 import win32service
 import win32serviceutil
 import winerror
+from fastmcp import Context
 
 from core_tools.BaseServiceManager import BaseServiceManager
+from utilities.contextvar import current_mcp_ctx
 from utilities.decorators import export_tool
+from utilities.dependencies import validate_path
+
+if TYPE_CHECKING:
+    from windows.ProcessManager import ProcessManager as WindowsProcessManager
 
 
 class ServiceManager(BaseServiceManager):
@@ -21,24 +30,84 @@ class ServiceManager(BaseServiceManager):
     handles common win32 errors (access denied, not found, already running).
     """
 
-    def __init__(self):
+    def __init__(self, process_mgr: WindowsProcessManager):
         self.logger = logging.getLogger(__name__)
+        self.process_mgr = process_mgr
 
     @export_tool(
         name="list_services",
         tags=["service", "list"],
     )
-    async def get_services(self):
-        """Return list of installed services (runs in thread)."""
+    async def list_services(
+        self,
+        name: str | None = None,
+        status: str | None = None,
+        pid: int | None = None,
+        username: str | None = None,
+        start_type: str | None = None,
+        binpath: str | None = None,
+        description: str | None = None,
+    ):
+        """
+        List Windows services with optional filtering.
+
+        Parameters (all optional, case-insensitive, substring matching):
+            name: Service or display name
+            status: 'running', 'stopped', 'paused', etc.
+            pid: Process ID (exact match)
+            username: Service account
+            start_type: 'automatic', 'manual', 'disabled'
+            binpath: Binary path
+            description: Service description
+
+        Returns:
+            list[dict]: Service dicts with keys: name, display_name, status, start_type,
+                        pid, username, binpath, description. Empty list on error.
+        """
 
         def _sync():
             try:
                 services = []
+                f_name = name.lower() if name else None
+                f_status = status.lower() if status else None
+                f_username = username.lower() if username else None
+                f_start_type = start_type.lower() if start_type else None
+                f_binpath = binpath.lower() if binpath else None
+                f_desc = description.lower() if description else None
+
                 for service in psutil.win_service_iter():
                     try:
-                        services.append(service.as_dict())
+                        s = service.as_dict()
                     except Exception as e:
                         self.logger.warning(f"Failed to get info for service {service}: {e}")
+                        continue
+
+                    s_name = (s.get("name") or "").lower()
+                    s_disp = (s.get("display_name") or "").lower()
+
+                    if f_name and not (
+                        f_name in s_name or s_name in f_name or f_name in s_disp or s_disp in f_name
+                    ):
+                        continue
+                    if f_status and (s.get("status") or "").lower() != f_status:
+                        continue
+                    if pid is not None and s.get("pid") != pid:
+                        continue
+                    if f_username and (s.get("username") or "").lower() != f_username:
+                        continue
+                    if f_start_type and (s.get("start_type") or "").lower() != f_start_type:
+                        continue
+                    if f_binpath:
+                        s_bin = (s.get("binpath") or "").lower()
+                        if not (f_binpath in s_bin or s_bin in f_binpath):
+                            continue
+                    if f_desc:
+                        s_description = (s.get("description") or "").lower()
+                        if not (f_desc in s_description or s_description in f_desc):
+                            continue
+
+                    services.append(s)
+
                 return services
             except Exception as e:
                 self.logger.error(f"Error occurred while listing services: {e}")
@@ -428,3 +497,79 @@ class ServiceManager(BaseServiceManager):
                 return f"Failed to remove service: {getattr(e, 'strerror', str(e))}"
 
         return await asyncio.to_thread(_sync)
+
+    @export_tool(
+        name="wrap_script_as_service",
+        logger=logging.getLogger(__name__),
+        tags=["service_management"],
+    )
+    async def wrap_script_as_service(
+        self,
+        ctx: Context,
+        service_name: str,
+        executor_path: str,
+        script_path: str,
+        display_name: str | None = None,
+        start_type: str = "Automatic",
+        stdout_path: str | None = None,
+        stderr_path: str | None = None,
+    ) -> str:
+        """
+        Wrap any script (Python, Node, etc.) as a background Windows service using Servy.
+
+        Args:
+            service_name: The internal name of the service (no spaces).
+            executor_path: The executable to run the script (e.g., 'python.exe' or 'node.exe').
+            script_path: The path to the script file.
+            display_name: Friendly name for the Windows Services console.
+            start_type: 'Automatic', 'AutomaticDelayedStart', 'Manual', or 'Disabled'.
+            stdout_path: (Optional) Path to save the standard output logs.
+            stderr_path: (Optional) Path to save the standard error logs.
+        """
+        current_mcp_ctx.set(ctx)
+
+        try:
+            abs_script_path = await validate_path(
+                script_path, ctx, must_exist=True, expected_type="file"
+            )
+            stdout_path = await validate_path(
+                stdout_path, ctx, must_exist=False, expected_type="file"
+            )
+            stderr_path = await validate_path(
+                stderr_path, ctx, must_exist=False, expected_type="file"
+            )
+        except ValueError as e:
+            self.logger.error(f"Script path validation failed: {e}")
+            return f"Error: Script path validation failed: {e}"
+
+        if not stdout_path:
+            stdout_path = f"{abs_script_path}.stdout.log"
+        if not stderr_path:
+            stderr_path = f"{abs_script_path}.stderr.log"
+
+        args = [
+            "install",
+            f"--name={service_name}",
+            f"--path={executor_path}",
+            f"--params={abs_script_path}",
+            f"--startupType={start_type}",
+            f"--stdout={stdout_path}",
+            f"--stderr={stderr_path}",
+            "--enableSizeRotation",
+            "--rotationSize=10",
+            "--enableHealth",
+            "--recoveryAction=RestartProcess",
+        ]
+
+        if display_name:
+            args.append(f"--displayName={display_name}")
+
+        self.logger.info(
+            f"Wrapping {abs_script_path} as service '{service_name}'. Logs will be saved to {stdout_path}"
+        )
+
+        full_command = self.process_mgr.get_available_commands().get("servy-cli", []) + args
+
+        result = await self.process_mgr._run_raw_command(*full_command, use_shell=False)
+
+        return result

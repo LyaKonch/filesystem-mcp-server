@@ -150,6 +150,21 @@ def checkSamplingCapability(session: ServerSession) -> bool:
     return session.check_client_capability(caps)
 
 
+async def request_elicitation_permission(context: fastmcp.Context, reason: str) -> bool | None:
+    if not checkElicitationCapability(context.session):
+        logger.debug("Client does not support elicitation capability")
+        return None
+
+    logger.info("Requesting elicitation permission from client for reason: %s", reason)
+    try:
+        permission = await context.elicit(reason, bool)
+        logger.info("Elicitation result: %s", permission)
+        return permission
+    except Exception as e:
+        logger.error("Error requesting elicitation permission: %s", e)
+        return None
+
+
 async def withinAllowed(path: Path, ctx: fastmcp.Context) -> bool:
     """Check if a given path is within allowed scopes of Global allowed directories on server and roots from client."""
     current_scope = await get_combined_roots(ctx)
