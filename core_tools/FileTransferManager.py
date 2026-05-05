@@ -11,6 +11,7 @@ from starlette.responses import FileResponse, JSONResponse, Response
 from config import settings
 from utilities import dependencies
 from utilities.decorators import export_custom_route, export_tool
+from utilities.error_handling import ToolOperationError
 from utilities.logging import clear_log_context, set_log_context
 
 
@@ -67,11 +68,21 @@ class FileTransferManager:
             validated_path = await dependencies.validate_path(
                 file_path, ctx, must_exist=True, expected_type="file"
             )
-        except ValueError as e:
+        except ToolOperationError:
+            raise
+        except Exception as e:
             self.module_logger.error(
                 f"File {file_path} is not valid or accessible or not within allowed roots: {e}"
             )
-            raise
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to prepare file '{file_path}' for download: {e}",
+                actions=[
+                    "Verify the file exists and is accessible.",
+                    "Check file permissions and allowed roots.",
+                    "Retry the operation.",
+                ],
+            ) from e
 
         token = self.generate_download_token(validated_path)
         trace_id = str(uuid.uuid4())

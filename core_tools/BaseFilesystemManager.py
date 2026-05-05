@@ -10,6 +10,7 @@ from fastmcp import Context
 
 from utilities import dependencies
 from utilities.decorators import export_tool
+from utilities.error_handling import ToolOperationError
 from utilities.filereader import FileReader
 from utilities.imagereader import ImageReader
 
@@ -39,8 +40,18 @@ class BaseFilesystemManager(ABC):
                 items.append(f"{prefix} {item.name}")
 
             return "\n".join(sorted(items))
+        except ToolOperationError:
+            raise
         except Exception as e:
-            return f"Error: {str(e)}"
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to list files in '{path}': {e}",
+                actions=[
+                    "Verify the path points to an accessible directory.",
+                    "Check directory permissions.",
+                    "Retry the operation.",
+                ],
+            ) from e
 
     @export_tool(name="read_file", logger=logging.getLogger(__name__), tags=["filesystem", "read"])
     async def read_file(self, path: str, ctx: Context, include_images: bool = False):
@@ -103,10 +114,28 @@ class BaseFilesystemManager(ABC):
 
             return {"metadata": {}, "content": {}}
 
-        except UnicodeDecodeError:
-            return f"Error: File '{path}' contains binary data or unsupported encoding"
+        except UnicodeDecodeError as e:
+            raise ToolOperationError(
+                "validation",
+                f"File '{path}' contains binary data or unsupported encoding",
+                actions=[
+                    "Use a text-based file.",
+                    "Try a different file encoding.",
+                    "Retry without image description if applicable.",
+                ],
+            ) from e
+        except ToolOperationError:
+            raise
         except Exception as e:
-            return f"Error reading file: {str(e)}"
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to read file '{path}': {e}",
+                actions=[
+                    "Verify the file exists and is readable.",
+                    "Check file permissions.",
+                    "Retry the operation.",
+                ],
+            ) from e
 
     @export_tool(
         name="write_file",
@@ -119,15 +148,33 @@ class BaseFilesystemManager(ABC):
             target_path = await dependencies.validate_path(path, ctx, must_exist=False)
 
             if not await dependencies.withinAllowed(target_path.parent, ctx):
-                return f"Error: Access denied to write in '{target_path.parent}'"
+                raise ToolOperationError(
+                    "access_denied",
+                    f"Access denied to write in '{target_path.parent}'",
+                    actions=[
+                        "Use a path within the allowed roots.",
+                        "Check write permissions for the target directory.",
+                        "Retry with a permitted path.",
+                    ],
+                )
             # Create parent directories if they don't exist
             target_path.parent.mkdir(parents=True, exist_ok=True)
 
             target_path.write_text(content, encoding="utf-8")
             return f"Saved to {target_path}"
 
+        except ToolOperationError:
+            raise
         except Exception as e:
-            return f"Error: {e}"
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to write file '{path}': {e}",
+                actions=[
+                    "Verify the path is writable.",
+                    "Check disk space and permissions.",
+                    "Retry the operation.",
+                ],
+            ) from e
 
     @export_tool(
         name="create_directory", logger=logging.getLogger(__name__), tags=["filesystem", "write"]
@@ -137,11 +184,29 @@ class BaseFilesystemManager(ABC):
         try:
             target_path = await dependencies.validate_path(path, ctx, must_exist=False)
             if not await dependencies.withinAllowed(target_path.parent, ctx):
-                return f"Error: Access denied to create directory in '{target_path.parent}'"
+                raise ToolOperationError(
+                    "access_denied",
+                    f"Access denied to create directory in '{target_path.parent}'",
+                    actions=[
+                        "Use a path within the allowed roots.",
+                        "Check directory creation permissions.",
+                        "Retry with a permitted path.",
+                    ],
+                )
             target_path.mkdir(parents=True, exist_ok=True)
             return f"Created directory '{path}'"
+        except ToolOperationError:
+            raise
         except Exception as e:
-            return f"Error: {str(e)}"
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to create directory '{path}': {e}",
+                actions=[
+                    "Verify the parent directory is writable.",
+                    "Check disk space and permissions.",
+                    "Retry the operation.",
+                ],
+            ) from e
 
     @export_tool(
         name="list_directory_with_sizes",
@@ -159,7 +224,14 @@ class BaseFilesystemManager(ABC):
         """
         try:
             if ctx is None:
-                return "Error: No context provided"
+                raise ToolOperationError(
+                    "validation",
+                    "No context provided",
+                    actions=[
+                        "Call the tool with a valid MCP context.",
+                        "Retry the operation.",
+                    ],
+                )
 
             target_path = await dependencies.validate_path(
                 path, ctx, must_exist=True, expected_type="dir"
@@ -212,8 +284,18 @@ class BaseFilesystemManager(ABC):
 
             return "\n".join(lines)
 
+        except ToolOperationError:
+            raise
         except Exception as e:
-            return f"Error: {str(e)}"
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to list directory contents for '{path}': {e}",
+                actions=[
+                    "Verify the path is accessible.",
+                    "Check directory permissions.",
+                    "Retry the operation.",
+                ],
+            ) from e
 
     @export_tool(
         name="analyze_directory_security",
@@ -572,8 +654,18 @@ class BaseFilesystemManager(ABC):
 
             return basic_analysis
 
+        except ToolOperationError:
+            raise
         except Exception as e:
-            return f"Error analyzing directory: {str(e)}"
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to analyze directory '{path}': {e}",
+                actions=[
+                    "Verify the directory exists and is readable.",
+                    "Check permissions for files inside the directory.",
+                    "Retry the operation.",
+                ],
+            ) from e
 
     @export_tool(
         name="get_file_info", logger=logging.getLogger(__name__), tags=["filesystem", "read"]
@@ -588,10 +680,26 @@ class BaseFilesystemManager(ABC):
             target_path = dependencies.check_path(Path(path))
 
             if not await dependencies.withinAllowed(target_path, ctx):
-                return f"Error: Path '{path}' is not within allowed roots"
+                raise ToolOperationError(
+                    "access_denied",
+                    f"Path '{path}' is not within allowed roots",
+                    actions=[
+                        "Use a path within the allowed roots.",
+                        "Check allowed root configuration.",
+                        "Retry with a permitted path.",
+                    ],
+                )
 
             if not target_path.exists():
-                return f"Error: Path '{path}' does not exist"
+                raise ToolOperationError(
+                    "not_found",
+                    f"Path '{path}' does not exist",
+                    actions=[
+                        "Verify the path is correct.",
+                        "Check that the file or directory exists.",
+                        "Retry with a valid path.",
+                    ],
+                )
 
             stats = target_path.stat()
             created_ts = getattr(stats, "st_birthtime", stats.st_ctime)
@@ -630,8 +738,18 @@ class BaseFilesystemManager(ABC):
 
             return "\n".join(info)
 
+        except ToolOperationError:
+            raise
         except Exception as e:
-            return f"Error: {str(e)}"
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to get file info for '{path}': {e}",
+                actions=[
+                    "Verify the path is accessible.",
+                    "Check file permissions.",
+                    "Retry the operation.",
+                ],
+            ) from e
 
     @export_tool(
         name="move_file", logger=logging.getLogger(__name__), tags=["filesystem", "write", "admin"]
@@ -648,16 +766,48 @@ class BaseFilesystemManager(ABC):
             dest_path = dependencies.check_path(Path(destination))
 
             if not await dependencies.withinAllowed(source_path, ctx):
-                return f"Error: Source path '{source}' is not within allowed roots"
+                raise ToolOperationError(
+                    "access_denied",
+                    f"Source path '{source}' is not within allowed roots",
+                    actions=[
+                        "Use a source path within the allowed roots.",
+                        "Check allowed root configuration.",
+                        "Retry with a permitted source path.",
+                    ],
+                )
 
             if not await dependencies.withinAllowed(dest_path, ctx):
-                return f"Error: Destination path '{destination}' is not within allowed roots"
+                raise ToolOperationError(
+                    "access_denied",
+                    f"Destination path '{destination}' is not within allowed roots",
+                    actions=[
+                        "Use a destination path within the allowed roots.",
+                        "Check allowed root configuration.",
+                        "Retry with a permitted destination path.",
+                    ],
+                )
 
             if not source_path.exists():
-                return f"Error: Source '{source}' does not exist"
+                raise ToolOperationError(
+                    "not_found",
+                    f"Source '{source}' does not exist",
+                    actions=[
+                        "Verify the source path is correct.",
+                        "Check that the source file exists.",
+                        "Retry with a valid source path.",
+                    ],
+                )
 
             if dest_path.exists():
-                return f"Error: Destination '{destination}' already exists"
+                raise ToolOperationError(
+                    "validation",
+                    f"Destination '{destination}' already exists",
+                    actions=[
+                        "Choose a different destination path.",
+                        "Delete or rename the existing target first.",
+                        "Retry with a unique destination.",
+                    ],
+                )
 
             # Create parent directories if needed
             dest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -665,8 +815,18 @@ class BaseFilesystemManager(ABC):
             source_path.rename(dest_path)
             return f"Successfully moved '{source}' to '{destination}'"
 
+        except ToolOperationError:
+            raise
         except Exception as e:
-            return f"Error moving file: {str(e)}"
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to move file from '{source}' to '{destination}': {e}",
+                actions=[
+                    "Verify source and destination paths.",
+                    "Check file and directory permissions.",
+                    "Retry the operation.",
+                ],
+            ) from e
 
     @export_tool(
         name="search_files", logger=logging.getLogger(__name__), tags=["filesystem", "read"]
@@ -710,8 +870,18 @@ class BaseFilesystemManager(ABC):
             result += "\n".join(matches)
             return result
 
+        except ToolOperationError:
+            raise
         except Exception as e:
-            return f"Error searching files: {str(e)}"
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to search files in '{path}': {e}",
+                actions=[
+                    "Verify the search path is accessible.",
+                    "Check the search pattern.",
+                    "Retry the operation.",
+                ],
+            ) from e
 
     @export_tool(
         name="read_multiple_files", logger=logging.getLogger(__name__), tags=["filesystem", "read"]
@@ -724,7 +894,14 @@ class BaseFilesystemManager(ABC):
         """
         try:
             if not paths:
-                return "Error: No file paths provided"
+                raise ToolOperationError(
+                    "validation",
+                    "No file paths provided",
+                    actions=[
+                        "Provide at least one file path.",
+                        "Retry the operation.",
+                    ],
+                )
 
             results = []
 
@@ -735,25 +912,64 @@ class BaseFilesystemManager(ABC):
                     target_path = dependencies.check_path(file_path, check_existence=True)
 
                     if not await dependencies.withinAllowed(target_path, ctx):
-                        results.append(f"{file_path}: Error - Path not within allowed roots")
-                        continue
+                        raise ToolOperationError(
+                            "access_denied",
+                            f"Path '{file_path}' is not within allowed roots",
+                            actions=[
+                                "Use a path within the allowed roots.",
+                                "Check allowed root configuration.",
+                                "Retry with a permitted path.",
+                            ],
+                        )
 
                     if not target_path.is_file():
-                        results.append(f"{file_path}: Error - Not a file")
-                        continue
+                        raise ToolOperationError(
+                            "validation",
+                            f"Path '{file_path}' is not a file",
+                            actions=[
+                                "Provide a file path.",
+                                "Retry with a valid file.",
+                            ],
+                        )
 
                     content = target_path.read_text(encoding="utf-8")
                     results.append(f"{file_path}:\n{content}")
 
-                except UnicodeDecodeError:
-                    results.append(f"{file_path}: Error - Binary file or unsupported encoding")
+                except UnicodeDecodeError as e:
+                    raise ToolOperationError(
+                        "validation",
+                        f"File '{file_path}' contains binary data or unsupported encoding",
+                        actions=[
+                            "Use a text-based file.",
+                            "Try a different file encoding.",
+                            "Retry the operation.",
+                        ],
+                    ) from e
                 except Exception as e:
-                    results.append(f"{file_path}: Error - {str(e)}")
+                    raise ToolOperationError(
+                        "operation_failed",
+                        f"Failed to read file '{file_path}': {e}",
+                        actions=[
+                            "Verify the file exists and is accessible.",
+                            "Check permissions.",
+                            "Retry the operation.",
+                        ],
+                    ) from e
 
             return "\n---\n".join(results)
 
+        except ToolOperationError:
+            raise
         except Exception as e:
-            return f"Error reading multiple files: {str(e)}"
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to read multiple files: {e}",
+                actions=[
+                    "Verify the file paths are accessible.",
+                    "Check permissions and file encodings.",
+                    "Retry the operation.",
+                ],
+            ) from e
 
     @export_tool(
         name="delete_file",
@@ -802,8 +1018,18 @@ class BaseFilesystemManager(ABC):
             # confirm=True: perform the deletion directly
             target_path.unlink()
             return f"Successfully deleted file '{path}'"
+        except ToolOperationError:
+            raise
         except Exception as e:
-            return f"Error deleting file: {str(e)}"
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to delete file '{path}': {e}",
+                actions=[
+                    "Verify the file exists and is accessible.",
+                    "Check file permissions.",
+                    "Retry the operation.",
+                ],
+            ) from e
 
     @export_tool(
         name="delete_directory",
@@ -820,7 +1046,14 @@ class BaseFilesystemManager(ABC):
                 confirm: Set to True to force deletion of non-empty directories.
         """
         if ctx is None:
-            return "Error: No context provided"
+            raise ToolOperationError(
+                "validation",
+                "No context provided",
+                actions=[
+                    "Call the tool with a valid MCP context.",
+                    "Retry the operation.",
+                ],
+            )
 
         target_path = await dependencies.validate_path(
             path, ctx, must_exist=True, expected_type="dir"
@@ -870,29 +1103,42 @@ class BaseFilesystemManager(ABC):
         Args:
                 path: The root path for the summary.
         """
-        target_path = await dependencies.validate_path(
-            path, ctx, must_exist=True, expected_type="dir"
-        )
+        try:
+            target_path = await dependencies.validate_path(
+                path, ctx, must_exist=True, expected_type="dir"
+            )
 
-        total_size = 0
-        num_files = 0
-        num_dirs = 0
+            total_size = 0
+            num_files = 0
+            num_dirs = 0
 
-        for dirpath, dirnames, filenames in os.walk(target_path):
-            num_dirs += len(dirnames)
-            num_files += len(filenames)
-            for f in filenames:
-                fp = os.path.join(dirpath, f)
-                # skip if it is symbolic link
-                if not os.path.islink(fp):
-                    total_size += os.path.getsize(fp)
+            for dirpath, dirnames, filenames in os.walk(target_path):
+                num_dirs += len(dirnames)
+                num_files += len(filenames)
+                for f in filenames:
+                    fp = os.path.join(dirpath, f)
+                    # skip if it is symbolic link
+                    if not os.path.islink(fp):
+                        total_size += os.path.getsize(fp)
 
-        return {
-            "path": str(target_path),
-            "total_size": dependencies.format_size(total_size),
-            "files": num_files,
-            "directories": num_dirs,
-        }
+            return {
+                "path": str(target_path),
+                "total_size": dependencies.format_size(total_size),
+                "files": num_files,
+                "directories": num_dirs,
+            }
+        except ToolOperationError:
+            raise
+        except Exception as e:
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to summarize filesystem at '{path}': {e}",
+                actions=[
+                    "Verify the path is accessible.",
+                    "Check directory permissions.",
+                    "Retry the operation.",
+                ],
+            ) from e
 
     @export_tool(
         name="get_creative_file_description",
@@ -915,10 +1161,28 @@ class BaseFilesystemManager(ABC):
                 if len(content) > 1000
                 else f"File: {path}\nContent: {content}"
             )
-        except UnicodeDecodeError:
-            return f"Error: File '{path}' contains binary data or unsupported encoding"
+        except UnicodeDecodeError as e:
+            raise ToolOperationError(
+                "validation",
+                f"File '{path}' contains binary data or unsupported encoding",
+                actions=[
+                    "Use a text-based file.",
+                    "Try a different file encoding.",
+                    "Retry the operation.",
+                ],
+            ) from e
+        except ToolOperationError:
+            raise
         except Exception as e:
-            return f"Error reading file: {str(e)}"
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to read file '{path}': {e}",
+                actions=[
+                    "Verify the file exists and is accessible.",
+                    "Check file permissions.",
+                    "Retry the operation.",
+                ],
+            ) from e
 
         # Check if client supports sampling
         try:

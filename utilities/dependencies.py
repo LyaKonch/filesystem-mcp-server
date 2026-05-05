@@ -2,7 +2,7 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 from urllib.parse import unquote, urlparse
 
 import fastmcp
@@ -10,6 +10,7 @@ from mcp import ServerSession
 from mcp.types import ClientCapabilities, ElicitationCapability, RootsCapability, SamplingCapability
 
 from config import settings
+from utilities.error_handling import ToolOperationError
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,15 @@ def uri_to_path(uri: str) -> Path:
     " Path must contain slash at the end and not have any spelling mistakes "
     p = urlparse(uri)
     if p.scheme != "file":
-        raise ValueError(f"URI must start with file:// or another scheme but not {p.scheme}")
+        raise ToolOperationError(
+            "validation",
+            f"URI must start with file:// but got {p.scheme}://",
+            actions=[
+                "Use a valid file:// URI.",
+                "Format: file:///C:/path/to/file (Windows) or file:///home/user/file (Unix).",
+                "Retry with a correct URI.",
+            ],
+        )
 
     raw_path = unquote(p.path or "")
     raw_netloc = unquote(p.netloc or "")
@@ -57,7 +66,14 @@ def uri_to_path(uri: str) -> Path:
             elif re.match(r"^[A-Za-z]:", raw_netloc):
                 raw_path = raw_netloc
             else:
-                raise ValueError(f"Remote file URI host '{raw_netloc}' is not supported")
+                raise ToolOperationError(
+                    "validation",
+                    f"Remote file URI host '{raw_netloc}' is not supported. Only localhost and drive letters are allowed.",
+                    actions=[
+                        "Use a local file path or localhost.",
+                        "Retry with a supported URI format.",
+                    ],
+                )
 
         if re.match(r"^/[A-Za-z]:", raw_path):
             raw_path = raw_path[1:]
@@ -65,7 +81,14 @@ def uri_to_path(uri: str) -> Path:
         raw_path = re.sub(r"^([A-Za-z]):(?![\\/])", r"\1:/", raw_path)
     else:
         if raw_netloc and raw_netloc.lower() != "localhost":
-            raise ValueError(f"Remote file URI host '{raw_netloc}' is not supported")
+            raise ToolOperationError(
+                "validation",
+                f"Remote file URI host '{raw_netloc}' is not supported. Only localhost is allowed.",
+                actions=[
+                    "Use a local file path or localhost.",
+                    "Retry with a supported URI format.",
+                ],
+            )
 
     file = Path(raw_path)
     return check_path(file)
@@ -80,13 +103,31 @@ def check_path(value: Path | str, check_existence: bool = True) -> Path:
         value = Path(os.path.expanduser(value)).resolve()
 
         if check_existence and not value.exists():
-            raise ValueError(f"Error: Path '{value}' does not exist")
+            raise ToolOperationError(
+                "not_found",
+                f"Path '{value}' does not exist",
+                actions=[
+                    "Verify the path is correct.",
+                    "Check that the file or directory exists.",
+                    "Retry with a valid path.",
+                ],
+            )
 
         return value
 
+    except ToolOperationError:
+        raise
     except (TypeError, ValueError, OSError) as exc:
         logger.error("Invalid path specified: %s", value, exc_info=exc)
-        raise
+        raise ToolOperationError(
+            "validation",
+            f"Invalid path specified: {value}",
+            actions=[
+                "Verify the path syntax.",
+                "Ensure the path uses forward slashes or valid backslashes.",
+                "Retry with a valid path.",
+            ],
+        ) from exc
 
 
 async def validate_path(
@@ -100,17 +141,47 @@ async def validate_path(
     path = check_path(path_str, check_existence=False)
 
     if not await withinAllowed(path, ctx):
-        raise ValueError(f"Access denied: Path '{path}' is not within allowed roots.")
+        raise ToolOperationError(
+            "access_denied",
+            f"Access denied: Path '{path}' is not within allowed roots.",
+            actions=[
+                "Use a path within the allowed root directories.",
+                "Contact the administrator to expand allowed roots.",
+                "Retry with a valid path.",
+            ],
+        )
 
     if must_exist and not path.exists():
-        raise ValueError(f"Error: Path '{path}' does not exist")
+        raise ToolOperationError(
+            "not_found",
+            f"Path '{path}' does not exist",
+            actions=[
+                "Verify the path is correct.",
+                "Check that the file or directory exists.",
+                "Retry with a valid path.",
+            ],
+        )
 
     if must_exist and expected_type:
         if expected_type == "file" and not path.is_file():
-            raise ValueError(f"Error: Expected file, but '{path.name}' is a directory")
+            raise ToolOperationError(
+                "validation",
+                f"Expected file, but '{path.name}' is a directory",
+                actions=[
+                    "Verify you provided a file path, not a directory.",
+                    "Retry with the correct path.",
+                ],
+            )
 
         if expected_type == "dir" and not path.is_dir():
-            raise ValueError(f"Error: Expected directory, but '{path.name}' is a file")
+            raise ToolOperationError(
+                "validation",
+                f"Expected directory, but '{path.name}' is a file",
+                actions=[
+                    "Verify you provided a directory path, not a file.",
+                    "Retry with the correct path.",
+                ],
+            )
 
     return path
 
@@ -130,8 +201,19 @@ async def fetch_roots_from_client(context: fastmcp.Context) -> list[Path] | None
                 return uris
             else:
                 logger.debug("No roots available from client")
+        except ToolOperationError as e:
+            logger.error("Error converting root URI from client: %s", e)
+            raise
         except Exception as e:
             logger.error("Error fetching roots from client: %s", e)
+            raise ToolOperationError(
+                "unexpected",
+                f"Failed to fetch roots from client: {e}",
+                actions=[
+                    "Check the client configuration.",
+                    "Retry the request.",
+                ],
+            ) from e
     return None
 
 
@@ -157,12 +239,20 @@ async def request_elicitation_permission(context: fastmcp.Context, reason: str) 
 
     logger.info("Requesting elicitation permission from client for reason: %s", reason)
     try:
-        permission = await context.elicit(reason, bool)
+        permission = await context.elicit(reason, bool)  # type: ignore[arg-type]
         logger.info("Elicitation result: %s", permission)
-        return permission
+        return cast(bool | None, permission)
     except Exception as e:
         logger.error("Error requesting elicitation permission: %s", e)
-        return None
+        raise ToolOperationError(
+            "unexpected",
+            f"Failed to request elicitation permission from client: {e}",
+            actions=[
+                "Check the client connection.",
+                "Ensure elicitation capability is enabled.",
+                "Retry the request.",
+            ],
+        ) from e
 
 
 async def withinAllowed(path: Path, ctx: fastmcp.Context) -> bool:

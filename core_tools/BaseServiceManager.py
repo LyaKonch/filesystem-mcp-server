@@ -71,6 +71,7 @@ class BaseServiceManager(ABC):
     @abstractmethod
     async def create_service(
         self,
+        ctx: Context,
         service_name: str,
         display_name: str,
         binary_path: str,
@@ -78,12 +79,12 @@ class BaseServiceManager(ABC):
         username: str | None = None,
         password: str | None = None,
     ) -> str:
-        """Create a new service with specified configuration."""
+        """Create a new service with specified configuration (requires confirmation)."""
         pass
 
     @abstractmethod
-    async def delete_service(self, service_name: str) -> str:
-        """Delete an existing service."""
+    async def delete_service(self, ctx: Context, service_name: str) -> str:
+        """Delete an existing service (requires confirmation)."""
         pass
 
     @abstractmethod

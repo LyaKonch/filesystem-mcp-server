@@ -9,6 +9,8 @@ from typing import Any
 from fastmcp.server.context import Context
 from mcp.types import ImageContent, SamplingMessage, TextContent
 
+from utilities.error_handling import ToolOperationError
+
 
 class ImageReader:
     def __init__(self, file_path: Path | None = None):
@@ -16,7 +18,14 @@ class ImageReader:
 
     def read_base64(self) -> dict[str, str]:
         if self.file_path is None:
-            raise ValueError("file_path is required to read image data")
+            raise ToolOperationError(
+                "validation",
+                "file_path is required to read image data",
+                actions=[
+                    "Provide a file_path when initializing ImageReader.",
+                    "Retry with a valid image file path.",
+                ],
+            )
         return self.image_file_to_base64(self.file_path)
 
     @staticmethod
@@ -49,7 +58,15 @@ class ImageReader:
         mime_type: str = "image/png",
     ) -> dict[str, Any]:
         if ctx is None:
-            raise ValueError("ctx is required for sampling")
+            raise ToolOperationError(
+                "validation",
+                "ctx is required for sampling",
+                actions=[
+                    "Ensure the FastMCP Context is provided.",
+                    "Verify the sampling capability is enabled.",
+                    "Retry with a valid context.",
+                ],
+            )
 
         prompt = (
             "You are given an image. Return ONLY raw JSON(No markdown/code fences with) with keys : "
@@ -82,5 +99,13 @@ class ImageReader:
         image_b64 = data.get("bytes_b64", "")
         mime_type = data.get("content_type", "image/png")
         if not image_b64:
-            raise ValueError("bytes_b64 is required in image_object.data")
+            raise ToolOperationError(
+                "validation",
+                "bytes_b64 is required in image_object.data",
+                actions=[
+                    "Ensure the image object contains 'data' with 'bytes_b64'.",
+                    "Check the DOCX image extraction was successful.",
+                    "Retry with a valid image object.",
+                ],
+            )
         return await self.describe_base64(image_b64=image_b64, ctx=ctx, mime_type=mime_type)

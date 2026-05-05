@@ -35,6 +35,20 @@ _MESSAGES: dict[str, dict[str, str]] = {
 }
 
 
+class ToolOperationError(Exception):
+    def __init__(
+        self,
+        error_code: str,
+        technical_details: str,
+        *,
+        actions: list[str] | None = None,
+    ):
+        super().__init__(technical_details)
+        self.error_code = error_code
+        self.technical_details = technical_details
+        self.actions = actions
+
+
 def _locale() -> str:
     locale = (settings.ERROR_LOCALE or "uk").lower()
     if locale.startswith("en"):
@@ -66,6 +80,7 @@ def format_localized_error(
     error_id: str,
     trace_id: str | None = None,
     details: str | None = None,
+    actions: list[str] | None = None,
 ) -> str:
     locale = _locale()
     i18n = _MESSAGES[locale]
@@ -80,7 +95,8 @@ def format_localized_error(
         "2) Try again later.",
         "3) If the problem persists, contact support.",
     ]
-    actions = actions_en if locale == "en" else actions_uk
+    default_actions = actions_en if locale == "en" else actions_uk
+    action_lines = actions if actions else default_actions
 
     base = i18n.get(error_code, i18n["unexpected"])
     lines = [base]
@@ -92,7 +108,7 @@ def format_localized_error(
     if trace_id:
         lines.append(f"Trace ID: {trace_id}")
     lines.append(f"{i18n['actions']}:")
-    lines.extend(actions)
+    lines.extend(action_lines)
     lines.append(i18n["report"])
     return "\n".join(lines)
 
@@ -102,10 +118,16 @@ def build_error_response(
     *,
     error_code: str,
     technical_details: str | None = None,
+    actions: list[str] | None = None,
     exc: Exception | None = None,
     **context: Any,
 ) -> str:
     trace_id = log_context.trace_id_ctx.get()
+    if isinstance(exc, ToolOperationError):
+        error_code = exc.error_code
+        technical_details = technical_details or exc.technical_details
+        actions = exc.actions or actions
+
     if exc is not None:
         error_id = log_exception_with_id(
             logger,
@@ -132,6 +154,7 @@ def build_error_response(
         error_id=error_id,
         trace_id=trace_id if trace_id != "-" else None,
         details=technical_details,
+        actions=actions,
     )
 
 
@@ -151,7 +174,26 @@ def tool_error_boundary[F: Callable[..., Awaitable[Any]]](func: F, logger: loggi
                     operation=func.__name__,
                 )
             return result
+        except ToolOperationError as exc:
+            return build_error_response(
+                logger,
+                error_code=exc.error_code,
+                technical_details=exc.technical_details,
+                actions=exc.actions,
+                exc=exc,
+                operation=func.__name__,
+            )
         except Exception as exc:
+            cause = exc.__cause__
+            if isinstance(cause, ToolOperationError):
+                return build_error_response(
+                    logger,
+                    error_code=cause.error_code,
+                    technical_details=cause.technical_details,
+                    actions=cause.actions,
+                    exc=exc,
+                    operation=func.__name__,
+                )
             return build_error_response(
                 logger,
                 error_code="unexpected",

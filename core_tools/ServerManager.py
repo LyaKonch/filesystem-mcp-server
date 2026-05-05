@@ -7,6 +7,7 @@ from config import settings
 from utilities import dependencies
 from utilities import logging as log_context
 from utilities.decorators import export_tool
+from utilities.error_handling import ToolOperationError
 from utilities.error_reports import save_error_report
 
 
@@ -57,8 +58,18 @@ class ServerManager:
                 lines.append(f"{i}. {root} ({source})")
 
             return "\n".join(lines)
+        except ToolOperationError:
+            raise
         except Exception as e:
-            return f"Error: {str(e)}"
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to list allowed roots: {e}",
+                actions=[
+                    "Check the server and client root configuration.",
+                    "Verify the context is valid.",
+                    "Retry the operation.",
+                ],
+            ) from e
 
     @export_tool(
         name="add_allowed_root",
@@ -71,15 +82,33 @@ class ServerManager:
             path_obj = dependencies.check_path(path, check_existence=True)
 
             if not path_obj.is_dir():
-                return f"Error: '{path}' is not a directory"
+                raise ToolOperationError(
+                    "validation",
+                    f"'{path}' is not a directory",
+                    actions=[
+                        "Provide a directory path.",
+                        "Verify the path exists.",
+                        "Retry with a valid directory.",
+                    ],
+                )
 
             if path_obj not in settings.ALLOWED_ROOTS:
                 settings.ALLOWED_ROOTS.append(path_obj)
                 return f"Successfully added '{path_obj}' to allowed roots."
 
             return f"Path '{path_obj}' is already in allowed roots."
+        except ToolOperationError:
+            raise
         except Exception as e:
-            return f"Error: {str(e)}"
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to add allowed root '{path}': {e}",
+                actions=[
+                    "Verify the path is accessible.",
+                    "Check directory permissions.",
+                    "Retry the operation.",
+                ],
+            ) from e
 
     @export_tool(
         name="update_roots",
@@ -100,19 +129,54 @@ class ServerManager:
                     if path_obj.is_dir():
                         new_roots.append(path_obj)
                     else:
-                        return f"Error: Path '{p}' does not exist or is not a directory"
+                        raise ToolOperationError(
+                            "validation",
+                            f"Path '{p}' does not exist or is not a directory",
+                            actions=[
+                                "Provide only directory paths.",
+                                "Verify the path exists.",
+                                "Retry with valid directories.",
+                            ],
+                        )
+                except ToolOperationError:
+                    raise
                 except Exception as e:
-                    return f"Error processing path '{p}': {str(e)}"
+                    raise ToolOperationError(
+                        "operation_failed",
+                        f"Error processing path '{p}': {e}",
+                        actions=[
+                            "Verify the path is accessible.",
+                            "Check directory permissions.",
+                            "Retry with a valid path.",
+                        ],
+                    ) from e
 
             if not new_roots:
-                return "Error: No valid directories provided"
+                raise ToolOperationError(
+                    "validation",
+                    "No valid directories provided",
+                    actions=[
+                        "Provide at least one valid directory.",
+                        "Retry the operation.",
+                    ],
+                )
 
             settings.ALLOWED_ROOTS.clear()
             settings.ALLOWED_ROOTS.extend(new_roots)
             return f"Updated allowed roots to {len(new_roots)} directories"
 
+        except ToolOperationError:
+            raise
         except Exception as e:
-            return f"Error updating roots: {str(e)}"
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to update allowed roots: {e}",
+                actions=[
+                    "Verify all paths are accessible directories.",
+                    "Check directory permissions.",
+                    "Retry the operation.",
+                ],
+            ) from e
 
     @export_tool(
         name="remove_root",
@@ -124,17 +188,51 @@ class ServerManager:
         try:
             path_obj = dependencies.check_path(Path(root), check_existence=True)
             if not path_obj.is_dir():
-                return f"Error: Path '{root}' is not a directory"
+                raise ToolOperationError(
+                    "validation",
+                    f"Path '{root}' is not a directory",
+                    actions=[
+                        "Provide a directory path.",
+                        "Verify the path exists.",
+                        "Retry with a valid directory.",
+                    ],
+                )
 
             if path_obj not in settings.ALLOWED_ROOTS:
-                return f"Error: Root '{root}' not found in allowed roots"
+                raise ToolOperationError(
+                    "not_found",
+                    f"Root '{root}' not found in allowed roots",
+                    actions=[
+                        "Check the current allowed roots list.",
+                        "Verify the root path is correct.",
+                        "Retry with an existing allowed root.",
+                    ],
+                )
 
             settings.ALLOWED_ROOTS.remove(path_obj)
             return f"Removed root '{root}'"
+        except ToolOperationError:
+            raise
         except (TypeError, ValueError, OSError) as exc:
-            return f"Error processing path '{root}': {str(exc)}"
+            raise ToolOperationError(
+                "validation",
+                f"Error processing path '{root}': {exc}",
+                actions=[
+                    "Provide a valid directory path.",
+                    "Verify the path syntax.",
+                    "Retry with a valid path.",
+                ],
+            ) from exc
         except Exception as exc:
-            return f"Error removing root: {str(exc)}"
+            raise ToolOperationError(
+                "operation_failed",
+                f"Error removing root '{root}': {exc}",
+                actions=[
+                    "Verify the allowed roots configuration.",
+                    "Check directory permissions.",
+                    "Retry the operation.",
+                ],
+            ) from exc
 
     @export_tool(
         name="submit_error_report",

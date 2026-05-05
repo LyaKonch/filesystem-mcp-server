@@ -2,6 +2,8 @@ import os
 from abc import ABC, abstractmethod
 from enum import Enum
 
+from fastmcp import Context
+
 
 class EnvScope(Enum):
     PROCESS = "process"  # for current session, this process and its children (os.environ)
@@ -24,20 +26,29 @@ class BaseSystemManager(ABC):
 
     @abstractmethod
     async def set_variable(
-        self, ctx, name: str, value: str, scope: EnvScope = EnvScope.USER
+        self, ctx: Context, name: str, value: str, scope: EnvScope = EnvScope.USER
     ) -> str:
         pass
 
     @abstractmethod
-    async def delete_variable(self, ctx, name: str, scope: EnvScope = EnvScope.USER) -> str:
+    async def delete_variable(
+        self, ctx: Context, name: str, scope: EnvScope = EnvScope.USER
+    ) -> str:
         pass
 
+    # @abstractmethod
+    # async def get_hardware_info(self, ctx:Context, name: str) -> str:
+    #     pass
+
+    # @abstractmethod
+    # async def get_sensors_info(self, ctx:Context, name: str) -> str:
+    #     pass
     # ==========================================
     # 3. SAFE PATH MANAGEMENT
     # ==========================================
 
     async def append_to_variable(
-        self, name: str, value: str, scope: EnvScope = EnvScope.USER
+        self, ctx: Context, name: str, value: str, scope: EnvScope = EnvScope.USER
     ) -> str:
         """Mostly useful for PATH-like variables. Appends a value to a separator-delimited list if it's not already present."""
         try:
@@ -56,10 +67,10 @@ class BaseSystemManager(ABC):
         else:
             new_value = value
 
-        return self.set_variable(name, new_value, scope)
+        return await self.set_variable(ctx, name, new_value, scope)
 
     async def remove_from_variable(
-        self, name: str, value: str, scope: EnvScope = EnvScope.USER
+        self, ctx: Context, name: str, value: str, scope: EnvScope = EnvScope.USER
     ) -> str:
         """Mostly useful for PATH-like variables. Removes a value from a separator-delimited list if it exists."""
         try:
@@ -79,8 +90,8 @@ class BaseSystemManager(ABC):
         new_value = separator.join(paths)
 
         if not new_value:
-            return self.delete_variable(name, scope)
-        return self.set_variable(name, new_value, scope)
+            return await self.delete_variable(ctx, name, scope)
+        return await self.set_variable(ctx, name, new_value, scope)
 
     def _validate_key_name(self, name: str):
         if "=" in name or " " in name:

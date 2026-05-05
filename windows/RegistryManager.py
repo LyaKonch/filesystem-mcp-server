@@ -1,10 +1,12 @@
 import logging
 import winreg
+from typing import Any
 
 from fastmcp import Context
 
 from utilities.decorators import export_tool
 from utilities.dependencies import request_elicitation_permission
+from utilities.error_handling import ToolOperationError
 
 
 class RegistryManager:
@@ -63,9 +65,16 @@ class RegistryManager:
 
         hive = self.hives.get(hive_name.upper())
         if not hive:
-            return {"error": f"Invalid hive: {hive_name}"}
+            raise ToolOperationError(
+                "validation",
+                f"Invalid hive: {hive_name}",
+                actions=[
+                    "Use one of: HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, HKEY_CLASSES_ROOT, HKEY_USERS, HKEY_CURRENT_CONFIG.",
+                    "Retry with a valid hive name.",
+                ],
+            )
 
-        result: dict[str, list | dict] = {"sub_keys": [], "values": {}}
+        result: dict[str, Any] = {"sub_keys": [], "values": {}}
 
         try:
             # with access to read 64-bit registry from a 32-bit process, we need to specify KEY_WOW64_64KEY
@@ -95,10 +104,24 @@ class RegistryManager:
                     pass  # no more values
 
             return result
-        except FileNotFoundError:
-            return {"error": "Key not found."}
-        except PermissionError:
-            return {"error": "Access denied. Try running as Administrator."}
+        except FileNotFoundError as e:
+            raise ToolOperationError(
+                "not_found",
+                f"Registry key not found: {hive_name}\\{sub_key}",
+                actions=[
+                    "Verify the hive and sub_key names.",
+                    "Use list_registry_key with parent keys to explore the structure.",
+                ],
+            ) from e
+        except PermissionError as e:
+            raise ToolOperationError(
+                "access_denied",
+                f"Access denied. Cannot read registry key {hive_name}\\{sub_key}. Administrator privileges may be required.",
+                actions=[
+                    "Run the server with elevated privileges.",
+                    "Use 'Run as Administrator' or equivalent.",
+                ],
+            ) from e
 
     @export_tool(name="read_registry_key", logger=logging.getLogger(__name__))
     def read_registry_key(self, hive_name: str, sub_key: str, name: str) -> dict | str:
@@ -107,14 +130,46 @@ class RegistryManager:
         """
         hive = self.hives.get(hive_name.upper())
         if not hive:
-            raise ValueError(f"Error: Invalid hive: {hive_name}")
+            raise ToolOperationError(
+                "validation",
+                f"Invalid hive: {hive_name}",
+                actions=[
+                    "Use one of: HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, HKEY_CLASSES_ROOT, HKEY_USERS, HKEY_CURRENT_CONFIG.",
+                    "Retry with a valid hive name.",
+                ],
+            )
         try:
             with winreg.OpenKey(hive, sub_key, 0, winreg.KEY_QUERY_VALUE) as key:
                 value, data_type = winreg.QueryValueEx(key, name)
                 type_description = self.REG_TYPE_DESCRIPTIONS.get(data_type, data_type)
                 return dict(value=value, type=type_description)
+        except FileNotFoundError as e:
+            raise ToolOperationError(
+                "not_found",
+                f"Registry value not found: {name} in {hive_name}\\{sub_key}",
+                actions=[
+                    "Verify the value name and key path.",
+                    "Use list_registry_key to see available values.",
+                ],
+            ) from e
+        except PermissionError as e:
+            raise ToolOperationError(
+                "access_denied",
+                f"Access denied reading registry value '{name}' from {hive_name}\\{sub_key}.",
+                actions=[
+                    "Run the server with elevated privileges.",
+                    "Use 'Run as Administrator' or equivalent.",
+                ],
+            ) from e
         except Exception as e:
-            raise Exception("Error reading registry key: " + str(e)) from e
+            raise ToolOperationError(
+                "unexpected",
+                f"Error reading registry key {hive_name}\\{sub_key}: {str(e)}",
+                actions=[
+                    "Verify the hive and key path.",
+                    "Retry the request.",
+                ],
+            ) from e
 
     @export_tool(name="write_registry_key", logger=logging.getLogger(__name__))
     async def write_registry_key(
@@ -129,10 +184,24 @@ class RegistryManager:
         """Writes a value to the Windows registry. Scope determines where the value is written (user or system)."""
         hive = self.hives.get(hive_name.upper())
         if not hive:
-            raise ValueError(f"Error: Invalid hive: {hive_name}")
+            raise ToolOperationError(
+                "validation",
+                f"Invalid hive: {hive_name}",
+                actions=[
+                    "Use one of: HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, HKEY_CLASSES_ROOT, HKEY_USERS, HKEY_CURRENT_CONFIG.",
+                    "Retry with a valid hive name.",
+                ],
+            )
 
         if value_type not in self.REG_TYPE_VALUES:
-            raise ValueError(f"Error: Invalid registry value type: {value_type}")
+            raise ToolOperationError(
+                "validation",
+                f"Invalid registry value type: {value_type}",
+                actions=[
+                    "Use get_registry_value_types to see valid types.",
+                    "Retry with a valid value type.",
+                ],
+            )
 
         permission = await request_elicitation_permission(
             ctx,
@@ -142,7 +211,14 @@ class RegistryManager:
         )
 
         if permission is None:
-            return "No elicitation support. Operation cancelled."
+            raise ToolOperationError(
+                "auth_required",
+                "Cannot write to registry due to lack of elicitation capability.",
+                actions=[
+                    "Ensure elicitation is enabled in the server configuration.",
+                    "Retry the request.",
+                ],
+            )
         if permission is False:
             self.logger.info(f"User declined to write to {hive_name}\\{sub_key}")
             return "Operation cancelled by user."
@@ -154,11 +230,24 @@ class RegistryManager:
                 winreg.SetValueEx(key, value_name, 0, value_type, value)
                 return f"Successfully wrote '{value_name}' to '{hive_name}\\{sub_key}'"
         except PermissionError as e:
-            self.logger.error(f"Permission denied when writing to registry: {e}")
-            raise Exception("Access denied. Requires elevated (Administrator) permissions.") from e
+            raise ToolOperationError(
+                "access_denied",
+                f"Access denied. Administrator privileges required to write to {hive_name}\\{sub_key}.",
+                actions=[
+                    "Run the server with elevated privileges.",
+                    "Use 'Run as Administrator' or equivalent.",
+                ],
+            ) from e
         except Exception as e:
-            self.logger.error(f"Unexpected error writing to registry: {e}")
-            raise Exception(f"Failed to write registry key: {str(e)}") from e
+            raise ToolOperationError(
+                "unexpected",
+                f"Failed to write registry key {hive_name}\\{sub_key}: {str(e)}",
+                actions=[
+                    "Verify the registry path and value.",
+                    "Check the value type.",
+                    "Retry the request.",
+                ],
+            ) from e
 
     @export_tool(name="delete_registry_key", logger=logging.getLogger(__name__))
     async def delete_registry_key(
@@ -167,28 +256,55 @@ class RegistryManager:
         """Deletes a specific value from the Windows registry."""
         hive = self.hives.get(hive_name.upper())
         if not hive:
-            return f"Error: Invalid hive: {hive_name}"
+            raise ToolOperationError(
+                "validation",
+                f"Invalid hive: {hive_name}",
+                actions=[
+                    "Use one of: HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, HKEY_CLASSES_ROOT, HKEY_USERS, HKEY_CURRENT_CONFIG.",
+                    "Retry with a valid hive name.",
+                ],
+            )
         try:
-            with winreg.OpenKey(hive, sub_key, 0, winreg.KEY_SET_VALUE) as key:
-                permission = await request_elicitation_permission(
-                    ctx,
-                    f"Are you sure you want to delete this registry value in {hive_name}\\{sub_key} with name '{value_name}'? This can have significant effects on your system. Please confirm.",
+            permission = await request_elicitation_permission(
+                ctx,
+                f"Are you sure you want to delete this registry value in {hive_name}\\{sub_key} with name '{value_name}'? This can have significant effects on your system. Please confirm.",
+            )
+            if permission is None:
+                raise ToolOperationError(
+                    "auth_required",
+                    "Cannot delete from registry due to lack of elicitation capability.",
+                    actions=[
+                        "Ensure elicitation is enabled in the server configuration.",
+                        "Retry the request.",
+                    ],
                 )
-                if permission is None:  # implement elicitation fallback
-                    return "No elicitation support. Operation cancelled."
-                if permission is False:
-                    self.logger.info(
-                        f"User declined to delete registry key '{value_name}' in key {hive_name}\\{sub_key}."
-                    )
-                    return f"Operation cancelled by user. Value '{value_name}' was not deleted from registry key '{hive_name}\\{sub_key}'."
+            if permission is False:
+                self.logger.info(
+                    f"User declined to delete registry key '{value_name}' in key {hive_name}\\{sub_key}."
+                )
+                return f"Operation cancelled by user. Value '{value_name}' was not deleted from registry key '{hive_name}\\{sub_key}'."
+
+            with winreg.OpenKey(hive, sub_key, 0, winreg.KEY_SET_VALUE) as key:
                 winreg.DeleteValue(key, value_name)
                 return f"Successfully deleted '{value_name}' from registry key '{hive_name}\\{sub_key}'"
         except FileNotFoundError as e:
-            raise Exception(
-                f"Error: Key or value not found. Make sure the specified sub_key and value_name exist. {str(e)}"
+            raise ToolOperationError(
+                "not_found",
+                f"Registry key or value not found: {value_name} in {hive_name}\\{sub_key}",
+                actions=[
+                    "Verify the hive, sub_key, and value_name.",
+                    "Use list_registry_key to check available values.",
+                ],
             ) from e
         except PermissionError as e:
-            raise Exception(f"Access denied. Requires elevated permissions. {str(e)}") from e
+            raise ToolOperationError(
+                "access_denied",
+                f"Access denied. Administrator privileges required to delete from {hive_name}\\{sub_key}.",
+                actions=[
+                    "Run the server with elevated privileges.",
+                    "Use 'Run as Administrator' or equivalent.",
+                ],
+            ) from e
 
     @export_tool(name="get_registry_value_types", logger=logging.getLogger(__name__))
     def get_registry_value_types(self) -> dict[int, str]:
@@ -196,7 +312,7 @@ class RegistryManager:
         return {type_id: description for type_id, description in self.REG_TYPE_DESCRIPTIONS.items()}
 
     @export_tool(name="get_registry_hive_path", logger=logging.getLogger(__name__))
-    def get_registry_hive_path(self, hive_name: str) -> str | None:
+    def get_registry_hive_path(self, hive_name: str) -> int | None:
         """Returns the registry hive path for a given hive name."""
         return self.hives.get(hive_name.upper())
 
@@ -238,12 +354,37 @@ class RegistryManager:
         """Checks if a specific registry key exists."""
         hive = self.hives.get(hive_name.upper())
         if not hive:
-            raise ValueError(f"Invalid hive: {hive_name}")
+            raise ToolOperationError(
+                "validation",
+                f"Invalid hive: {hive_name}",
+                actions=[
+                    "Use one of: HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, HKEY_CLASSES_ROOT, HKEY_USERS, HKEY_CURRENT_CONFIG.",
+                    "Retry with a valid hive name.",
+                ],
+            )
         try:
             with winreg.OpenKey(hive, sub_key, 0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as _:
                 return True
+        except FileNotFoundError:
+            return False
+        except PermissionError as e:
+            raise ToolOperationError(
+                "access_denied",
+                f"Access denied checking registry key {hive_name}\\{sub_key}.",
+                actions=[
+                    "Run the server with elevated privileges.",
+                    "Use 'Run as Administrator' or equivalent.",
+                ],
+            ) from e
         except Exception as e:
-            raise Exception(f"Error checking registry key: {hive_name}\\{sub_key}: {str(e)}") from e
+            raise ToolOperationError(
+                "unexpected",
+                f"Error checking registry key {hive_name}\\{sub_key}: {str(e)}",
+                actions=[
+                    "Verify the hive and key path.",
+                    "Retry the request.",
+                ],
+            ) from e
 
-    def search_installed_software_in_registry():
+    def search_installed_software_in_registry(self):
         pass

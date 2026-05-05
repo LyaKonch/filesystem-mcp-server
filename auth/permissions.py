@@ -10,6 +10,7 @@ from fastmcp.server.dependencies import get_access_token
 from mcp.server.auth.middleware.bearer_auth import AuthenticatedUser
 
 from config import settings
+from utilities.error_handling import ToolOperationError
 
 module_logger = logging.getLogger("auth_permissions")
 
@@ -219,13 +220,28 @@ def require_admin(operation: str = "this operation"):
             ctx = _extract_context_from_args(*args, **kwargs)
 
             if not ctx:
-                raise ValueError(f"Could not extract Context from {func.__name__} arguments")
+                raise ToolOperationError(
+                    "validation",
+                    f"Could not extract Context from {func.__name__} arguments",
+                    actions=[
+                        "Pass a valid FastMCP Context.",
+                        "Ensure the decorator is applied to a tool with ctx or context.",
+                    ],
+                )
 
             if not is_admin(ctx):
                 user_id = get_github_user_id(ctx) or "anonymous"
                 error_msg = f"Admin privileges required for {operation}. User: {user_id}"
                 module_logger.warning(f"🚫 Access denied: {error_msg}")
-                raise PermissionError(error_msg)
+                raise ToolOperationError(
+                    "access_denied",
+                    error_msg,
+                    actions=[
+                        "Sign in with an admin account.",
+                        "Use an account listed in ADMIN_GITHUB_IDS.",
+                        "Retry the operation after elevating privileges.",
+                    ],
+                )
 
             user_id = get_github_user_id(ctx)
             module_logger.info(f"✅ Admin operation authorized: {operation} by {user_id}")
@@ -283,13 +299,28 @@ def require_auth(operation: str = "this operation"):
             ctx = _extract_context_from_args(*args, **kwargs)
 
             if not ctx:
-                raise ValueError(f"Could not extract Context from {func.__name__} arguments")
+                raise ToolOperationError(
+                    "validation",
+                    f"Could not extract Context from {func.__name__} arguments",
+                    actions=[
+                        "Pass a valid FastMCP Context.",
+                        "Ensure the decorator is applied to a tool with ctx or context.",
+                    ],
+                )
 
             # Перевірка автентифікації
             if not is_authenticated(ctx):
                 error_msg = f"Authentication required for {operation}"
                 module_logger.warning(f"🚫 Access denied: {error_msg}")
-                raise PermissionError(error_msg)
+                raise ToolOperationError(
+                    "auth_required",
+                    error_msg,
+                    actions=[
+                        "Sign in to GitHub.",
+                        "Ensure the auth flow completed successfully.",
+                        "Retry the operation after authentication.",
+                    ],
+                )
 
             user_id = get_github_user_id(ctx)
             module_logger.debug(f"✅ Operation authorized: {operation} by {user_id}")

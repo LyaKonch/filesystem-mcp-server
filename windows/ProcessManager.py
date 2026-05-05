@@ -67,7 +67,7 @@ class ProcessManager(BaseProcessManager):
             command_args: Optional list of additional arguments for the command (e.g., ['google.com'])."""
         current_mcp_ctx.set(ctx)
         if command not in commands:
-            return f"Command '{command}' is not available."
+            raise ValueError(f"Command '{command}' is not available.")
 
         command_args = command_args or []
         full_args = commands[command] + command_args
@@ -214,13 +214,12 @@ class ProcessManager(BaseProcessManager):
     async def kill_process(
         self, ctx: Context, process_id=None, name=None, username=None, started_ts=None
     ):
-        "Kill a process by its PID with elicitation support. Use this method preferably to confirm the action explicitly"
+        """Kill a process by its PID with elicitation support. Use this method preferably to confirm the action explicitly"""
         try:
             if psutil.Process().pid == process_id:
-                self.logger.warning(
-                    f"Attempt to kill the server process (PID {process_id}) was blocked."
+                raise ValueError(
+                    f"Cannot terminate the server process itself (PID {process_id}). Operation aborted."
                 )
-                return f"Error: Cannot terminate the server process itself (PID {process_id}). Operation aborted."
 
             process = psutil.Process(process_id)
             summary = super()._build_process_summary(process)
@@ -230,26 +229,10 @@ class ProcessManager(BaseProcessManager):
             )
 
             if permission is None:
-                self.logger.warning(
-                    f"No elicitation support to confirm termination for process {process_id}."
+                raise PermissionError(
+                    "Cannot terminate process due to lack of elicitation capability. "
+                    "Provide all process details (name, username, started_ts) to proceed without confirmation."
                 )
-                await ctx.error(
-                    f"Cannot terminate process {process_id} due to lack of elicitation capability."
-                )
-                await ctx.info("Checking process details to confirm the action...")
-                if (
-                    summary["pid"] != process_id
-                    or summary["name"] != name
-                    or summary["username"] != username
-                    or summary["started_ts"] != started_ts
-                ):
-                    self.logger.error(f"Process {process_id} does not match the provided criteria.")
-                    return f"Process {process_id} does not match the provided criteria. Termination aborted. If you really want to terminate this process, please call this instrument with parameters that corresponds to process you want to kill."
-
-                process.terminate()
-                self.logger.info(f"Process {process_id} terminated successfully.")
-
-                return f"Process {process_id} terminated successfully."
 
             if permission is False:
                 self.logger.info(f"User declined to terminate process {process_id}.")
@@ -260,15 +243,12 @@ class ProcessManager(BaseProcessManager):
 
             return f"Process {process_id} terminated successfully."
 
-        except psutil.NoSuchProcess:
-            self.logger.warning(f"Process {process_id} not found.")
-            return f"Process {process_id} not found."
-        except psutil.AccessDenied:
-            self.logger.warning(f"Access denied when trying to access process {process_id}.")
-            return f"Access denied when trying to access process {process_id}."
-        except Exception as e:
-            self.logger.warning(f"Failed to terminate process {process_id}: {e}")
-            return f"Failed to terminate process {process_id}: {e}"
+        except psutil.NoSuchProcess as e:
+            raise ValueError(f"Process {process_id} not found.") from e
+        except psutil.AccessDenied as e:
+            raise PermissionError(
+                f"Access denied when trying to access process {process_id}."
+            ) from e
 
     @export_tool(
         name="suspend_process", logger=logging.getLogger(__name__), tags=["process_management"]
@@ -290,10 +270,9 @@ class ProcessManager(BaseProcessManager):
         """
         try:
             if psutil.Process().pid == process_id:
-                self.logger.warning(
-                    f"Attempt to suspend the server process (PID {process_id}) was blocked."
+                raise ValueError(
+                    f"Cannot suspend the server process itself (PID {process_id}). Operation aborted."
                 )
-                return f"Error: Cannot suspend the server process itself (PID {process_id}). Operation aborted."
 
             process = psutil.Process(process_id)
             summary = super()._build_process_summary(process)
@@ -303,33 +282,10 @@ class ProcessManager(BaseProcessManager):
             )
 
             if permission is None:
-                self.logger.warning(
-                    f"No elicitation support to confirm suspension for process {process_id}."
+                raise PermissionError(
+                    "Cannot suspend process due to lack of elicitation capability. "
+                    "Provide all process details (name, username, started_ts) to proceed without confirmation."
                 )
-
-                await ctx.error(
-                    f"Cannot suspend process {process_id} due to lack of elicitation capability."
-                )
-                await ctx.info("Checking process details to confirm the action...")
-
-                if (
-                    summary["pid"] != process_id
-                    or summary["name"] != name
-                    or summary["username"] != username
-                    or summary["started_ts"] != started_ts
-                ):
-                    self.logger.error(f"Process {process_id} does not match the provided criteria.")
-                    return (
-                        f"Process {process_id} does not match the provided criteria. Suspension aborted. "
-                        "If you really want to suspend this process, please call this instrument with "
-                        "parameters that corresponds to process you want to suspend."
-                    )
-
-                process.suspend()
-                self.logger.info(
-                    f"Process {process_id} ({summary['name']}) suspended successfully."
-                )
-                return f"Process {process_id} ({summary['name']}) suspended successfully."
 
             if permission is False:
                 self.logger.info(f"User declined to suspend process {process_id}.")
@@ -340,15 +296,12 @@ class ProcessManager(BaseProcessManager):
             self.logger.info(f"Process {process_id} ({summary['name']}) suspended successfully.")
             return f"Process {process_id} ({summary['name']}) suspended successfully."
 
-        except psutil.NoSuchProcess:
-            self.logger.warning(f"Process {process_id} not found.")
-            return f"Process {process_id} not found."
-        except psutil.AccessDenied:
-            self.logger.warning(f"Access denied when trying to suspend process {process_id}.")
-            return f"Access denied when trying to suspend process {process_id}."
-        except Exception as e:
-            self.logger.warning(f"Failed to suspend process {process_id}: {e}")
-            return f"Failed to suspend process {process_id}: {e}"
+        except psutil.NoSuchProcess as e:
+            raise ValueError(f"Process {process_id} not found.") from e
+        except psutil.AccessDenied as e:
+            raise PermissionError(
+                f"Access denied when trying to suspend process {process_id}."
+            ) from e
 
     @export_tool(
         name="resume_process", logger=logging.getLogger(__name__), tags=["process_management"]
@@ -368,10 +321,9 @@ class ProcessManager(BaseProcessManager):
         """
         try:
             if psutil.Process().pid == process_id:
-                self.logger.warning(
-                    f"Attempt to resume the server process (PID {process_id}) was blocked."
+                raise ValueError(
+                    f"Cannot resume the server process itself (PID {process_id}). Operation aborted."
                 )
-                return f"Error: Cannot resume the server process itself (PID {process_id}). Operation aborted."
 
             process = psutil.Process(process_id)
             summary = super()._build_process_summary(process)
@@ -381,31 +333,10 @@ class ProcessManager(BaseProcessManager):
             )
 
             if permission is None:
-                self.logger.warning(
-                    f"No elicitation support to confirm resume for process {process_id}."
+                raise PermissionError(
+                    "Cannot resume process due to lack of elicitation capability. "
+                    "Provide all process details (name, username, started_ts) to proceed without confirmation."
                 )
-
-                await ctx.error(
-                    f"Cannot resume process {process_id} due to lack of elicitation capability."
-                )
-                await ctx.info("Checking process details to confirm the action...")
-
-                if (
-                    summary["pid"] != process_id
-                    or summary["name"] != name
-                    or summary["username"] != username
-                    or summary["started_ts"] != started_ts
-                ):
-                    self.logger.error(f"Process {process_id} does not match the provided criteria.")
-                    return (
-                        f"Process {process_id} does not match the provided criteria. Resume aborted. "
-                        "If you really want to resume this process, please call this instrument with "
-                        "parameters that corresponds to process you want to resume."
-                    )
-
-                process.resume()
-                self.logger.info(f"Process {process_id} ({summary['name']}) resumed successfully.")
-                return f"Process {process_id} ({summary['name']}) resumed successfully."
 
             if permission is False:
                 self.logger.info(f"User declined to resume process {process_id}.")
@@ -416,30 +347,110 @@ class ProcessManager(BaseProcessManager):
             self.logger.info(f"Process {process_id} ({summary['name']}) resumed successfully.")
             return f"Process {process_id} ({summary['name']}) resumed successfully."
 
-        except psutil.NoSuchProcess:
-            self.logger.warning(f"Process {process_id} not found.")
-            return f"Process {process_id} not found."
-        except psutil.AccessDenied:
-            self.logger.warning(f"Access denied when trying to resume process {process_id}.")
-            return f"Access denied when trying to resume process {process_id}."
-        except Exception as e:
-            self.logger.warning(f"Failed to resume process {process_id}: {e}")
-            return f"Failed to resume process {process_id}: {e}"
+        except psutil.NoSuchProcess as e:
+            raise ValueError(f"Process {process_id} not found.") from e
+        except psutil.AccessDenied as e:
+            raise PermissionError(
+                f"Access denied when trying to resume process {process_id}."
+            ) from e
 
-    def kill_process_tree(self, pid: int) -> str:
+    @export_tool(
+        name="kill_process_tree",
+        logger=logging.getLogger(__name__),
+        tags=["process_management"],
+    )
+    async def kill_process_tree(self, ctx: Context, pid: int) -> str:
         """
-        Kill a process and all of its child processes.
+        Kill a process and all of its child processes recursively.
+        Requires user confirmation. Protects server process from termination.
 
         Args:
+            ctx: MCP Context for elicitation
             pid: The PID of the parent process to kill.
+
         Returns:
-            A message indicating the result of the operation.
+            Status message describing the operation result.
+
+        Raises:
+            ValueError: If pid is invalid or points to server process
+            psutil.NoSuchProcess: If process not found
+            psutil.AccessDenied: If access denied
         """
-        # this should check if the server process is in the tree and block killing if that's the case, to prevent accidental self-termination
-        # plus i can use recursively process_kill function.
-        # first children and then parent
-        # if possible, graceful shutdown or equivalent.
-        pass
+        try:
+            server_pid = psutil.Process().pid
+            if pid == server_pid:
+                raise ValueError(f"Cannot terminate server process (PID {pid}). Operation aborted.")
+
+            root_process = psutil.Process(pid)
+            summary = super()._build_process_summary(root_process)
+
+            permission = await request_elicitation_permission(
+                ctx,
+                f"Are you sure you want to terminate '{summary}' and ALL of its {len(root_process.children(recursive=True))} child processes? "
+                "This action cannot be undone.",
+            )
+
+            if permission is None:
+                raise PermissionError(
+                    "Cannot terminate process tree due to lack of elicitation capability."
+                )
+
+            if permission is False:
+                self.logger.info(f"User declined to terminate process tree rooted at {pid}.")
+                return "Process tree termination cancelled by user."
+
+            killed_count = 0
+            failed = []
+
+            # Kill children first (breadth-first to collect all descendants)
+            def kill_children_recursive(parent_process: psutil.Process):
+                nonlocal killed_count
+                try:
+                    children = parent_process.children(recursive=False)
+                    for child in children:
+                        if child.pid == server_pid:
+                            self.logger.warning(
+                                f"Skipped server process (PID {server_pid}) in tree termination."
+                            )
+                            continue
+                        try:
+                            # Recursively kill grandchildren first
+                            kill_children_recursive(child)
+                            # Then kill the child
+                            child.terminate()
+                            killed_count += 1
+                            self.logger.info(
+                                f"Terminated child process {child.pid} ({child.name()})."
+                            )
+                        except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+                            failed.append((child.pid, str(e)))
+                            self.logger.warning(
+                                f"Could not terminate child process {child.pid}: {e}"
+                            )
+                except Exception as e:
+                    self.logger.warning(f"Error iterating children of {parent_process.pid}: {e}")
+
+            # Kill descendants
+            kill_children_recursive(root_process)
+
+            # Finally kill the root
+            try:
+                root_process.terminate()
+                killed_count += 1
+                self.logger.info(f"Terminated root process {pid} ({root_process.name()}).")
+            except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+                failed.append((pid, str(e)))
+                self.logger.warning(f"Could not terminate root process {pid}: {e}")
+
+            result = f"Successfully terminated {killed_count} process(es)"
+            if failed:
+                result += f". Failed to terminate {len(failed)} process(es): {failed}"
+
+            return result
+
+        except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError, PermissionError) as e:
+            self.logger.warning(f"Failed to terminate process tree rooted at {pid}: {e}")
+            raise
 
     def __del__(self):
         """Guaranteed cleanup of job object and all processes associated with it when ProcessManager instance is destroyed, which should happen when server is stopped or restarted."""

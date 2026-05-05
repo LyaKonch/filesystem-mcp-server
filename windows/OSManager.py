@@ -44,11 +44,9 @@ class WindowsOSManager(
     ) -> str:
         """Exports a registry keys to a .reg file (readable text format) using 'reg export' command."""
         # For example: reg export "HKEY_CURRENT_USER\Environment" "C:\backup.reg" /y
-        try:
-            self.registry.check_key_exists(hive, sub_key)
-        except Exception as e:
-            self.logger.warning(f"Unexpected error when validating registry key: {e}")
-            return str(e)
+
+        self.registry.check_key_exists(hive, sub_key)
+
         try:
             await validate_path(output_path, ctx=ctx, must_exist=False, expected_type="file")
         except Exception as e:

@@ -9,6 +9,7 @@ from fastmcp import Context
 
 from core_tools.BaseSystemManager import BaseSystemManager, EnvScope
 from utilities.decorators import export_tool
+from utilities.error_handling import ToolOperationError
 
 if TYPE_CHECKING:
     from windows.ProcessManager import ProcessManager as WindowsProcessManager
@@ -38,7 +39,7 @@ class SystemManager(BaseSystemManager):
             self.logger.warning(f"Failed to broadcast env change: {e}")
 
     @export_tool(name="get_environment_variable", logger=logging.getLogger(__name__))
-    def get_variable(self, name: str, scope: EnvScope = EnvScope.USER) -> dict | None:
+    def get_variable(self, name: str, scope: EnvScope = EnvScope.USER) -> dict | str | None:
         self._validate_key_name(name)
         if scope == EnvScope.PROCESS:
             return os.environ.get(name)
@@ -50,10 +51,18 @@ class SystemManager(BaseSystemManager):
             result = self.registry.read_registry_key(hive, path, name)
             if isinstance(result, dict) and "value" in result:
                 return result
+        except ToolOperationError:
+            raise
         except Exception as e:
-            raise Exception(
-                f"Failed to read environment variable from registry: {name} in {hive}\\{path}: {str(e)}"
-            ) from None
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to read environment variable from registry: {name} in {hive}\\{path}",
+                actions=[
+                    "Verify the environment variable exists.",
+                    "Check registry access permissions.",
+                    "Retry the operation.",
+                ],
+            ) from e
         return None
 
     @export_tool(name="list_environment_variables", logger=logging.getLogger(__name__))
@@ -89,10 +98,19 @@ class SystemManager(BaseSystemManager):
             )  # winreg.REG_SZ
             self._broadcast_env_change()
             return res
+        except ToolOperationError:
+            raise
         except Exception as e:
-            raise Exception(
-                f"Failed to write environment variable to registry: {name} in {hive}\\{path}: {str(e)}"
-            ) from None
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to write environment variable to registry: {name} in {hive}\\{path}",
+                actions=[
+                    "Verify registry write permissions.",
+                    "Check that you have administrator privileges.",
+                    "Ensure the registry path is valid.",
+                    "Retry the operation.",
+                ],
+            ) from e
 
     @export_tool(name="delete_environment_variable", logger=logging.getLogger(__name__))
     async def delete_variable(
@@ -109,20 +127,32 @@ class SystemManager(BaseSystemManager):
         hive = "HKEY_CURRENT_USER" if scope == EnvScope.USER else "HKEY_LOCAL_MACHINE"
         path = self.USER_ENV_PATH if scope == EnvScope.USER else self.SYS_ENV_PATH
 
-        res = await self.registry.delete_registry_key(ctx, hive, path, name)
-        self._broadcast_env_change()
-        return res
+        try:
+            res = await self.registry.delete_registry_key(ctx, hive, path, name)
+            self._broadcast_env_change()
+            return res
+        except ToolOperationError:
+            raise
+        except Exception as e:
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to delete environment variable from registry: {name}",
+                actions=[
+                    "Verify registry write permissions.",
+                    "Check that you have administrator privileges.",
+                    "Ensure the environment variable exists.",
+                    "Retry the operation.",
+                ],
+            ) from e
 
     @export_tool(name="create_windows_restore_point", tags=["system", "recovery"])
     async def create_restore_point(
         self, description: str, restore_point_type: str = "MODIFY_SETTINGS"
     ) -> str:
-        """
-        Creates a new System Restore point.
+        """Creates a new System Restore point.
         Command used: powershell.exe -Command Checkpoint-Computer -Description "Name" -RestorePointType "APPLICATION_INSTALL"
          - Description: A string describing the restore point. This will help identify the restore point
         Note: Requires Administrator privileges and 'System Protection' must be enabled.
-
         """
         valid_types = [
             "APPLICATION_INSTALL",
@@ -143,17 +173,29 @@ class SystemManager(BaseSystemManager):
         try:
             result = await self.process_mgr._run_raw_command(*ps_command, use_shell=False)
             return f"Restore point creation triggered: {result}"
+        except ToolOperationError:
+            raise
         except Exception as e:
-            return f"Failed to create restore point. Make sure you have Admin rights and System Protection is ON. Error: {str(e)}"
+            raise ToolOperationError(
+                "operation_failed",
+                f"Failed to create restore point '{description}'",
+                actions=[
+                    "Verify you have administrator privileges.",
+                    "Check that System Protection is enabled on the system.",
+                    "Ensure there is sufficient disk space for the restore point.",
+                    "Review Windows System Protection settings.",
+                    "Retry the operation.",
+                ],
+            ) from e
 
-    def add_open_extension_from_context_window():
+    # def add_open_extension_from_context_window():
+    #     pass
+
+    def add_program_to_autorun(self):
         pass
 
-    def add_program_to_autorun():
+    def delete_program_from_autorun(self):
         pass
 
-    def delete_program_from_autorun():
-        pass
-
-    def check_for_updates():
-        pass
+    # def check_for_updates():
+    #     pass

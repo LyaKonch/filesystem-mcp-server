@@ -5,6 +5,7 @@ import psutil
 
 from utilities import dependencies
 from utilities.decorators import export_tool
+from utilities.error_handling import ToolOperationError
 
 
 class BaseProcessManager(ABC):
@@ -53,8 +54,14 @@ class BaseProcessManager(ABC):
             return process_info_list
 
         except Exception as e:
-            logging.getLogger(__name__).error("Error occurred while listing processes: %s", e)
-            return f"Error occurred while listing processes: {e}"
+            raise ToolOperationError(
+                "unexpected",
+                f"Error occurred while listing processes: {e}",
+                actions=[
+                    "Retry the request.",
+                    "Check server logs for the root cause.",
+                ],
+            ) from e
 
     @export_tool(
         name="get_current_username", logger=logging.getLogger(__name__), tags=["process_management"]
@@ -63,7 +70,14 @@ class BaseProcessManager(ABC):
         try:
             return psutil.Process().username()
         except Exception as e:
-            logging.getLogger(__name__).warning(f"Unable to get current user: {e}")
+            raise ToolOperationError(
+                "unexpected",
+                f"Unable to get current user: {e}",
+                actions=[
+                    "Retry the request.",
+                    "Check whether the current process can inspect its own user context.",
+                ],
+            ) from e
 
     @export_tool(
         name="get_process_info", logger=logging.getLogger(__name__), tags=["process_management"]
@@ -78,14 +92,33 @@ class BaseProcessManager(ABC):
             process = psutil.Process(pid)
 
             return self._build_process_info(process)
-        except (psutil.AccessDenied, psutil.NoSuchProcess) as e:
-            logging.getLogger(__name__).warning(
-                "Process %s is not accessible or no longer exists: %s", pid, e
-            )
-            return {}
         except Exception as e:
-            logging.getLogger(__name__).error("Error occurred while fetching process info: %s", e)
-            return {}
+            if isinstance(e, psutil.NoSuchProcess):
+                raise ToolOperationError(
+                    "not_found",
+                    f"Process {pid} was not found or is no longer running.",
+                    actions=[
+                        "Verify the PID with list_processes.",
+                        "Retry the request for a currently running process.",
+                    ],
+                ) from e
+            if isinstance(e, psutil.AccessDenied):
+                raise ToolOperationError(
+                    "access_denied",
+                    f"Access denied while reading process {pid} information.",
+                    actions=[
+                        "Run the server with elevated privileges.",
+                        "Try a process owned by the current user.",
+                    ],
+                ) from e
+            raise ToolOperationError(
+                "unexpected",
+                f"Error occurred while fetching process info for {pid}: {e}",
+                actions=[
+                    "Retry the request.",
+                    "Check server logs for the root cause.",
+                ],
+            ) from e
 
     @export_tool(
         name="get_detailed_process_info",
@@ -120,14 +153,33 @@ class BaseProcessManager(ABC):
                 )
 
             return result
-        except (psutil.AccessDenied, psutil.NoSuchProcess) as e:
-            logging.getLogger(__name__).warning(
-                "Process %s is not accessible or no longer exists: %s", pid, e
-            )
-            return {}
         except Exception as e:
-            logging.getLogger(__name__).error("Error occurred while fetching process info: %s", e)
-            return {}
+            if isinstance(e, psutil.NoSuchProcess):
+                raise ToolOperationError(
+                    "not_found",
+                    f"Process {pid} was not found or is no longer running.",
+                    actions=[
+                        "Verify the PID with list_processes.",
+                        "Retry the request for a currently running process.",
+                    ],
+                ) from e
+            if isinstance(e, psutil.AccessDenied):
+                raise ToolOperationError(
+                    "access_denied",
+                    f"Access denied while reading detailed information for process {pid}.",
+                    actions=[
+                        "Run the server with elevated privileges.",
+                        "Try a process owned by the current user.",
+                    ],
+                ) from e
+            raise ToolOperationError(
+                "unexpected",
+                f"Error occurred while fetching detailed process info for {pid}: {e}",
+                actions=[
+                    "Retry the request.",
+                    "Check server logs for the root cause.",
+                ],
+            ) from e
 
     @export_tool(
         name="get_process_connections",
@@ -181,16 +233,33 @@ class BaseProcessManager(ABC):
                     break
 
             return connections
-        except (psutil.AccessDenied, psutil.NoSuchProcess) as e:
-            logging.getLogger(__name__).warning(
-                "Process %s is not accessible or no longer exists: %s", pid, e
-            )
-            return []
         except Exception as e:
-            logging.getLogger(__name__).error(
-                "Error occurred while fetching process connections for %s: %s", pid, e
-            )
-            return []
+            if isinstance(e, psutil.NoSuchProcess):
+                raise ToolOperationError(
+                    "not_found",
+                    f"Process {pid} was not found or is no longer running.",
+                    actions=[
+                        "Verify the PID with list_processes.",
+                        "Retry the request for a currently running process.",
+                    ],
+                ) from e
+            if isinstance(e, psutil.AccessDenied):
+                raise ToolOperationError(
+                    "access_denied",
+                    f"Access denied while reading network connections for process {pid}.",
+                    actions=[
+                        "Run the server with elevated privileges.",
+                        "Try a process owned by the current user.",
+                    ],
+                ) from e
+            raise ToolOperationError(
+                "unexpected",
+                f"Error occurred while fetching process connections for {pid}: {e}",
+                actions=[
+                    "Retry the request.",
+                    "Check server logs for the root cause.",
+                ],
+            ) from e
 
     @export_tool(
         name="get_process_tree", logger=logging.getLogger(__name__), tags=["process_management"]
@@ -255,16 +324,33 @@ class BaseProcessManager(ABC):
                 collect_children(root, 1)
 
             return tree
-        except (psutil.AccessDenied, psutil.NoSuchProcess) as e:
-            logging.getLogger(__name__).warning(
-                "Process %s is not accessible or no longer exists: %s", pid, e
-            )
-            return {}
         except Exception as e:
-            logging.getLogger(__name__).error(
-                "Error occurred while fetching process tree for %s: %s", pid, e
-            )
-            return {}
+            if isinstance(e, psutil.NoSuchProcess):
+                raise ToolOperationError(
+                    "not_found",
+                    f"Process {pid} was not found or is no longer running.",
+                    actions=[
+                        "Verify the PID with list_processes.",
+                        "Retry the request for a currently running process.",
+                    ],
+                ) from e
+            if isinstance(e, psutil.AccessDenied):
+                raise ToolOperationError(
+                    "access_denied",
+                    f"Access denied while building the process tree for {pid}.",
+                    actions=[
+                        "Run the server with elevated privileges.",
+                        "Try a process owned by the current user.",
+                    ],
+                ) from e
+            raise ToolOperationError(
+                "unexpected",
+                f"Error occurred while fetching process tree for {pid}: {e}",
+                actions=[
+                    "Retry the request.",
+                    "Check server logs for the root cause.",
+                ],
+            ) from e
 
     @export_tool(
         name="get_process_open_files",
@@ -302,16 +388,33 @@ class BaseProcessManager(ABC):
                     break
 
             return files
-        except (psutil.AccessDenied, psutil.NoSuchProcess) as e:
-            logging.getLogger(__name__).warning(
-                "Process %s is not accessible or no longer exists: %s", pid, e
-            )
-            return []
         except Exception as e:
-            logging.getLogger(__name__).error(
-                "Error occurred while fetching process open files for %s: %s", pid, e
-            )
-            return []
+            if isinstance(e, psutil.NoSuchProcess):
+                raise ToolOperationError(
+                    "not_found",
+                    f"Process {pid} was not found or is no longer running.",
+                    actions=[
+                        "Verify the PID with list_processes.",
+                        "Retry the request for a currently running process.",
+                    ],
+                ) from e
+            if isinstance(e, psutil.AccessDenied):
+                raise ToolOperationError(
+                    "access_denied",
+                    f"Access denied while reading open files for process {pid}.",
+                    actions=[
+                        "Run the server with elevated privileges.",
+                        "Try a process owned by the current user.",
+                    ],
+                ) from e
+            raise ToolOperationError(
+                "unexpected",
+                f"Error occurred while fetching process open files for {pid}: {e}",
+                actions=[
+                    "Retry the request.",
+                    "Check server logs for the root cause.",
+                ],
+            ) from e
 
     @abstractmethod
     def start_process(self, command):
@@ -523,7 +626,9 @@ class BaseProcessManager(ABC):
             return sorted(
                 process_list,
                 key=lambda item: (
-                    float(item.get(key)) if isinstance(item.get(key), (int, float)) else 0.0
+                    float(value)
+                    if (value := item.get(key)) is not None and isinstance(value, (int, float))
+                    else 0.0
                 ),
                 reverse=reverse,
             )
