@@ -2,15 +2,18 @@ import logging
 from abc import ABC, abstractmethod
 
 import psutil
+from fastmcp import Context
 
+from auth.permissions import guard
 from utilities import dependencies
 from utilities.decorators import export_tool
 from utilities.error_handling import ToolOperationError
 
 
 class BaseProcessManager(ABC):
+    @guard("process.list_processes")
     @export_tool(
-        name="list_processes", logger=logging.getLogger(__name__), tags=["process_management"]
+        name="list_processes", logger=logging.getLogger(__name__), tags=["process.list_processes"]
     )
     def list_processes(
         self,
@@ -18,6 +21,8 @@ class BaseProcessManager(ABC):
         sort_by: str = "pid",
         limit: int | None = None,
         offset: int = 0,
+        ctx: Context | None = None,
+        constraints: dict | None = None,
     ) -> list[dict[str, object]] | str:
         """Return lightweight summaries for running processes.
 
@@ -63,10 +68,13 @@ class BaseProcessManager(ABC):
                 ],
             ) from e
 
+    @guard("process.get_current_username")
     @export_tool(
-        name="get_current_username", logger=logging.getLogger(__name__), tags=["process_management"]
+        name="get_current_username",
+        logger=logging.getLogger(__name__),
+        tags=["process.get_current_username"],
     )
-    def get_current_username(self):
+    def get_current_username(self, ctx: Context | None = None, constraints: dict | None = None):
         try:
             return psutil.Process().username()
         except Exception as e:
@@ -79,10 +87,15 @@ class BaseProcessManager(ABC):
                 ],
             ) from e
 
+    @guard("process.get_process_info")
     @export_tool(
-        name="get_process_info", logger=logging.getLogger(__name__), tags=["process_management"]
+        name="get_process_info",
+        logger=logging.getLogger(__name__),
+        tags=["process.get_process_info"],
     )
-    def get_process_info(self, pid: int) -> dict[str, object]:
+    def get_process_info(
+        self, pid: int, ctx: Context | None = None, constraints: dict | None = None
+    ) -> dict[str, object]:
         """Return an expanded snapshot for a single process PID.
 
         Includes summary fields plus executable path, command line, cwd,
@@ -120,10 +133,11 @@ class BaseProcessManager(ABC):
                 ],
             ) from e
 
+    @guard("process.get_detailed_process_info")
     @export_tool(
         name="get_detailed_process_info",
         logger=logging.getLogger(__name__),
-        tags=["process_management"],
+        tags=["process.get_detailed_process_info"],
     )
     def get_detailed_process_info(
         self,
@@ -131,6 +145,8 @@ class BaseProcessManager(ABC):
         tree: bool = False,
         connections: bool = False,
         open_files: bool = False,
+        ctx: Context | None = None,
+        constraints: dict | None = None,
     ) -> dict[str, object]:
         """Return process info and optionally include deep diagnostic sections.
 
@@ -181,10 +197,11 @@ class BaseProcessManager(ABC):
                 ],
             ) from e
 
+    @guard("process.get_process_connections")
     @export_tool(
         name="get_process_connections",
         logger=logging.getLogger(__name__),
-        tags=["process_management"],
+        tags=["process.get_process_connections"],
     )
     def get_process_connections(
         self,
@@ -192,6 +209,8 @@ class BaseProcessManager(ABC):
         kind: str | None = "inet",
         state: str | None = None,
         limit: int | None = None,
+        ctx: Context | None = None,
+        constraints: dict | None = None,
     ) -> list[dict[str, object]]:
         """Return network connections opened by a process.
 
@@ -261,8 +280,11 @@ class BaseProcessManager(ABC):
                 ],
             ) from e
 
+    @guard("process.get_process_tree")
     @export_tool(
-        name="get_process_tree", logger=logging.getLogger(__name__), tags=["process_management"]
+        name="get_process_tree",
+        logger=logging.getLogger(__name__),
+        tags=["process.get_process_tree"],
     )
     def get_process_tree(
         self,
@@ -271,6 +293,8 @@ class BaseProcessManager(ABC):
         down_to_children: bool = True,
         depth: int = 1,
         max_nodes: int = 100,
+        ctx: Context | None = None,
+        constraints: dict | None = None,
     ) -> dict[str, object]:
         """Return parent/child relationships for a process.
 
@@ -352,16 +376,19 @@ class BaseProcessManager(ABC):
                 ],
             ) from e
 
+    @guard("process.get_process_open_files")
     @export_tool(
         name="get_process_open_files",
         logger=logging.getLogger(__name__),
-        tags=["process_management"],
+        tags=["process.get_process_open_files"],
     )
     def get_process_open_files(
         self,
         pid: int,
         limit: int | None = None,
         include_deleted: bool = False,
+        ctx: Context | None = None,
+        constraints: dict | None = None,
     ) -> list[dict[str, object]]:
         """Return files currently opened by a process.
 

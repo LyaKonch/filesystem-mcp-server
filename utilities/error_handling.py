@@ -12,6 +12,7 @@ from utilities.logging import log_exception_with_id
 _MESSAGES: dict[str, dict[str, str]] = {
     "uk": {
         "access_denied": "Доступ заборонено для цієї операції.",
+        "permission_denied": "Нема дозволу на виклик цього інструменту.",
         "not_found": "Ресурс не знайдено або недоступний.",
         "auth_required": "Потрібна автентифікація для виконання операції.",
         "validation": "Некоректні вхідні дані.",
@@ -23,6 +24,7 @@ _MESSAGES: dict[str, dict[str, str]] = {
     },
     "en": {
         "access_denied": "Access is denied for this operation.",
+        "permission_denied": "You do not have permission to invoke this tool.",
         "not_found": "Resource was not found or is unavailable.",
         "auth_required": "Authentication is required for this operation.",
         "validation": "Input data is invalid.",

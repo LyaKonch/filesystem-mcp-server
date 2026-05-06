@@ -1,11 +1,13 @@
 import logging
 import uuid
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 from fastmcp import Context
 from fastmcp.server.middleware import Middleware, MiddlewareContext
+from fastmcp.tools.tool import Tool
 
-from auth.permissions import get_github_user_id
+from auth.permissions import get_github_user_id, get_github_username
+from auth.PolicyManager import policy_manager
 from config import settings
 from utilities.logging import clear_log_context, set_log_context
 
@@ -106,6 +108,7 @@ class AuthMiddleware(Middleware):
         finally:
             clear_log_context()
 
+    # cheking auth for every tool call
     async def _check_auth_for_tool_call(
         self, context: MiddlewareContext, call_next, ctx: Context | None
     ):
@@ -125,9 +128,10 @@ class AuthMiddleware(Middleware):
         module_logger.debug(f"✅ User {user_id} authenticated for tool call")
         return await call_next(context)
 
+    # filter tools based on user permission.
     async def _filter_tools(self, context: MiddlewareContext, call_next, ctx: Context | None):
-        """Filter tools list based on user permissions (optional future feature)"""
-        result = await call_next(context)
+        """Filter tools list based on user permissions"""
+        result: Sequence[Tool] = await call_next(context)
 
         if not settings.AUTH_ENABLED:
             return result
@@ -136,14 +140,35 @@ class AuthMiddleware(Middleware):
             module_logger.warning("⚠️ No context available for tool filtering")
             return result
 
-        result_list = []
-        for tool in result:
-            if "admin" not in tool.tags:
-                result_list.append(tool)
+        user_id = get_github_user_id(ctx)
+        username = get_github_username(ctx)
+        filtered_tools: list[Tool] = []
 
-        # Update the result with filtered tools
-        result = result_list
-        return result
+        for tool in result:
+            tags = getattr(tool, "tags", None)
+            permission = next(iter(tags), None) if tags else None
+
+            allowed = False
+            try:
+                if not permission:
+                    allowed = True
+                else:
+                    allowed = policy_manager.check_access(user_id, permission, username)
+            except Exception:
+                module_logger.exception("Error while checking access for tool %s", tool.name)
+
+            module_logger.debug(
+                "Tool filter: user=%s tool=%s permission=%s allowed=%s",
+                user_id,
+                getattr(tool, "name", "<unknown>"),
+                permission,
+                allowed,
+            )
+
+            if allowed:
+                filtered_tools.append(tool)
+
+        return filtered_tools
 
 
 def create_auth_middleware():

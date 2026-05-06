@@ -8,6 +8,7 @@ from typing import TypedDict
 
 from fastmcp import Context
 
+from auth.permissions import guard
 from utilities import dependencies
 from utilities.decorators import export_tool
 from utilities.error_handling import ToolOperationError
@@ -26,8 +27,11 @@ class BaseFilesystemManager(ABC):
     def __init__(self):
         self.module_logger = logging.getLogger(__name__)
 
-    @export_tool(name="list_files", logger=logging.getLogger(__name__), tags=["filesystem", "read"])
-    async def list_files(self, path: str, ctx: Context) -> str:
+    @guard("filesystem.list_files")
+    @export_tool(
+        name="list_files", logger=logging.getLogger(__name__), tags=["filesystem.list_files"]
+    )
+    async def list_files(self, path: str, ctx: Context, constraints: dict | None = None) -> str:
         """List files and directories at the given path."""
         try:
             target_path = await dependencies.validate_path(
@@ -53,8 +57,13 @@ class BaseFilesystemManager(ABC):
                 ],
             ) from e
 
-    @export_tool(name="read_file", logger=logging.getLogger(__name__), tags=["filesystem", "read"])
-    async def read_file(self, path: str, ctx: Context, include_images: bool = False):
+    @guard("filesystem.read_file")
+    @export_tool(
+        name="read_file", logger=logging.getLogger(__name__), tags=["filesystem.read_file"]
+    )
+    async def read_file(
+        self, path: str, ctx: Context, include_images: bool = False, constraints: dict | None = None
+    ):
         """
         Read file content.
 
@@ -137,12 +146,15 @@ class BaseFilesystemManager(ABC):
                 ],
             ) from e
 
+    @guard("filesystem.write_file")
     @export_tool(
         name="write_file",
         logger=logging.getLogger(__name__),
-        tags=["filesystem", "write", "dangerous", "admin"],
+        tags=["filesystem.write_file"],
     )
-    async def write_file(self, path: str, content: str, ctx: Context) -> str:
+    async def write_file(
+        self, path: str, content: str, ctx: Context, constraints: dict | None = None
+    ) -> str:
         try:
             # for writing we need to check the path without existence check, because we might be creating a new file or overwrite
             target_path = await dependencies.validate_path(path, ctx, must_exist=False)
@@ -176,10 +188,15 @@ class BaseFilesystemManager(ABC):
                 ],
             ) from e
 
+    @guard("filesystem.create_directory")
     @export_tool(
-        name="create_directory", logger=logging.getLogger(__name__), tags=["filesystem", "write"]
+        name="create_directory",
+        logger=logging.getLogger(__name__),
+        tags=["filesystem.create_directory"],
     )
-    async def create_directory(self, path: str, ctx: Context) -> str:
+    async def create_directory(
+        self, path: str, ctx: Context, constraints: dict | None = None
+    ) -> str:
         """Create a new directory."""
         try:
             target_path = await dependencies.validate_path(path, ctx, must_exist=False)
@@ -208,13 +225,18 @@ class BaseFilesystemManager(ABC):
                 ],
             ) from e
 
+    @guard("filesystem.list_directory_with_sizes")
     @export_tool(
         name="list_directory_with_sizes",
         logger=logging.getLogger(__name__),
-        tags=["filesystem", "read"],
+        tags=["filesystem.list_directory_with_sizes"],
     )
     async def list_directory_with_sizes(
-        self, path: str, sort_by: str = "name", ctx: Context | None = None
+        self,
+        path: str,
+        sort_by: str = "name",
+        ctx: Context | None = None,
+        constraints: dict | None = None,
     ) -> str:
         """Get a detailed listing of files and directories with sizes.
 
@@ -297,12 +319,15 @@ class BaseFilesystemManager(ABC):
                 ],
             ) from e
 
+    @guard("filesystem.analyze_directory_security")
     @export_tool(
         name="analyze_directory_security",
         logger=logging.getLogger(__name__),
-        tags=["filesystem", "read", "analysis"],
+        tags=["filesystem.analyze_directory_security"],
     )
-    async def analyze_directory_security(self, path: str, ctx: Context) -> str:
+    async def analyze_directory_security(
+        self, path: str, ctx: Context, constraints: dict | None = None
+    ) -> str:
         """
         Provides comprehensive security and content analysis of a directory.
 
@@ -667,8 +692,9 @@ class BaseFilesystemManager(ABC):
                 ],
             ) from e
 
+    @guard("filesystem.get_file_info")
     @export_tool(
-        name="get_file_info", logger=logging.getLogger(__name__), tags=["filesystem", "read"]
+        name="get_file_info", logger=logging.getLogger(__name__), tags=["filesystem.get_file_info"]
     )
     async def get_file_info(self, path: str, ctx: Context) -> str:
         """Get detailed metadata about a file or directory.
@@ -751,8 +777,9 @@ class BaseFilesystemManager(ABC):
                 ],
             ) from e
 
+    @guard("filesystem.move_file")
     @export_tool(
-        name="move_file", logger=logging.getLogger(__name__), tags=["filesystem", "write", "admin"]
+        name="move_file", logger=logging.getLogger(__name__), tags=["filesystem.move_file"]
     )
     async def move_file(self, source: str, destination: str, ctx: Context) -> str:
         """Move or rename files and directories.
@@ -828,8 +855,9 @@ class BaseFilesystemManager(ABC):
                 ],
             ) from e
 
+    @guard("filesystem.search_files")
     @export_tool(
-        name="search_files", logger=logging.getLogger(__name__), tags=["filesystem", "read"]
+        name="search_files", logger=logging.getLogger(__name__), tags=["filesystem.search_files"]
     )
     async def search_files(
         self, path: str, pattern: str, ctx: Context, exclude_patterns: list[str] | None = None
@@ -883,8 +911,11 @@ class BaseFilesystemManager(ABC):
                 ],
             ) from e
 
+    @guard("filesystem.read_multiple_files")
     @export_tool(
-        name="read_multiple_files", logger=logging.getLogger(__name__), tags=["filesystem", "read"]
+        name="read_multiple_files",
+        logger=logging.getLogger(__name__),
+        tags=["filesystem.read_multiple_files"],
     )
     async def read_multiple_files(self, paths: list[str], ctx: Context) -> str:
         """Read contents of multiple files simultaneously.
@@ -971,10 +1002,11 @@ class BaseFilesystemManager(ABC):
                 ],
             ) from e
 
+    @guard("filesystem.delete_file")
     @export_tool(
         name="delete_file",
         logger=logging.getLogger(__name__),
-        tags=["filesystem", "write", "dangerous", "admin"],
+        tags=["filesystem.delete_file"],
     )
     async def delete_file(self, path: str, ctx: Context, confirm: bool = False) -> str:
         """Delete a file.
@@ -1031,10 +1063,11 @@ class BaseFilesystemManager(ABC):
                 ],
             ) from e
 
+    @guard("filesystem.delete_directory")
     @export_tool(
         name="delete_directory",
         logger=logging.getLogger(__name__),
-        tags=["filesystem", "write", "dangerous", "admin"],
+        tags=["filesystem.delete_directory"],
     )
     async def delete_directory(
         self, path: str, confirm: bool = False, ctx: Context | None = None
@@ -1091,10 +1124,11 @@ class BaseFilesystemManager(ABC):
         shutil.rmtree(target_path)
         return f"Successfully deleted '{path}' (Confirmed)."
 
+    @guard("filesystem.filesystem_summary")
     @export_tool(
         name="filesystem_summary",
         logger=logging.getLogger(__name__),
-        tags=["filesystem", "read", "summary"],
+        tags=["filesystem.filesystem_summary"],
     )
     async def filesystem_summary(self, path: str, ctx: Context) -> dict:
         """
@@ -1140,10 +1174,11 @@ class BaseFilesystemManager(ABC):
                 ],
             ) from e
 
+    @guard("filesystem.get_creative_file_description")
     @export_tool(
         name="get_creative_file_description",
         logger=logging.getLogger(__name__),
-        tags=["filesystem", "read", "creative"],
+        tags=["filesystem.get_creative_file_description"],
     )
     async def get_creative_file_description(self, path: str, ctx: Context) -> str:
         """

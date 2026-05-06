@@ -3,6 +3,7 @@ from pathlib import Path
 
 from fastmcp import Context
 
+from auth.permissions import guard
 from config import settings
 from utilities import dependencies
 from utilities import logging as log_context
@@ -15,8 +16,13 @@ class ServerManager:
     def __init__(self):
         self.module_logger = logging.getLogger(__name__)
 
-    @export_tool(name="get_server_status", logger=logging.getLogger(__name__), tags=["management"])
-    async def get_server_status(self, ctx: Context) -> dict:
+    @guard("server.get_server_status")
+    @export_tool(
+        name="get_server_status",
+        logger=logging.getLogger(__name__),
+        tags=["server.get_server_status"],
+    )
+    async def get_server_status(self, ctx: Context, constraints: dict | None = None) -> dict:
         """Get information about server status, client features, and allowed roots."""
         self.module_logger.info("Checking server status")
 
@@ -43,8 +49,13 @@ class ServerManager:
             "server_roots": [str(path) for path in settings.ALLOWED_ROOTS],
         }
 
-    @export_tool(name="list_allowed_roots", logger=logging.getLogger(__name__), tags=["management"])
-    async def list_allowed_roots(self, ctx: Context) -> str:
+    @guard("server.list_allowed_roots")
+    @export_tool(
+        name="list_allowed_roots",
+        logger=logging.getLogger(__name__),
+        tags=["server.list_allowed_roots"],
+    )
+    async def list_allowed_roots(self, ctx: Context, constraints: dict | None = None) -> str:
         """Get a formatted list of all currently allowed root directories."""
         try:
             combined_roots = await dependencies.get_combined_roots(ctx)
@@ -71,12 +82,15 @@ class ServerManager:
                 ],
             ) from e
 
+    @guard("server.add_allowed_root")
     @export_tool(
         name="add_allowed_root",
         logger=logging.getLogger(__name__),
-        tags=["management", "admin"],
+        tags=["server.add_allowed_root"],
     )
-    async def add_allowed_root(self, path: str, ctx: Context) -> str:
+    async def add_allowed_root(
+        self, path: str, ctx: Context, constraints: dict | None = None
+    ) -> str:
         """Add a path to the server's allowed roots whitelist at runtime."""
         try:
             path_obj = dependencies.check_path(path, check_existence=True)
@@ -110,12 +124,15 @@ class ServerManager:
                 ],
             ) from e
 
+    @guard("server.update_roots")
     @export_tool(
         name="update_roots",
         logger=logging.getLogger(__name__),
-        tags=["management", "admin"],
+        tags=["server.update_roots"],
     )
-    async def update_roots(self, newroots: list[str]) -> str:
+    async def update_roots(
+        self, newroots: list[str], ctx: Context | None = None, constraints: dict | None = None
+    ) -> str:
         """Update allowed roots from a list of paths.
 
         Args:
@@ -178,12 +195,15 @@ class ServerManager:
                 ],
             ) from e
 
+    @guard("server.remove_root")
     @export_tool(
         name="remove_root",
         logger=logging.getLogger(__name__),
-        tags=["management", "admin"],
+        tags=["server.remove_root"],
     )
-    async def remove_root(self, root: str) -> str:
+    async def remove_root(
+        self, root: str, ctx: Context | None = None, constraints: dict | None = None
+    ) -> str:
         """Remove a single allowed root path."""
         try:
             path_obj = dependencies.check_path(Path(root), check_existence=True)
@@ -234,10 +254,11 @@ class ServerManager:
                 ],
             ) from exc
 
+    @guard("server.submit_error_report")
     @export_tool(
         name="submit_error_report",
         logger=logging.getLogger(__name__),
-        tags=["management", "support"],
+        tags=["server.submit_error_report"],
     )
     async def submit_error_report(
         self,

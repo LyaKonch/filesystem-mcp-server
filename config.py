@@ -1,8 +1,7 @@
 from pathlib import Path
-from typing import Annotated
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -30,10 +29,8 @@ class Settings(BaseSettings):
     FASTMCP_SERVER_AUTH_GITHUB_CLIENT_SECRET: str | None = None
     FASTMCP_SERVER_AUTH_GITHUB_BASE_URL: str | None = None
 
-    # admin GitHub user IDs
-    # write users in .env that you want to have access to potentially dangerous operations (delete, write, modify roots, etc.)
-    # (comma-separated in .env: ADMIN_GITHUB_IDS=githubid,githubid2)])
-    ADMIN_GITHUB_IDS: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    # specify path to policy config if you want to use custom policies, otherwise default policy with "guest" role and no permissions will be checked
+    POLICY_CONFIG_PATH: str = "./auth/policy.json"
 
     WINDOWS_NUMBER_OF_PROCESSES_LIMIT: int = 10
     WINDOWS_MEMORY_LIMIT_PER_PROCESS_MB: int = 2048
@@ -65,17 +62,6 @@ class Settings(BaseSettings):
     # )
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
-
-    @field_validator("ADMIN_GITHUB_IDS", mode="before")
-    @classmethod
-    def parse_admin_ids(cls, v) -> list[str]:
-        """Parse comma-separated admin IDs from environment variable"""
-        if isinstance(v, str):
-            # split by comma and strip whitespace
-            return [id.strip() for id in v.split(",") if id.strip()]
-        elif isinstance(v, list):
-            return v
-        return []
 
     @field_validator("ALLOWED_ROOTS", mode="before")
     @classmethod

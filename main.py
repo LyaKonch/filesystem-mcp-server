@@ -91,6 +91,12 @@ def parse_command_line_args():
         help="Use Redis instead of Disk (requires --persist)",
     )
 
+    parser.add_argument(
+        "--policy-file",
+        type=str,
+        help="Path to the ABAC policy JSON file",
+    )
+
     args = parser.parse_args()
     if args.roots:
         valid_roots = [dependencies.check_path(r, check_existence=True) for r in args.roots]
@@ -120,6 +126,9 @@ def parse_command_line_args():
     if args.redis:
         settings.USE_REDIS = True
         settings.USE_PERSISTENT_STORAGE = True
+
+    if args.policy_file:
+        settings.POLICY_FILE = args.policy_file
 
     return args
 

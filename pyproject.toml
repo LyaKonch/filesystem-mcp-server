@@ -44,6 +44,7 @@ ignore = ["E501"]
 "__init__.py" = ["F401"]
 "core_tools/BaseFilesystemManager.py" = ["B024"]
 "core_tools/BaseServiceManager.py" = ["B024"]
+"core_tools/OSManager.py" = ["B024"]
 
 [tool.ruff.format]
 quote-style = "double"

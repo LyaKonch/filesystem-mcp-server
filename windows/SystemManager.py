@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from fastmcp import Context
 
+from auth.permissions import guard
 from core_tools.BaseSystemManager import BaseSystemManager, EnvScope
 from utilities.decorators import export_tool
 from utilities.error_handling import ToolOperationError
@@ -38,8 +39,19 @@ class SystemManager(BaseSystemManager):
         except Exception as e:
             self.logger.warning(f"Failed to broadcast env change: {e}")
 
-    @export_tool(name="get_environment_variable", logger=logging.getLogger(__name__))
-    def get_variable(self, name: str, scope: EnvScope = EnvScope.USER) -> dict | str | None:
+    @guard("system.get_environment_variable")
+    @export_tool(
+        name="get_environment_variable",
+        logger=logging.getLogger(__name__),
+        tags=["system.get_environment_variable"],
+    )
+    def get_variable(
+        self,
+        ctx: Context,
+        name: str,
+        scope: EnvScope = EnvScope.USER,
+        constraints: dict | None = None,
+    ) -> dict | str | None:
         self._validate_key_name(name)
         if scope == EnvScope.PROCESS:
             return os.environ.get(name)
@@ -65,8 +77,15 @@ class SystemManager(BaseSystemManager):
             ) from e
         return None
 
-    @export_tool(name="list_environment_variables", logger=logging.getLogger(__name__))
-    def list_variables(self, scope: EnvScope = EnvScope.USER) -> dict[str, str]:
+    @guard("system.list_environment_variables")
+    @export_tool(
+        name="list_environment_variables",
+        logger=logging.getLogger(__name__),
+        tags=["system.list_environment_variables"],
+    )
+    def list_variables(
+        self, ctx: Context, scope: EnvScope = EnvScope.USER, constraints: dict | None = None
+    ) -> dict[str, str]:
         if scope == EnvScope.PROCESS:
             return dict(os.environ)
 
@@ -78,9 +97,19 @@ class SystemManager(BaseSystemManager):
             return {k: v["value"] for k, v in result["values"].items()}
         return {}
 
-    @export_tool(name="set_environment_variable", logger=logging.getLogger(__name__))
+    @guard("system.set_environment_variable")
+    @export_tool(
+        name="set_environment_variable",
+        logger=logging.getLogger(__name__),
+        tags=["system.set_environment_variable"],
+    )
     async def set_variable(
-        self, ctx: Context, name: str, value: str, scope: EnvScope = EnvScope.USER
+        self,
+        ctx: Context,
+        name: str,
+        value: str,
+        scope: EnvScope = EnvScope.USER,
+        constraints: dict | None = None,
     ) -> str:
         self._validate_key_name(name)
 
@@ -112,9 +141,18 @@ class SystemManager(BaseSystemManager):
                 ],
             ) from e
 
-    @export_tool(name="delete_environment_variable", logger=logging.getLogger(__name__))
+    @guard("system.delete_environment_variable")
+    @export_tool(
+        name="delete_environment_variable",
+        logger=logging.getLogger(__name__),
+        tags=["system.delete_environment_variable"],
+    )
     async def delete_variable(
-        self, ctx: Context, name: str, scope: EnvScope = EnvScope.USER
+        self,
+        ctx: Context,
+        name: str,
+        scope: EnvScope = EnvScope.USER,
+        constraints: dict | None = None,
     ) -> str:
         self._validate_key_name(name)
 
@@ -145,9 +183,14 @@ class SystemManager(BaseSystemManager):
                 ],
             ) from e
 
-    @export_tool(name="create_windows_restore_point", tags=["system", "recovery"])
+    @guard("system.create_windows_restore_point")
+    @export_tool(name="create_windows_restore_point", tags=["system.create_windows_restore_point"])
     async def create_restore_point(
-        self, description: str, restore_point_type: str = "MODIFY_SETTINGS"
+        self,
+        ctx: Context,
+        description: str,
+        restore_point_type: str = "MODIFY_SETTINGS",
+        constraints: dict | None = None,
     ) -> str:
         """Creates a new System Restore point.
         Command used: powershell.exe -Command Checkpoint-Computer -Description "Name" -RestorePointType "APPLICATION_INSTALL"
@@ -191,11 +234,11 @@ class SystemManager(BaseSystemManager):
     # def add_open_extension_from_context_window():
     #     pass
 
-    def add_program_to_autorun(self):
-        pass
+    # def add_program_to_autorun(self):
+    #     pass
 
-    def delete_program_from_autorun(self):
-        pass
+    # def delete_program_from_autorun(self):
+    #     pass
 
     # def check_for_updates():
     #     pass

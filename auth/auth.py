@@ -35,14 +35,12 @@ def get_auth_provider() -> GitHubProvider | None:
         module_logger.error("❌ Auth enabled but Client ID missing via .env or CLI.")
         return None
 
-    if settings.ADMIN_GITHUB_IDS:
-        module_logger.info(f"👑 Admin users configured: {len(settings.ADMIN_GITHUB_IDS)}")
-        for admin_id in settings.ADMIN_GITHUB_IDS:
-            module_logger.info(f"   - {admin_id}")
+    if settings.POLICY_CONFIG_PATH:
+        module_logger.info(f"Policy config found at {settings.POLICY_CONFIG_PATH}")
     else:
-        module_logger.warning("⚠️  No admin users configured!")
-        module_logger.warning("   All authenticated users will have READ-ONLY access.")
-        module_logger.warning("   Add ADMIN_GITHUB_IDS to .env for admin privileges.")
+        module_logger.warning(
+            "Policy config not found, using default with 'guest' role and no permissions."
+        )
 
     # checking for keys to decide on storage type (persistent or in-memory)
     #  and

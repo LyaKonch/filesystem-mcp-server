@@ -8,6 +8,7 @@ import win32job
 import win32process
 from fastmcp import Context
 
+from auth.permissions import guard
 from config import settings
 from core_tools.BaseProcessManager import BaseProcessManager
 from utilities.contextvar import current_mcp_ctx
@@ -54,11 +55,16 @@ class ProcessManager(BaseProcessManager):
             self._job_handle, win32job.JobObjectExtendedLimitInformation, global_limits
         )
 
+    @guard("process.start_process")
     @export_tool(
-        name="start_process", logger=logging.getLogger(__name__), tags=["process_management"]
+        name="start_process", logger=logging.getLogger(__name__), tags=["process.start_process"]
     )
     async def start_process(
-        self, command: str, ctx: Context, command_args: list[str] | None = None
+        self,
+        command: str,
+        ctx: Context,
+        command_args: list[str] | None = None,
+        constraints: dict | None = None,
     ) -> str:
         """Initiate a new process based on a specified command with optional arguments.
         Validates the command against an allowed list, constructs the full command with arguments, and executes it asynchronously while capturing output and errors for logging and response.
@@ -79,10 +85,13 @@ class ProcessManager(BaseProcessManager):
         return await self._run_raw_command(*full_args, use_shell=False)
 
     # @require_admin
+    @guard("process.run_admin_shell")
     @export_tool(
-        name="run_admin_shell", logger=logging.getLogger(__name__), tags=["process_management"]
+        name="run_admin_shell", logger=logging.getLogger(__name__), tags=["process.run_admin_shell"]
     )
-    async def run_admin_shell(self, raw_command: str, ctx: Context) -> str:
+    async def run_admin_shell(
+        self, raw_command: str, ctx: Context, constraints: dict | None = None
+    ) -> str:
         """
         [DANGEROUS] Execute a raw shell command with pipes and redirects.
         Admin use only.
@@ -93,10 +102,10 @@ class ProcessManager(BaseProcessManager):
     @export_tool(
         name="get_available_commands",
         logger=logging.getLogger(__name__),
-        tags=["process_management"],
+        tags=["process.get_available_commands"],
     )
     def get_available_commands(
-        self,
+        self, ctx: Context | None = None, constraints: dict | None = None
     ) -> dict[str, list[str] | str]:
         """Get a list of available commands that can be executed with start_process."""
         return commands
@@ -208,11 +217,18 @@ class ProcessManager(BaseProcessManager):
             result_str.append(decoded_line)
         return "\n".join(result_str)
 
+    @guard("process.kill_process")
     @export_tool(
-        name="kill_process", logger=logging.getLogger(__name__), tags=["process_management"]
+        name="kill_process", logger=logging.getLogger(__name__), tags=["process.kill_process"]
     )
     async def kill_process(
-        self, ctx: Context, process_id=None, name=None, username=None, started_ts=None
+        self,
+        ctx: Context,
+        process_id=None,
+        name=None,
+        username=None,
+        started_ts=None,
+        constraints: dict | None = None,
     ):
         """Kill a process by its PID with elicitation support. Use this method preferably to confirm the action explicitly"""
         try:
@@ -250,8 +266,9 @@ class ProcessManager(BaseProcessManager):
                 f"Access denied when trying to access process {process_id}."
             ) from e
 
+    @guard("process.suspend_process")
     @export_tool(
-        name="suspend_process", logger=logging.getLogger(__name__), tags=["process_management"]
+        name="suspend_process", logger=logging.getLogger(__name__), tags=["process.suspend_process"]
     )
     async def suspend_process(
         self,
@@ -260,6 +277,7 @@ class ProcessManager(BaseProcessManager):
         name=None,
         username=None,
         started_ts=None,
+        constraints: dict | None = None,
     ):
         """
         Suspend a running process by PID. On Windows this has the effect of suspending all process threads.
@@ -303,8 +321,9 @@ class ProcessManager(BaseProcessManager):
                 f"Access denied when trying to suspend process {process_id}."
             ) from e
 
+    @guard("process.resume_process")
     @export_tool(
-        name="resume_process", logger=logging.getLogger(__name__), tags=["process_management"]
+        name="resume_process", logger=logging.getLogger(__name__), tags=["process.resume_process"]
     )
     async def resume_process(
         self,
@@ -313,6 +332,7 @@ class ProcessManager(BaseProcessManager):
         name=None,
         username=None,
         started_ts=None,
+        constraints: dict | None = None,
     ):
         """Resume a previously suspended process by PID.
 
@@ -354,12 +374,15 @@ class ProcessManager(BaseProcessManager):
                 f"Access denied when trying to resume process {process_id}."
             ) from e
 
+    @guard("process.kill_process_tree")
     @export_tool(
         name="kill_process_tree",
         logger=logging.getLogger(__name__),
-        tags=["process_management"],
+        tags=["process.kill_process_tree"],
     )
-    async def kill_process_tree(self, ctx: Context, pid: int) -> str:
+    async def kill_process_tree(
+        self, ctx: Context, pid: int, constraints: dict | None = None
+    ) -> str:
         """
         Kill a process and all of its child processes recursively.
         Requires user confirmation. Protects server process from termination.

@@ -1,0 +1,46 @@
+{
+  "roles": {
+    "admin": {
+      "permissions": [
+        "*"
+      ],
+      "constraints": {}
+    },
+    "developer": {
+      "permissions": [
+        "process.list_processes",
+        "filesystem.read_file"
+      ],
+      "constraints": {
+        "process.run": {
+          "allowed_commands": [
+            "git",
+            "npm",
+            "ls"
+          ]
+        },
+        "filesystem.read_file": {
+          "allowed_paths": [
+            "G:/"
+          ]
+        }
+      }
+    },
+    "guest": {
+      "permissions": [
+        "filesystem.read_file"
+      ],
+      "constraints": {}
+    }
+  },
+  "users": {
+    "12345": {
+      "role": "guest",
+      "username": "boss"
+    },
+    "75110071": {
+      "role": "guest",
+      "username": "LyaKonch"
+    }
+  }
+}

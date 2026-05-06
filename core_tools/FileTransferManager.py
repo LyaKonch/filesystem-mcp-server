@@ -8,6 +8,7 @@ from fastmcp import Context
 from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse, Response
 
+from auth.permissions import guard
 from config import settings
 from utilities import dependencies
 from utilities.decorators import export_custom_route, export_tool
@@ -56,8 +57,12 @@ class FileTransferManager:
             del self._download_tokens[token]
         return len(expired)
 
-    # @require_auth(operation="prepare_file_for_download")
-    @export_tool(name="prepare_file_for_download", logger=logging.getLogger(__name__))
+    @guard("file_transfer.prepare_file_for_download")
+    @export_tool(
+        name="prepare_file_for_download",
+        logger=logging.getLogger(__name__),
+        tags=["file_transfer.prepare_file_for_download"],
+    )
     async def prepare_file_for_download(self, file_path: str, ctx: Context) -> str:
         """Prepare a secure temporary download link for a file.
 
