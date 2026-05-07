@@ -21,16 +21,51 @@
         },
         "filesystem.read_file": {
           "allowed_paths": [
-            "G:/"
+            "G:/Koblenzessentials/Технології захисту інформації/"
           ]
         }
       }
     },
     "guest": {
       "permissions": [
-        "filesystem.read_file"
+        "filesystem.list_files",
+        "filesystem.get_path_info",
+        "filesystem.read_file",
+        "filesystem.write_file",
+        "filesystem.edit_file",
+        "filesystem.search_files"
       ],
-      "constraints": {}
+      "constraints": {
+        "filesystem.list_files": {
+          "allowed_paths": [
+            "G:/Koblenzessentials/Технології захисту інформації/"
+          ],
+          "max_depth": 2
+        },
+         "filesystem.get_path_info": {
+          "allowed_paths": [
+            "G:/Koblenzessentials/Технології захисту інформації/"
+          ],
+          "max_depth": 2
+         },
+         "filesystem.read_file": {
+            "allowed_paths": [
+              "G:/Koblenzessentials/Технології захисту інформації/"
+            ],
+            "max_read_size": 10485760 
+         },
+         "filesystem.write_file": {
+          "allowed_paths": [
+              "G:/Koblenzessentials/Технології захисту інформації/"
+            ],
+            "max_write_size": 10485760
+         },
+         "filesystem.search_files": {
+          "allowed_paths": [
+            "G:/Koblenzessentials/Технології захисту інформації/"
+          ]
+         }
+      }
     }
   },
   "users": {

@@ -3,6 +3,7 @@ import winreg
 from typing import Any
 
 from fastmcp import Context
+from fastmcp.dependencies import Depends
 
 from auth.permissions import guard
 from utilities.decorators import export_tool
@@ -56,14 +57,17 @@ class RegistryManager:
         # self.os_manager = os_manager
         self.logger = logging.getLogger(__name__)
 
-    @guard("registry.list_registry_key")
     @export_tool(
         name="list_registry_key",
         logger=logging.getLogger(__name__),
         tags=["registry.list_registry_key"],
     )
     def list_registry_key(
-        self, ctx: Context, hive_name: str, sub_key: str, constraints: dict | None = None
+        self,
+        ctx: Context,
+        hive_name: str,
+        sub_key: str,
+        constraints: dict | None = Depends(guard("registry.list_registry_key")),
     ) -> dict:
         """
         Returns the subkeys and values of a specified registry key.
@@ -131,14 +135,18 @@ class RegistryManager:
                 ],
             ) from e
 
-    @guard("registry.read_registry_key")
     @export_tool(
         name="read_registry_key",
         logger=logging.getLogger(__name__),
         tags=["registry.read_registry_key"],
     )
     def read_registry_key(
-        self, ctx: Context, hive_name: str, sub_key: str, name: str, constraints: dict | None = None
+        self,
+        ctx: Context,
+        hive_name: str,
+        sub_key: str,
+        name: str,
+        constraints: dict | None = Depends(guard("registry.read_registry_key")),
     ) -> dict | str:
         """
         Reads a specific value from the Windows registry.
@@ -186,7 +194,6 @@ class RegistryManager:
                 ],
             ) from e
 
-    @guard("registry.write_registry_key")
     @export_tool(
         name="write_registry_key",
         logger=logging.getLogger(__name__),
@@ -200,7 +207,7 @@ class RegistryManager:
         value_name: str,
         value: str,
         value_type: int,
-        constraints: dict | None = None,
+        constraints: dict | None = Depends(guard("registry.write_registry_key")),
     ) -> str:
         """Writes a value to the Windows registry. Scope determines where the value is written (user or system)."""
         hive = self.hives.get(hive_name.upper())
@@ -270,7 +277,6 @@ class RegistryManager:
                 ],
             ) from e
 
-    @guard("registry.delete_registry_key")
     @export_tool(
         name="delete_registry_key",
         logger=logging.getLogger(__name__),
@@ -282,7 +288,7 @@ class RegistryManager:
         hive_name: str,
         sub_key: str,
         value_name: str,
-        constraints: dict | None = None,
+        constraints: dict | None = Depends(guard("registry.delete_registry_key")),
     ) -> str:
         """Deletes a specific value from the Windows registry."""
         hive = self.hives.get(hive_name.upper())
@@ -337,26 +343,29 @@ class RegistryManager:
                 ],
             ) from e
 
-    @guard("registry.get_registry_value_types")
     @export_tool(
         name="get_registry_value_types",
         logger=logging.getLogger(__name__),
         tags=["registry.get_registry_value_types"],
     )
     def get_registry_value_types(
-        self, ctx: Context, constraints: dict | None = None
+        self,
+        ctx: Context,
+        constraints: dict | None = Depends(guard("registry.get_registry_value_types")),
     ) -> dict[int, str]:
         """Returns a list of valid registry value types."""
         return {type_id: description for type_id, description in self.REG_TYPE_DESCRIPTIONS.items()}
 
-    @guard("registry.get_registry_hive_path")
     @export_tool(
         name="get_registry_hive_path",
         logger=logging.getLogger(__name__),
         tags=["registry.get_registry_hive_path"],
     )
     def get_registry_hive_path(
-        self, ctx: Context, hive_name: str, constraints: dict | None = None
+        self,
+        ctx: Context,
+        hive_name: str,
+        constraints: dict | None = Depends(guard("registry.get_registry_hive_path")),
     ) -> int | None:
         """Returns the registry hive path for a given hive name."""
         return self.hives.get(hive_name.upper())
@@ -395,9 +404,17 @@ class RegistryManager:
     #     except Exception as e:
     #         raise Exception(f"Error loading registry key: {str(e)}") from e
 
-    @guard("registry.check_key_exists")
+    @export_tool(
+        name="check_key_exists",
+        logger=logging.getLogger(__name__),
+        tags=["registry.check_key_exists"],
+    )
     def check_key_exists(
-        self, ctx: Context, hive_name: str, sub_key: str, constraints: dict | None = None
+        self,
+        ctx: Context,
+        hive_name: str,
+        sub_key: str,
+        constraints: dict | None = Depends(guard("registry.check_key_exists")),
     ) -> bool:
         """Checks if a specific registry key exists."""
         hive = self.hives.get(hive_name.upper())

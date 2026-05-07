@@ -7,6 +7,7 @@ import win32con
 import win32job
 import win32process
 from fastmcp import Context
+from fastmcp.dependencies import Depends
 
 from auth.permissions import guard
 from config import settings
@@ -55,7 +56,6 @@ class ProcessManager(BaseProcessManager):
             self._job_handle, win32job.JobObjectExtendedLimitInformation, global_limits
         )
 
-    @guard("process.start_process")
     @export_tool(
         name="start_process", logger=logging.getLogger(__name__), tags=["process.start_process"]
     )
@@ -64,7 +64,7 @@ class ProcessManager(BaseProcessManager):
         command: str,
         ctx: Context,
         command_args: list[str] | None = None,
-        constraints: dict | None = None,
+        constraints: dict | None = Depends(guard("process.start_process")),
     ) -> str:
         """Initiate a new process based on a specified command with optional arguments.
         Validates the command against an allowed list, constructs the full command with arguments, and executes it asynchronously while capturing output and errors for logging and response.
@@ -85,12 +85,14 @@ class ProcessManager(BaseProcessManager):
         return await self._run_raw_command(*full_args, use_shell=False)
 
     # @require_admin
-    @guard("process.run_admin_shell")
     @export_tool(
         name="run_admin_shell", logger=logging.getLogger(__name__), tags=["process.run_admin_shell"]
     )
     async def run_admin_shell(
-        self, raw_command: str, ctx: Context, constraints: dict | None = None
+        self,
+        raw_command: str,
+        ctx: Context,
+        constraints: dict | None = Depends(guard("process.run_admin_shell")),
     ) -> str:
         """
         [DANGEROUS] Execute a raw shell command with pipes and redirects.
@@ -217,7 +219,6 @@ class ProcessManager(BaseProcessManager):
             result_str.append(decoded_line)
         return "\n".join(result_str)
 
-    @guard("process.kill_process")
     @export_tool(
         name="kill_process", logger=logging.getLogger(__name__), tags=["process.kill_process"]
     )
@@ -228,7 +229,7 @@ class ProcessManager(BaseProcessManager):
         name=None,
         username=None,
         started_ts=None,
-        constraints: dict | None = None,
+        constraints: dict | None = Depends(guard("process.kill_process")),
     ):
         """Kill a process by its PID with elicitation support. Use this method preferably to confirm the action explicitly"""
         try:
@@ -266,7 +267,6 @@ class ProcessManager(BaseProcessManager):
                 f"Access denied when trying to access process {process_id}."
             ) from e
 
-    @guard("process.suspend_process")
     @export_tool(
         name="suspend_process", logger=logging.getLogger(__name__), tags=["process.suspend_process"]
     )
@@ -277,7 +277,7 @@ class ProcessManager(BaseProcessManager):
         name=None,
         username=None,
         started_ts=None,
-        constraints: dict | None = None,
+        constraints: dict | None = Depends(guard("process.suspend_process")),
     ):
         """
         Suspend a running process by PID. On Windows this has the effect of suspending all process threads.
@@ -321,7 +321,6 @@ class ProcessManager(BaseProcessManager):
                 f"Access denied when trying to suspend process {process_id}."
             ) from e
 
-    @guard("process.resume_process")
     @export_tool(
         name="resume_process", logger=logging.getLogger(__name__), tags=["process.resume_process"]
     )
@@ -332,7 +331,7 @@ class ProcessManager(BaseProcessManager):
         name=None,
         username=None,
         started_ts=None,
-        constraints: dict | None = None,
+        constraints: dict | None = Depends(guard("process.resume_process")),
     ):
         """Resume a previously suspended process by PID.
 
@@ -374,14 +373,16 @@ class ProcessManager(BaseProcessManager):
                 f"Access denied when trying to resume process {process_id}."
             ) from e
 
-    @guard("process.kill_process_tree")
     @export_tool(
         name="kill_process_tree",
         logger=logging.getLogger(__name__),
         tags=["process.kill_process_tree"],
     )
     async def kill_process_tree(
-        self, ctx: Context, pid: int, constraints: dict | None = None
+        self,
+        ctx: Context,
+        pid: int,
+        constraints: dict | None = Depends(guard("process.kill_process_tree")),
     ) -> str:
         """
         Kill a process and all of its child processes recursively.

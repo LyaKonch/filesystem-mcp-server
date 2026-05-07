@@ -4,6 +4,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from fastmcp import Context
+from fastmcp.dependencies import Depends
 
 from auth.permissions import guard
 from core_tools.OSManager import BaseOSManager
@@ -32,7 +33,6 @@ class WindowsOSManager(BaseOSManager):
         self.system_mgr = system_mgr
         self.registry = system_mgr.registry
 
-    @guard("windowsos.backup_registry_keys")
     @export_tool(
         name="backup_registry_keys",
         logger=logging.getLogger(__name__),
@@ -44,7 +44,7 @@ class WindowsOSManager(BaseOSManager):
         hive: str,
         sub_key: str,
         output_path: str,
-        constraints: dict | None = None,
+        constraints: dict | None = Depends(guard("windowsos.backup_registry_keys")),
     ) -> str:
         """Exports a registry keys to a .reg file (readable text format) using 'reg export' command."""
         # For example: reg export "HKEY_CURRENT_USER\Environment" "C:\backup.reg" /y
@@ -64,13 +64,17 @@ class WindowsOSManager(BaseOSManager):
         result = await self.process_mgr._run_raw_command(*command, use_shell=False)
         return result
 
-    @guard("windowsos.restore_registry_keys_from_file")
     @export_tool(
         name="restore_registry_keys_from_file",
         logger=logging.getLogger(__name__),
         tags=["windowsos.restore_registry_keys_from_file"],
     )
-    async def restore_backup(self, ctx: Context, file_path: str, constraints: dict | None = None):
+    async def restore_backup(
+        self,
+        ctx: Context,
+        file_path: str,
+        constraints: dict | None = Depends(guard("windowsos.restore_registry_keys_from_file")),
+    ):
         """Restores registry keys from a .reg file using 'reg import' command. The .reg file should be in the format exported by backup_registry_keys."""
         try:
             await validate_path(file_path, ctx=ctx, must_exist=True, expected_type="file")

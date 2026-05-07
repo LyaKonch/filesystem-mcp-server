@@ -259,10 +259,15 @@ async def withinAllowed(path: Path, ctx: fastmcp.Context) -> bool:
     """Check if a given path is within allowed scopes of Global allowed directories on server and roots from client."""
     current_scope = await get_combined_roots(ctx)
 
+    return is_path_within_scope(path, current_scope)
+
+
+def is_path_within_scope(path: Path, scope: list[Path]) -> bool:
+    """Check if a given path is within the provided scope."""
     p = check_path(path, check_existence=False)
-    for root in current_scope:
+    for root in scope:
+        root = check_path(root, check_existence=True)
         try:
-            # Check if path is within the root
             p.relative_to(root.resolve())
             return True
         except ValueError:

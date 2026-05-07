@@ -1,8 +1,10 @@
+import asyncio
 import base64
 import logging
 from pathlib import Path
 from typing import Any, cast
 
+import aiofiles
 import fitz  # PyMuPDF
 from docx import Document
 from docx.drawing import Drawing
@@ -16,9 +18,17 @@ module_logger = logging.getLogger(__name__)
 
 
 class FileReader:
-    def __init__(self, file_pathes, include_images: bool = False):
+    def __init__(
+        self,
+        file_pathes,
+        include_images: bool = False,
+        read_from: str = "beginning",
+        max_bytes: int = 50000,
+    ):
         self.file_pathes = file_pathes
         self.include_images = include_images
+        self.read_from = read_from
+        self.max_bytes = max_bytes
         self.readers = {
             ".txt": self._read_text,
             ".docx": self._read_docx,
@@ -31,13 +41,13 @@ class FileReader:
             ".log": self._read_text,
         }
 
-    # dispatch method based on file extension
-    # it chooses the appropriate method to read the file based on its extension
-    # then reads all the data from it
-    # some method should collect all the data and metadata to one single resulting dict
-    def read(self):
+    # Dispatches file reading based on extension
+    # Selects appropriate method based on file extension
+    # Reads all file data and structures it
+    # Collects all data and metadata into single result dict
+    async def read(self):
         """
-        Читає файли і повертає структуру:
+        Reads files and returns their content in a structured format.
         {
             "metadata": {
                 "path": str,
@@ -46,15 +56,16 @@ class FileReader:
                 "mtime": float
             },
             "content": {
-                "pages": [...] для docx
-                "text": str для txt
+                "pages": [...] for docx
+                "text": str for txt
                 ...
             }
         }
         """
         result = []
         for file_path in self.file_pathes:
-            file_content = self.detector(file_path)
+            reader_func = self.detector(file_path)
+            file_content = await reader_func(file_path)
             size = Path(file_path).stat().st_size
             mtime = Path(file_path).stat().st_mtime
 
@@ -71,34 +82,29 @@ class FileReader:
             )
         return result
 
-    # reads file extension and return reference to the function that can read it and call it
+    # Detects file extension and returns appropriate reader function reference
     def detector(self, path: Path):
         ext = path.suffix.lower()
         try:
             reader = self.readers.get(ext, self._read_text)
-        except Exception as e:  # fallback на text
+        except Exception as e:  # Fallback to text reader
             module_logger.error(
                 f"File with unsupported extension detected for {path}: {e}\n Falling back to text reader."
             )
             reader = self._read_text
 
-        return reader(path)
+        return reader
 
-    # adapter. Should turn results into a common format for all file types
-    # what should this function be doing?
-    def collect(self, file: dict):
-        return file
+    # Reads DOCX file with text, images, and hyperlinks extraction
+    def _read_docx_sync(self, file_path: Path):
+        """Reads DOCX document and extracts text, images, and hyperlinks.
 
-    # after dispatching, call the appropriate method
-    def _read_docx(self, file_path: Path):
-        """Читає docx документ з витяганням тексту, картинок та гіперлінків.
-
-        Повертає структуру:
+        Returns structure:
         {
             "pages": [
                 {
                     "number": 1,
-                    "text": "текст з маркерами [[IMG:img_0]] [[LINK:link_0]]",
+                    "text": "text with markers [[IMG:img_0]] [[LINK:link_0]]",
                     "media": [
                         {"kind": "image", "id": "img_0", "data": {...}},
                         {"kind": "link", "id": "link_0", "data": {...}}
@@ -134,6 +140,7 @@ class FileReader:
                 current_page_media.clear()
 
         def format_table(rows: list[list[str]]) -> list[str]:
+            """Format table for text representation."""
             if not rows:
                 return []
             col_count = max(len(row) for row in rows)
@@ -243,7 +250,10 @@ class FileReader:
 
         return {"pages": pages}
 
-    def _read_pdf(self, file_path: Path):
+    async def _read_docx(self, file_path: Path):
+        return await asyncio.to_thread(self._read_docx_sync, file_path)
+
+    def _read_pdf_sync(self, file_path: Path):
         doc = fitz.open(file_path)
         pages = []
         img_counter = 0
@@ -412,21 +422,31 @@ class FileReader:
         # Resulting type should be a dict like this
         return {"pages": pages, "metadata": metadata}
 
-    def _read_text(self, file_path: Path):
-        with open(file_path, encoding="utf-8", errors="ignore") as f:
-            text = f.read()
-        return text
+    async def _read_pdf(self, file_path: Path):
+        return await asyncio.to_thread(self._read_pdf_sync, file_path)
 
-    def _read_excel(self, file_path: Path):
-        """Читає Excel файл з витяганням даних по листам та рядкам.
+    async def _read_text(self, file_path: Path):
+        file_size = file_path.stat().st_size
+        bytes_to_read = min(file_size, self.max_bytes)
 
-        Повертає структуру:
+        async with aiofiles.open(str(file_path), "rb") as f:
+            if self.read_from == "end":
+                await f.seek(max(0, file_size - bytes_to_read))
+
+            content_bytes = await f.read(bytes_to_read)
+
+        return content_bytes.decode("utf-8", errors="ignore")
+
+    def _read_excel_sync(self, file_path: Path):
+        """Reads Excel file and extracts data by sheets and rows.
+
+        Returns structure:
         {
             "pages": [
                 {
                     "number": 1,
                     "sheet_name": "Sheet1",
-                    "text": "форматована таблиця",
+                    "text": "formatted table",
                     "raw_data": [
                         ["header1", "header2", ...],
                         ["value1", "value2", ...],
@@ -441,7 +461,7 @@ class FileReader:
         pages = []
 
         def format_table(rows: list[list[str]]) -> list[str]:
-            """Format table in text representation, same as DOCX and PDF"""
+            """Format table in text representation (same as DOCX and PDF)."""
             if not rows:
                 return []
             col_count = max(len(row) for row in rows) if rows else 0
@@ -475,10 +495,10 @@ class FileReader:
                 processed_row = [str(cell) if cell is not None else "" for cell in row]
 
                 processed_row = [cell for cell in processed_row if cell]
-                if processed_row:  # only non empry rows
+                if processed_row:  # Only non-empty rows
                     raw_data.append(processed_row)
 
-            # try to format the table, if it fails just return raw data without formatting
+            # Try to format the table; if it fails, return raw data without formatting
             formatted_table = []
             try:
                 formatted_table = format_table(raw_data) if raw_data else []
@@ -498,8 +518,11 @@ class FileReader:
 
         return {"pages": pages}
 
+    async def _read_excel(self, file_path: Path):
+        return await asyncio.to_thread(self._read_excel_sync, file_path)
 
-# структура
+
+# Data structure format
 # {
 #   "file_name": "file.pdf",
 #   "type": "pdf",

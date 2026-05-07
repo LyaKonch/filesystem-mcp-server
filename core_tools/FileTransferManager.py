@@ -5,6 +5,7 @@ import uuid
 from pathlib import Path
 
 from fastmcp import Context
+from fastmcp.dependencies import Depends
 from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse, Response
 
@@ -57,13 +58,17 @@ class FileTransferManager:
             del self._download_tokens[token]
         return len(expired)
 
-    @guard("file_transfer.prepare_file_for_download")
     @export_tool(
         name="prepare_file_for_download",
         logger=logging.getLogger(__name__),
         tags=["file_transfer.prepare_file_for_download"],
     )
-    async def prepare_file_for_download(self, file_path: str, ctx: Context) -> str:
+    async def prepare_file_for_download(
+        self,
+        file_path: str,
+        ctx: Context,
+        constraints: dict | None = Depends(guard("file_transfer.prepare_file_for_download")),
+    ) -> str:
         """Prepare a secure temporary download link for a file.
 
         Validates path and permissions, then returns a short-lived token URL

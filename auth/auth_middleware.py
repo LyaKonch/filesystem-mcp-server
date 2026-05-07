@@ -52,7 +52,7 @@ class AuthMiddleware(Middleware):
             return "-"
         if not ctx:
             return "-"
-        user_id = get_github_user_id(ctx)
+        user_id = get_github_user_id()
         return user_id if user_id else "-"
 
     @staticmethod
@@ -118,7 +118,7 @@ class AuthMiddleware(Middleware):
             module_logger.warning("⚠️ No context available for authentication check")
             raise PermissionError("Authentication required")
 
-        user_id = get_github_user_id(ctx)
+        user_id = get_github_user_id()
 
         if not user_id:
             tool_name = context.method
@@ -140,32 +140,17 @@ class AuthMiddleware(Middleware):
             module_logger.warning("⚠️ No context available for tool filtering")
             return result
 
-        user_id = get_github_user_id(ctx)
-        username = get_github_username(ctx)
-        filtered_tools: list[Tool] = []
+        user_id = get_github_user_id()
+        username = get_github_username()
+        filtered_tools: Sequence[Tool] = []
 
         for tool in result:
+            module_logger.debug(f"Checking permissions for tool: {tool.name}")
+
             tags = getattr(tool, "tags", None)
             permission = next(iter(tags), None) if tags else None
 
-            allowed = False
-            try:
-                if not permission:
-                    allowed = True
-                else:
-                    allowed = policy_manager.check_access(user_id, permission, username)
-            except Exception:
-                module_logger.exception("Error while checking access for tool %s", tool.name)
-
-            module_logger.debug(
-                "Tool filter: user=%s tool=%s permission=%s allowed=%s",
-                user_id,
-                getattr(tool, "name", "<unknown>"),
-                permission,
-                allowed,
-            )
-
-            if allowed:
+            if not permission or policy_manager.check_access(user_id, permission, username):
                 filtered_tools.append(tool)
 
         return filtered_tools

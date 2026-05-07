@@ -13,6 +13,7 @@ import win32service
 import win32serviceutil
 import winerror
 from fastmcp import Context
+from fastmcp.dependencies import Depends
 
 from auth.permissions import guard
 from core_tools.BaseServiceManager import BaseServiceManager
@@ -37,7 +38,6 @@ class ServiceManager(BaseServiceManager):
         self.logger = logging.getLogger(__name__)
         self.process_mgr = process_mgr
 
-    @guard("service.list_services")
     @export_tool(
         name="list_services",
         tags=["service.list_services"],
@@ -52,7 +52,7 @@ class ServiceManager(BaseServiceManager):
         binpath: str | None = None,
         description: str | None = None,
         ctx: Context | None = None,
-        constraints: dict | None = None,
+        constraints: dict | None = Depends(guard("service.list_services")),
     ):
         """
         List Windows services with optional filtering.
@@ -128,13 +128,15 @@ class ServiceManager(BaseServiceManager):
 
         return await asyncio.to_thread(_sync)
 
-    @guard("service.get_service_status")
     @export_tool(
         name="get_service_status",
         tags=["service.get_service_status"],
     )
     async def get_service_status(
-        self, service_name: str, ctx: Context | None = None, constraints: dict | None = None
+        self,
+        service_name: str,
+        ctx: Context | None = None,
+        constraints: dict | None = Depends(guard("service.get_service_status")),
     ):
         """Return status dict for a specified service. Use this tool when you need detailed info about a single service, and get_services when you want to list all services."""
 
@@ -163,7 +165,6 @@ class ServiceManager(BaseServiceManager):
 
         return await asyncio.to_thread(_sync)
 
-    @guard("service.start_service")
     @export_tool(
         name="start_service",
         tags=["service.start_service"],
@@ -173,7 +174,7 @@ class ServiceManager(BaseServiceManager):
         service_name: str,
         args: list | None = None,
         ctx: Context | None = None,
-        constraints: dict | None = None,
+        constraints: dict | None = Depends(guard("service.start_service")),
     ) -> str:
         """Start a service.
 
@@ -212,13 +213,15 @@ class ServiceManager(BaseServiceManager):
 
         return await asyncio.to_thread(_sync)
 
-    @guard("service.stop_service")
     @export_tool(
         name="stop_service",
         tags=["service.stop_service"],
     )
     async def stop_service(
-        self, service_name: str, ctx: Context | None = None, constraints: dict | None = None
+        self,
+        service_name: str,
+        ctx: Context | None = None,
+        constraints: dict | None = Depends(guard("service.stop_service")),
     ) -> str:
         """Stop a running service.
 
@@ -256,13 +259,15 @@ class ServiceManager(BaseServiceManager):
 
         return await asyncio.to_thread(_sync)
 
-    @guard("service.stop_service_with_deps")
     @export_tool(
         name="stop_service_with_deps",
         tags=["service.stop_service_with_deps"],
     )
     async def stop_service_with_deps(
-        self, service_name: str, ctx: Context | None = None, constraints: dict | None = None
+        self,
+        service_name: str,
+        ctx: Context | None = None,
+        constraints: dict | None = Depends(guard("service.stop_service_with_deps")),
     ) -> str:
         """Stop service and its dependent services using win32serviceutil.StopService (runs in thread)."""
 
@@ -292,13 +297,15 @@ class ServiceManager(BaseServiceManager):
 
         return await asyncio.to_thread(_sync)
 
-    @guard("service.restart_service")
     @export_tool(
         name="restart_service",
         tags=["service.restart_service"],
     )
     async def restart_service(
-        self, service_name: str, ctx: Context | None = None, constraints: dict | None = None
+        self,
+        service_name: str,
+        ctx: Context | None = None,
+        constraints: dict | None = Depends(guard("service.restart_service")),
     ) -> str:
         """Restart a service (Stop + Start) — runs in thread."""
 
@@ -328,7 +335,6 @@ class ServiceManager(BaseServiceManager):
 
         return await asyncio.to_thread(_sync)
 
-    @guard("service.change_service_startup_type")
     @export_tool(
         name="change_service_startup_type",
         tags=["service.change_service_startup_type"],
@@ -338,7 +344,7 @@ class ServiceManager(BaseServiceManager):
         service_name: str,
         startup_type: str,
         ctx: Context | None = None,
-        constraints: dict | None = None,
+        constraints: dict | None = Depends(guard("service.change_service_startup_type")),
     ) -> str:
         """Change service startup type.
 
@@ -362,7 +368,6 @@ class ServiceManager(BaseServiceManager):
         # Delegate to change_service_config using SERVICE_NO_CHANGE for other params
         return await self.change_service_config(service_name=service_name, start_type=startup_type)
 
-    @guard("service.change_service_config")
     @export_tool(
         name="change_service_config",
         tags=["service.change_service_config"],
@@ -376,7 +381,7 @@ class ServiceManager(BaseServiceManager):
         username: str | None = None,
         password: str | None = None,
         ctx: Context | None = None,
-        constraints: dict | None = None,
+        constraints: dict | None = Depends(guard("service.change_service_config")),
     ) -> str:
         """Change service configuration preserving unspecified fields.
 
@@ -472,7 +477,6 @@ class ServiceManager(BaseServiceManager):
 
         return await asyncio.to_thread(_sync)
 
-    @guard("service.get_service_logs")
     @export_tool(
         name="get_service_logs",
         logger=logging.getLogger(__name__),
@@ -484,7 +488,7 @@ class ServiceManager(BaseServiceManager):
         source_name: str | None = None,
         max_records: int = 50,
         ctx: Context | None = None,
-        constraints: dict | None = None,
+        constraints: dict | None = Depends(guard("service.get_service_logs")),
     ) -> list:
         """
         Return recent Application Event Log entries for a given service using the modern Event Log API.
@@ -587,7 +591,6 @@ class ServiceManager(BaseServiceManager):
 
         return await asyncio.to_thread(_sync)
 
-    @guard("service.create_service")
     @export_tool(
         name="create_service",
         tags=["service.create_service"],
@@ -601,7 +604,7 @@ class ServiceManager(BaseServiceManager):
         start_type: str = "manual",
         username: str | None = None,
         password: str | None = None,
-        constraints: dict | None = None,
+        constraints: dict | None = Depends(guard("service.create_service")),
     ) -> str:
         """
         Create a new Windows service. This tool only works for real services, that was specifically designed as windows service.
@@ -705,13 +708,15 @@ class ServiceManager(BaseServiceManager):
 
         return await asyncio.to_thread(_sync)
 
-    @guard("service.delete_service")
     @export_tool(
         name="delete_service",
         tags=["service.delete_service"],
     )
     async def delete_service(
-        self, ctx: Context, service_name: str, constraints: dict | None = None
+        self,
+        ctx: Context,
+        service_name: str,
+        constraints: dict | None = Depends(guard("service.delete_service")),
     ) -> str:
         """Delete an installed service. Requires user confirmation. It's recommended to stop the service first if it's running."""
         current_mcp_ctx.set(ctx)
@@ -779,7 +784,6 @@ class ServiceManager(BaseServiceManager):
                 ],
             ) from e
 
-    @guard("service.wrap_script_as_service")
     @export_tool(
         name="wrap_script_as_service",
         logger=logging.getLogger(__name__),
@@ -795,7 +799,7 @@ class ServiceManager(BaseServiceManager):
         start_type: str = "Automatic",
         stdout_path: str | None = None,
         stderr_path: str | None = None,
-        constraints: dict | None = None,
+        constraints: dict | None = Depends(guard("service.wrap_script_as_service")),
     ) -> str:
         """
         Wrap any script (Python, Node, etc.) as a background Windows service using Servy.

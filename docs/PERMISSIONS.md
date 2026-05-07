@@ -9,8 +9,8 @@ The current permission architecture has two layers:
 1. The first layer is cosmetic filtering in the middleware via `_filter_tools`.
 	It hides tools from the tools/list request for a specific role when that role does not have the required permission. Middleware checks user access to tool by tools tags sequence which includes permission name. This is not primarily a security boundary; it mainly prevents the AI agent from hallucinating tools and spamming inaccesible tools. If client does not see the tool, user may even never guess that it exists. 
 
-2. The second layer is the real security boundary: the `@guard` decorator on the tool itself.
-	Even if a client somehow learns the name of a hidden tool, for example `system.kill_process`, and sends a direct `tools/call` request that bypasses the tool list, the `@guard` decorator intercepts the call. It checks `user_id` and the user's role, and raises `PermissionError("Access Denied")`. The function execution never starts.
+2. The second layer is the real security boundary: the `guard` dependency on the tool itself.
+	Even if a client somehow learns the name of a hidden tool, for example `system.kill_process`, and sends a direct `tools/call` request that bypasses the tool list, the `guard` dependency is being invoked before the tool starts. It checks `user_id` and the user's role, and raises `PermissionError("Access Denied")`. The function execution never starts.
 
 ## Permissions list
 - system.get_environment_variable: Read single environment variable (user or system scope).
@@ -27,20 +27,15 @@ The current permission architecture has two layers:
  - registry.get_registry_hive_path: Resolve hive name to hive constant.
  - registry.check_key_exists: Check whether a registry key exists.
 
- - filesystem.list_files: List files and directories in a path.
+ - filesystem.list_files: List files and directories in a path with filtering and recursion.
  - filesystem.read_file: Read file contents (optionally include image sampling).
- - filesystem.write_file: Write file content (dangerous/admin level).
- - filesystem.create_directory: Create directory.
- - filesystem.list_directory_with_sizes: List directory with sizes and summary.
- - filesystem.analyze_directory_security: Run a security/content analysis on directory.
- - filesystem.get_file_info: Get detailed metadata about a file or directory.
+ - filesystem.write_file: Write or append content to files (create new or overwrite).
+ - filesystem.edit_file: Search and replace text in existing files safely.
+ - filesystem.create_directory: Create a new directory with parent path creation.
+ - filesystem.get_path_info: Get detailed metadata about a file or directory.
  - filesystem.move_file: Move or rename files and directories.
- - filesystem.search_files: Search for files matching a glob pattern.
- - filesystem.read_multiple_files: Read contents of multiple files simultaneously.
- - filesystem.delete_file: Delete a file (confirmation required).
- - filesystem.delete_directory: Delete a directory recursively (confirmation required).
- - filesystem.filesystem_summary: Get summary of filesystem at a path (size, file/dir counts).
- - filesystem.get_creative_file_description: Generate creative description of file contents using AI sampling.
+ - filesystem.search_files: Search for text content in directory tree.
+ - filesystem.delete_path: Delete a file or directory (with recursion support).
 
  - process.list_processes: Enumerate running processes (filtering supported).
  - process.get_current_username: Get username of process owner (server user).
@@ -234,3 +229,13 @@ This maps real-world identities to your roles.
 - Be Specific with Constraints: Instead of blocking some command, it’s better to only whitelist commands you allow. It's safer to say what is allowed than what isn't.
 
 - Pathing: Always use forward slashes (/) or escaped backslashes (\\) in JSON for Windows paths to avoid parsing errors.
+
+## Constraints Reference Table
+
+| Constraint Key | Tools | Purpose | Example |
+|---|---|---|---|
+| `allowed_paths` | list_files, read_file, write_file, edit_file, create_directory, get_path_info, move_file, search_files, delete_path | Whitelist of accessible directories (global access control) | `["G:/Projects", "C:/Data"]` |
+| `max_read_size` | read_file, edit_file | Limit file size for read operations (prevents agent memory overflow) | `10485760` (10 MB) |
+| `max_write_size` | write_file | Limit file size for write operations (prevents disk spam) | `5242880` (5 MB) |
+| `max_depth` | list_files, get_path_info, search_files | Maximum recursion depth to prevent scanning entire disk | `5` |
+

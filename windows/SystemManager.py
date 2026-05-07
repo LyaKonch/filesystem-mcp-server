@@ -6,6 +6,7 @@ import os
 from typing import TYPE_CHECKING
 
 from fastmcp import Context
+from fastmcp.dependencies import Depends
 
 from auth.permissions import guard
 from core_tools.BaseSystemManager import BaseSystemManager, EnvScope
@@ -39,7 +40,6 @@ class SystemManager(BaseSystemManager):
         except Exception as e:
             self.logger.warning(f"Failed to broadcast env change: {e}")
 
-    @guard("system.get_environment_variable")
     @export_tool(
         name="get_environment_variable",
         logger=logging.getLogger(__name__),
@@ -50,7 +50,7 @@ class SystemManager(BaseSystemManager):
         ctx: Context,
         name: str,
         scope: EnvScope = EnvScope.USER,
-        constraints: dict | None = None,
+        constraints: dict | None = Depends(guard("system.get_environment_variable")),
     ) -> dict | str | None:
         self._validate_key_name(name)
         if scope == EnvScope.PROCESS:
@@ -77,14 +77,16 @@ class SystemManager(BaseSystemManager):
             ) from e
         return None
 
-    @guard("system.list_environment_variables")
     @export_tool(
         name="list_environment_variables",
         logger=logging.getLogger(__name__),
         tags=["system.list_environment_variables"],
     )
     def list_variables(
-        self, ctx: Context, scope: EnvScope = EnvScope.USER, constraints: dict | None = None
+        self,
+        ctx: Context,
+        scope: EnvScope = EnvScope.USER,
+        constraints: dict | None = Depends(guard("system.list_environment_variables")),
     ) -> dict[str, str]:
         if scope == EnvScope.PROCESS:
             return dict(os.environ)
@@ -97,7 +99,6 @@ class SystemManager(BaseSystemManager):
             return {k: v["value"] for k, v in result["values"].items()}
         return {}
 
-    @guard("system.set_environment_variable")
     @export_tool(
         name="set_environment_variable",
         logger=logging.getLogger(__name__),
@@ -109,7 +110,7 @@ class SystemManager(BaseSystemManager):
         name: str,
         value: str,
         scope: EnvScope = EnvScope.USER,
-        constraints: dict | None = None,
+        constraints: dict | None = Depends(guard("system.set_environment_variable")),
     ) -> str:
         self._validate_key_name(name)
 
@@ -141,7 +142,6 @@ class SystemManager(BaseSystemManager):
                 ],
             ) from e
 
-    @guard("system.delete_environment_variable")
     @export_tool(
         name="delete_environment_variable",
         logger=logging.getLogger(__name__),
@@ -152,7 +152,7 @@ class SystemManager(BaseSystemManager):
         ctx: Context,
         name: str,
         scope: EnvScope = EnvScope.USER,
-        constraints: dict | None = None,
+        constraints: dict | None = Depends(guard("system.delete_environment_variable")),
     ) -> str:
         self._validate_key_name(name)
 
@@ -183,14 +183,13 @@ class SystemManager(BaseSystemManager):
                 ],
             ) from e
 
-    @guard("system.create_windows_restore_point")
     @export_tool(name="create_windows_restore_point", tags=["system.create_windows_restore_point"])
     async def create_restore_point(
         self,
         ctx: Context,
         description: str,
         restore_point_type: str = "MODIFY_SETTINGS",
-        constraints: dict | None = None,
+        constraints: dict | None = Depends(guard("system.create_windows_restore_point")),
     ) -> str:
         """Creates a new System Restore point.
         Command used: powershell.exe -Command Checkpoint-Computer -Description "Name" -RestorePointType "APPLICATION_INSTALL"

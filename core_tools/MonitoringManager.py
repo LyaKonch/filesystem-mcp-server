@@ -6,6 +6,7 @@ from datetime import datetime
 
 import psutil
 from fastmcp import Context
+from fastmcp.dependencies import Depends
 
 from auth.permissions import guard
 from utilities.decorators import export_tool
@@ -15,14 +16,15 @@ class MonitoringManager:
     def __init__(self):
         self.module_logger = logging.getLogger(__name__)
 
-    @guard("monitoring.get_system_resource_usage")
     @export_tool(
         name="get_system_resource_usage",
         logger=logging.getLogger(__name__),
         tags=["monitoring.get_system_resource_usage"],
     )
     async def get_system_resource_usage(
-        self, ctx: Context, constraints: dict | None = None
+        self,
+        ctx: Context,
+        constraints: dict | None = Depends(guard("monitoring.get_system_resource_usage")),
     ) -> dict:
         """Get current CPU and Memory usage statistics."""
         vm = psutil.virtual_memory()
@@ -34,13 +36,14 @@ class MonitoringManager:
             "release": platform.release(),
         }
 
-    @guard("monitoring.get_disk_status")
     @export_tool(
         name="get_disk_status",
         logger=logging.getLogger(__name__),
         tags=["monitoring.get_disk_status"],
     )
-    async def get_disk_status(self, ctx: Context, constraints: dict | None = None) -> list[dict]:
+    async def get_disk_status(
+        self, ctx: Context, constraints: dict | None = Depends(guard("monitoring.get_disk_status"))
+    ) -> list[dict]:
         """Get usage statistics for all mounted disk partitions."""
         disks = []
         for partition in psutil.disk_partitions():
@@ -59,13 +62,14 @@ class MonitoringManager:
                 continue
         return disks
 
-    @guard("monitoring.get_system_info")
     @export_tool(
         name="get_system_info",
         logger=logging.getLogger(__name__),
         tags=["monitoring.get_system_info"],
     )
-    async def get_system_info(self, ctx: Context, constraints: dict | None = None) -> dict:
+    async def get_system_info(
+        self, ctx: Context, constraints: dict | None = Depends(guard("monitoring.get_system_info"))
+    ) -> dict:
         """
         Get static system information: OS details, Hardware specs, Network ID, Uptime.
         Use this to understand the environment the server is running on.

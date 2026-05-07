@@ -133,7 +133,7 @@ def parse_command_line_args():
     return args
 
 
-def auto_register_tools(mcp, manager_instance):
+def auto_register_tools(mcp: FastMCP, manager_instance):
     """Scan a manager instance and auto-register methods marked by @export_tool or @export_custom_route decorators."""
 
     # going through all attributes of manager_instance
@@ -152,7 +152,9 @@ def auto_register_tools(mcp, manager_instance):
 
             # here we wrap the method with error boundary and register as tool
             tags = sorted(method._tool_tags) if getattr(method, "_tool_tags", None) else None
-            mcp.tool(name=name, description=desc, tags=tags)(tool_error_boundary(method, logger))
+            mcp.tool(name=name, description=desc, tags=tags, exclude_args=["constraints"])(
+                tool_error_boundary(method, logger)
+            )
             logger.info(f"Automatically registered tool: {name}")
 
         if (
