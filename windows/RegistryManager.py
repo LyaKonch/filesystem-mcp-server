@@ -6,6 +6,7 @@ from fastmcp import Context
 from fastmcp.dependencies import Depends
 
 from auth.permissions import guard
+from auth.PolicyManager import policy_manager
 from utilities.decorators import export_tool
 from utilities.dependencies import request_elicitation_permission
 from utilities.error_handling import ToolOperationError
@@ -57,6 +58,35 @@ class RegistryManager:
         # self.os_manager = os_manager
         self.logger = logging.getLogger(__name__)
 
+    def _check_registry_constraints(self, hive_name: str, sub_key: str, constraints: dict | None):
+        """helps check registry constraints."""
+        if not constraints or not isinstance(constraints, dict):
+            return
+
+        if "allowed_hives" in constraints and not policy_manager.check_constraint(
+            constraints, "allowed_hives", hive_name
+        ):
+            raise ToolOperationError(
+                "access_denied",
+                f"Access to registry hive '{hive_name}' is forbidden.",
+                actions=[
+                    f"Registry hive '{hive_name}' is not in the allowed hives.",
+                    "Retry the operation with an allowed hive.",
+                ],
+            )
+
+        if "allowed_keys" in constraints and not policy_manager.check_constraint(
+            constraints, "allowed_keys", sub_key
+        ):
+            raise ToolOperationError(
+                "access_denied",
+                f"Access to registry key '{sub_key}' is forbidden.",
+                actions=[
+                    f"Registry key '{sub_key}' is not in the allowed keys.",
+                    "Retry the operation with an allowed key.",
+                ],
+            )
+
     @export_tool(
         name="list_registry_key",
         logger=logging.getLogger(__name__),
@@ -68,7 +98,7 @@ class RegistryManager:
         hive_name: str,
         sub_key: str,
         constraints: dict | None = Depends(guard("registry.list_registry_key")),
-    ) -> dict:
+    ) -> dict | str:
         """
         Returns the subkeys and values of a specified registry key.
         hive_name: 'HKEY_CURRENT_USER', 'HKEY_LOCAL_MACHINE', 'HKEY_CLASSES_ROOT', 'HKEY_USERS', 'HKEY_CURRENT_CONFIG'
@@ -85,6 +115,8 @@ class RegistryManager:
                     "Retry with a valid hive name.",
                 ],
             )
+
+        self._check_registry_constraints(hive_name, sub_key, constraints)
 
         result: dict[str, Any] = {"sub_keys": [], "values": {}}
 
@@ -161,6 +193,9 @@ class RegistryManager:
                     "Retry with a valid hive name.",
                 ],
             )
+
+        self._check_registry_constraints(hive_name, sub_key, constraints)
+
         try:
             with winreg.OpenKey(hive, sub_key, 0, winreg.KEY_QUERY_VALUE) as key:
                 value, data_type = winreg.QueryValueEx(key, name)
@@ -220,6 +255,8 @@ class RegistryManager:
                     "Retry with a valid hive name.",
                 ],
             )
+
+        self._check_registry_constraints(hive_name, sub_key, constraints)
 
         if value_type not in self.REG_TYPE_VALUES:
             raise ToolOperationError(
@@ -301,6 +338,8 @@ class RegistryManager:
                     "Retry with a valid hive name.",
                 ],
             )
+
+        self._check_registry_constraints(hive_name, sub_key, constraints)
         try:
             permission = await request_elicitation_permission(
                 ctx,
@@ -366,7 +405,7 @@ class RegistryManager:
         ctx: Context,
         hive_name: str,
         constraints: dict | None = Depends(guard("registry.get_registry_hive_path")),
-    ) -> int | None:
+    ) -> int | None | str:
         """Returns the registry hive path for a given hive name."""
         return self.hives.get(hive_name.upper())
 

@@ -9,19 +9,217 @@
     "developer": {
       "permissions": [
         "process.list_processes",
-        "filesystem.read_file"
+        "process.start_process",
+        "process.kill_process",
+        "process.suspend_process",
+        "process.resume_process",
+        "filesystem.read_file",
+        "system.get_variable",
+        "system.list_variables",
+        "system.set_variable",
+        "system.delete_variable",
+        "registry.list_registry_key",
+        "registry.read_registry_key",
+        "registry.write_registry_key",
+        "registry.delete_registry_key",
+        "service.list_services",
+        "service.get_service_status",
+        "service.start_service",
+        "service.stop_service",
+        "service.stop_service_with_deps",
+        "service.restart_service",
+        "service.change_service_startup_type",
+        "service.change_service_config",
+        "service.get_service_logs",
+        "service.create_service",
+        "service.delete_service",
+        "service.wrap_script_as_service"
       ],
       "constraints": {
-        "process.run": {
+        "process.start_process": {
           "allowed_commands": [
             "git",
             "npm",
-            "ls"
+            "python",
+            "pip",
+            "notepad"
+          ],
+          "max_timeout": 120
+        },
+        "process.kill_process": {
+          "require_own_process": true,
+          "protected_processes": [
+            "svchost.exe",
+            "csrss.exe",
+            "lsass.exe",
+            "explorer.exe",
+            "dwm.exe"
+          ]
+        },
+        "process.suspend_process": {
+          "require_own_process": true,
+          "protected_processes": [
+            "svchost.exe",
+            "csrss.exe",
+            "lsass.exe",
+            "explorer.exe",
+            "dwm.exe"
+          ]
+        },
+        "process.resume_process": {
+          "require_own_process": true,
+          "protected_processes": [
+            "svchost.exe",
+            "csrss.exe",
+            "lsass.exe",
+            "explorer.exe",
+            "dwm.exe"
           ]
         },
         "filesystem.read_file": {
           "allowed_paths": [
             "G:/Koblenzessentials/Технології захисту інформації/"
+          ]
+        },
+        "system.get_variable": {
+          "allowed_scopes": ["PROCESS", "USER"],
+          "allowed_variables": ["PATH", "MY_APP_CONFIG"]
+        },
+        "system.list_variables": {
+          "allowed_scopes": ["PROCESS", "USER"]
+        },
+        "system.set_variable": {
+          "allowed_scopes": ["PROCESS", "USER"],
+          "allowed_variables": ["MY_APP_CONFIG"]
+        },
+        "system.delete_variable": {
+          "allowed_scopes": ["PROCESS", "USER"],
+          "allowed_variables": ["MY_APP_CONFIG"]
+        },
+        "registry.list_registry_key": {
+          "allowed_hives": [
+            "HKEY_CURRENT_USER",
+            "HKEY_LOCAL_MACHINE"
+          ],
+          "allowed_keys": [
+            "Environment",
+            "SOFTWARE\\MyCompany\\*"
+          ]
+        },
+        "registry.read_registry_key": {
+          "allowed_hives": [
+            "HKEY_CURRENT_USER",
+            "HKEY_LOCAL_MACHINE"
+          ],
+          "allowed_keys": [
+            "Environment",
+            "SOFTWARE\\MyCompany\\*"
+          ]
+        },
+        "registry.write_registry_key": {
+          "allowed_hives": [
+            "HKEY_CURRENT_USER",
+            "HKEY_LOCAL_MACHINE"
+          ],
+          "allowed_keys": [
+            "Environment",
+            "SOFTWARE\\MyCompany\\*"
+          ]
+        },
+        "registry.delete_registry_key": {
+          "allowed_hives": [
+            "HKEY_CURRENT_USER",
+            "HKEY_LOCAL_MACHINE"
+          ],
+          "allowed_keys": [
+            "Environment",
+            "SOFTWARE\\MyCompany\\*"
+          ]
+        },
+        "service.list_services": {
+          "allowed_services": [
+            "Spooler",
+            "W32Time",
+            "MyService"
+          ]
+        },
+        "service.get_service_status": {
+          "allowed_services": [
+            "Spooler",
+            "W32Time",
+            "MyService"
+          ]
+        },
+        "service.start_service": {
+          "allowed_services": [
+            "Spooler",
+            "W32Time",
+            "MyService"
+          ]
+        },
+        "service.stop_service": {
+          "allowed_services": [
+            "Spooler",
+            "W32Time",
+            "MyService"
+          ]
+        },
+        "service.stop_service_with_deps": {
+          "allowed_services": [
+            "Spooler",
+            "W32Time",
+            "MyService"
+          ]
+        },
+        "service.restart_service": {
+          "allowed_services": [
+            "Spooler",
+            "W32Time",
+            "MyService"
+          ]
+        },
+        "service.change_service_startup_type": {
+          "allowed_services": [
+            "Spooler",
+            "W32Time",
+            "MyService"
+          ]
+        },
+        "service.change_service_config": {
+          "allowed_services": [
+            "Spooler",
+            "W32Time",
+            "MyService"
+          ]
+        },
+        "service.get_service_logs": {
+          "allowed_services": [
+            "Spooler",
+            "W32Time",
+            "MyService"
+          ]
+        },
+        "service.create_service": {
+          "allowed_services": [
+            "MyService"
+          ],
+          "allowed_paths": [
+            "G:/Koblenzessentials/Projects",
+            "C:/Python314/python.exe"
+          ]
+        },
+        "service.delete_service": {
+          "allowed_services": [
+            "MyService"
+          ]
+        },
+        "service.wrap_script_as_service": {
+          "allowed_services": [
+            "MyService"
+          ],
+          "allowed_paths": [
+            "G:/Koblenzessentials/Projects",
+            "C:/Python314/python.exe"
           ]
         }
       }
@@ -74,7 +272,7 @@
       "username": "boss"
     },
     "75110071": {
-      "role": "guest",
+      "role": "developer",
       "username": "LyaKonch"
     }
   }

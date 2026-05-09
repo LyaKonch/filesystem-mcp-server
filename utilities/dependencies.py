@@ -241,7 +241,7 @@ async def request_elicitation_permission(context: fastmcp.Context, reason: str) 
     try:
         permission = await context.elicit(reason, bool)  # type: ignore[arg-type]
         logger.info("Elicitation result: %s", permission)
-        return cast(bool | None, permission)
+        return cast(bool | None, permission.data)
     except Exception as e:
         logger.error("Error requesting elicitation permission: %s", e)
         raise ToolOperationError(

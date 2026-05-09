@@ -16,6 +16,7 @@ from fastmcp import Context
 from fastmcp.dependencies import Depends
 
 from auth.permissions import guard
+from auth.PolicyManager import policy_manager
 from core_tools.BaseServiceManager import BaseServiceManager
 from utilities.contextvar import current_mcp_ctx
 from utilities.decorators import export_tool
@@ -37,6 +38,23 @@ class ServiceManager(BaseServiceManager):
     def __init__(self, process_mgr: WindowsProcessManager):
         self.logger = logging.getLogger(__name__)
         self.process_mgr = process_mgr
+
+    def _check_service_constraints(self, service_name: str, constraints: dict | None):
+        """Перевіряє ABAC обмеження для доступу до сервісів."""
+        if not constraints or not isinstance(constraints, dict):
+            return
+
+        if "allowed_services" in constraints and not policy_manager.check_constraint(
+            constraints, "allowed_services", service_name
+        ):
+            raise ToolOperationError(
+                "access_denied",
+                f"Access to service '{service_name}' is forbidden.",
+                actions=[
+                    f"Service '{service_name}' is not in your allowed_services list.",
+                    "Check your permissions or ask an admin.",
+                ],
+            )
 
     @export_tool(
         name="list_services",
@@ -91,6 +109,12 @@ class ServiceManager(BaseServiceManager):
                     s_name = (s.get("name") or "").lower()
                     s_disp = (s.get("display_name") or "").lower()
 
+                    if constraints and "allowed_services" in constraints:
+                        if not policy_manager.check_constraint(
+                            constraints, "allowed_services", s_name
+                        ):
+                            continue
+
                     if f_name and not (
                         f_name in s_name or s_name in f_name or f_name in s_disp or s_disp in f_name
                     ):
@@ -142,6 +166,7 @@ class ServiceManager(BaseServiceManager):
 
         def _sync():
             try:
+                self._check_service_constraints(service_name, constraints)
                 service = psutil.win_service_get(service_name)
                 return service.as_dict()
             except Exception as e:
@@ -184,6 +209,7 @@ class ServiceManager(BaseServiceManager):
 
         Returns a status string.
         """
+        self._check_service_constraints(service_name, constraints)
 
         def _sync():
             try:
@@ -231,6 +257,8 @@ class ServiceManager(BaseServiceManager):
         Returns a status string.
         """
 
+        self._check_service_constraints(service_name, constraints)
+
         def _sync():
             try:
                 win32serviceutil.StopService(service_name)
@@ -271,6 +299,8 @@ class ServiceManager(BaseServiceManager):
     ) -> str:
         """Stop service and its dependent services using win32serviceutil.StopService (runs in thread)."""
 
+        self._check_service_constraints(service_name, constraints)
+
         def _sync():
             try:
                 win32serviceutil.StopServiceWithDeps(service_name)
@@ -308,6 +338,8 @@ class ServiceManager(BaseServiceManager):
         constraints: dict | None = Depends(guard("service.restart_service")),
     ) -> str:
         """Restart a service (Stop + Start) — runs in thread."""
+
+        self._check_service_constraints(service_name, constraints)
 
         def _sync():
             try:
@@ -350,6 +382,8 @@ class ServiceManager(BaseServiceManager):
 
         startup_type: one of 'automatic','manual','disabled'.
         """
+
+        self._check_service_constraints(service_name, constraints)
         mapping = {
             "automatic": win32service.SERVICE_AUTO_START,
             "manual": win32service.SERVICE_DEMAND_START,
@@ -392,6 +426,8 @@ class ServiceManager(BaseServiceManager):
         - start_type: 'automatic'|'manual'|'disabled' or None
         - username/password: service account (None keeps existing)
         """
+        self._check_service_constraints(service_name, constraints)
+
         mapping = {
             "automatic": win32service.SERVICE_AUTO_START,
             "manual": win32service.SERVICE_DEMAND_START,
@@ -500,6 +536,8 @@ class ServiceManager(BaseServiceManager):
                          or look for logs from wrapper tools (like 'Servy') that mention the service.
             max_records: Maximum number of recent entries to return.
         """
+
+        self._check_service_constraints(service_name, constraints)
 
         def _sync():
             results = []
@@ -613,6 +651,17 @@ class ServiceManager(BaseServiceManager):
         start_type: 'automatic'|'manual'|'disabled'
         """
         current_mcp_ctx.set(ctx)
+        self._check_service_constraints(service_name, constraints)
+        if "allowed_paths" in (constraints or {}) and not policy_manager.check_constraint(
+            constraints, "allowed_paths", binary_path
+        ):
+            raise ToolOperationError(
+                "access_denied",
+                f"You are not allowed to use binary path: {binary_path}.The binary path is restricted by your permissions.",
+                actions=[
+                    "Consider using an allowed binary path. Contact your administrator.",
+                ],
+            )
         mapping = {
             "automatic": win32service.SERVICE_AUTO_START,
             "manual": win32service.SERVICE_DEMAND_START,
@@ -721,6 +770,8 @@ class ServiceManager(BaseServiceManager):
         """Delete an installed service. Requires user confirmation. It's recommended to stop the service first if it's running."""
         current_mcp_ctx.set(ctx)
 
+        self._check_service_constraints(service_name, constraints)
+
         permission = await request_elicitation_permission(
             ctx,
             f"Are you sure you want to delete service '{service_name}'? This cannot be undone.",
@@ -814,7 +865,24 @@ class ServiceManager(BaseServiceManager):
             stderr_path: (Optional) Path to save the standard error logs.
         """
         current_mcp_ctx.set(ctx)
-
+        self._check_service_constraints(service_name, constraints)
+        if "allowed_paths" in (constraints or {}):
+            if not policy_manager.check_constraint(constraints, "allowed_paths", executor_path):
+                raise ToolOperationError(
+                    "access_denied",
+                    f"You are not allowed to use executor path: {executor_path}",
+                    actions=[
+                        "Consider using an allowed executor path. Contact your administrator.",
+                    ],
+                )
+            if not policy_manager.check_constraint(constraints, "allowed_paths", script_path):
+                raise ToolOperationError(
+                    "access_denied",
+                    f"You are not allowed to use script path: {script_path}",
+                    actions=[
+                        "Consider using an allowed script path. Contact your administrator.",
+                    ],
+                )
         try:
             abs_script_path = await validate_path(
                 script_path, ctx, must_exist=True, expected_type="file"

@@ -9,6 +9,7 @@ from fastmcp import Context
 from fastmcp.dependencies import Depends
 
 from auth.permissions import guard
+from auth.PolicyManager import policy_manager
 from core_tools.BaseSystemManager import BaseSystemManager, EnvScope
 from utilities.decorators import export_tool
 from utilities.error_handling import ToolOperationError
@@ -41,18 +42,26 @@ class SystemManager(BaseSystemManager):
             self.logger.warning(f"Failed to broadcast env change: {e}")
 
     @export_tool(
-        name="get_environment_variable",
+        name="get_variable",
         logger=logging.getLogger(__name__),
-        tags=["system.get_environment_variable"],
+        tags=["system.get_variable"],
     )
     def get_variable(
         self,
         ctx: Context,
         name: str,
         scope: EnvScope = EnvScope.USER,
-        constraints: dict | None = Depends(guard("system.get_environment_variable")),
+        constraints: dict | None = Depends(guard("system.get_variable")),
     ) -> dict | str | None:
+        """Return an environment variable value.
+
+        Parameters:
+        - name: Environment variable name to read.
+        - scope: One of `PROCESS`, `USER`, or `SYSTEM`.
+
+        """
         self._validate_key_name(name)
+        self._check_env_constraints(scope, constraints, name)
         if scope == EnvScope.PROCESS:
             return os.environ.get(name)
 
@@ -60,7 +69,7 @@ class SystemManager(BaseSystemManager):
         path = self.USER_ENV_PATH if scope == EnvScope.USER else self.SYS_ENV_PATH
 
         try:
-            result = self.registry.read_registry_key(hive, path, name)
+            result = self.registry.read_registry_key(ctx, hive, path, name, constraints={})
             if isinstance(result, dict) and "value" in result:
                 return result
         except ToolOperationError:
@@ -78,31 +87,39 @@ class SystemManager(BaseSystemManager):
         return None
 
     @export_tool(
-        name="list_environment_variables",
+        name="list_variables",
         logger=logging.getLogger(__name__),
-        tags=["system.list_environment_variables"],
+        tags=["system.list_variables"],
     )
     def list_variables(
         self,
         ctx: Context,
         scope: EnvScope = EnvScope.USER,
-        constraints: dict | None = Depends(guard("system.list_environment_variables")),
-    ) -> dict[str, str]:
+        constraints: dict | None = Depends(guard("system.list_variables")),
+    ) -> dict[str, str] | str:
+        """List environment variables for the given scope.
+
+        Parameters:
+        - scope: One of `PROCESS`, `USER`, or `SYSTEM`.
+
+        """
+
+        self._check_env_constraints(scope, constraints)
         if scope == EnvScope.PROCESS:
             return dict(os.environ)
 
         hive = "HKEY_CURRENT_USER" if scope == EnvScope.USER else "HKEY_LOCAL_MACHINE"
         path = self.USER_ENV_PATH if scope == EnvScope.USER else self.SYS_ENV_PATH
 
-        result = self.registry.list_registry_key(hive, path)
+        result = self.registry.list_registry_key(ctx, hive, path, constraints={})
         if isinstance(result, dict) and "values" in result:
             return {k: v["value"] for k, v in result["values"].items()}
         return {}
 
     @export_tool(
-        name="set_environment_variable",
+        name="set_variable",
         logger=logging.getLogger(__name__),
-        tags=["system.set_environment_variable"],
+        tags=["system.set_variable"],
     )
     async def set_variable(
         self,
@@ -110,10 +127,18 @@ class SystemManager(BaseSystemManager):
         name: str,
         value: str,
         scope: EnvScope = EnvScope.USER,
-        constraints: dict | None = Depends(guard("system.set_environment_variable")),
+        constraints: dict | None = Depends(guard("system.set_variable")),
     ) -> str:
-        self._validate_key_name(name)
+        """Set an environment variable.
 
+        Parameters:
+        - name: Environment variable name to set.
+        - value: String value to assign.
+        - scope: One of `PROCESS`, `USER`, or `SYSTEM`.
+
+        """
+        self._validate_key_name(name)
+        self._check_env_constraints(scope, constraints, name)
         os.environ[name] = value
 
         if scope == EnvScope.PROCESS:
@@ -124,7 +149,7 @@ class SystemManager(BaseSystemManager):
 
         try:
             res = await self.registry.write_registry_key(
-                ctx, hive, path, name, value, 1
+                ctx, hive, path, name, value, 1, constraints={}
             )  # winreg.REG_SZ
             self._broadcast_env_change()
             return res
@@ -143,19 +168,25 @@ class SystemManager(BaseSystemManager):
             ) from e
 
     @export_tool(
-        name="delete_environment_variable",
+        name="delete_variable",
         logger=logging.getLogger(__name__),
-        tags=["system.delete_environment_variable"],
+        tags=["system.delete_variable"],
     )
     async def delete_variable(
         self,
         ctx: Context,
         name: str,
         scope: EnvScope = EnvScope.USER,
-        constraints: dict | None = Depends(guard("system.delete_environment_variable")),
+        constraints: dict | None = Depends(guard("system.delete_variable")),
     ) -> str:
-        self._validate_key_name(name)
+        """Delete an environment variable.
 
+        Parameters:
+        - name: Environment variable name to delete.
+        - scope: One of `PROCESS`, `USER`, or `SYSTEM`.
+        """
+        self._validate_key_name(name)
+        self._check_env_constraints(scope, constraints, name)
         if name in os.environ:
             del os.environ[name]
 
@@ -166,7 +197,7 @@ class SystemManager(BaseSystemManager):
         path = self.USER_ENV_PATH if scope == EnvScope.USER else self.SYS_ENV_PATH
 
         try:
-            res = await self.registry.delete_registry_key(ctx, hive, path, name)
+            res = await self.registry.delete_registry_key(ctx, hive, path, name, constraints={})
             self._broadcast_env_change()
             return res
         except ToolOperationError:
@@ -182,6 +213,34 @@ class SystemManager(BaseSystemManager):
                     "Retry the operation.",
                 ],
             ) from e
+
+    def _check_env_constraints(self, scope: EnvScope, constraints: dict | None, name: str = ""):
+        if not constraints or not isinstance(constraints, dict):
+            return
+
+        if "allowed_scopes" in constraints and not policy_manager.check_constraint(
+            constraints, "allowed_scopes", scope.name
+        ):
+            raise ToolOperationError(
+                "access_denied",
+                f"Access to variables in {scope.name} scope is forbidden.",
+                actions=[
+                    f"Environment variable scope '{scope.name}' is not in the allowed scopes.",
+                    "Retry the operation with an allowed scope.",
+                ],
+            )
+
+        if "allowed_variables" in constraints and not policy_manager.check_constraint(
+            constraints, "allowed_variables", name
+        ):
+            raise ToolOperationError(
+                "access_denied",
+                f"Access to environment variable '{name}' is forbidden.",
+                actions=[
+                    f"Environment variable '{name}' is not in the allowed variables.",
+                    "Retry the operation with an allowed variable.",
+                ],
+            )
 
     @export_tool(name="create_windows_restore_point", tags=["system.create_windows_restore_point"])
     async def create_restore_point(

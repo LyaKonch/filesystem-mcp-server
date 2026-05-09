@@ -37,21 +37,21 @@ The current permission architecture has two layers:
  - filesystem.search_files: Search for text content in directory tree.
  - filesystem.delete_path: Delete a file or directory (with recursion support).
 
- - process.list_processes: Enumerate running processes (filtering supported).
- - process.get_current_username: Get username of process owner (server user).
- - process.get_process_info: Get snapshot for a single PID.
- - process.get_detailed_process_info: Get detailed diagnostics for a PID.
- - process.get_process_connections: Get network connections for a PID.
- - process.get_process_tree: Get parent/child tree for a PID.
- - process.get_process_open_files: List open files for a PID.
+ - process.list_processes: Enumerate running processes (filtering supported). 
+ - process.get_current_username: Get username of process owner (server user). 
+ - process.get_process_info: Get snapshot for a single PID. 
+ - process.get_detailed_process_info: Get detailed diagnostics for a PID. 
+ - process.get_process_connections: Get network connections for a PID. 
+ - process.get_process_tree: Get parent/child tree for a PID. 
+ - process.get_process_open_files: List open files for a PID. 
 
- - process.start_process: Start a process (validated commands list).
- - process.run_admin_shell: Run a raw shell command (dangerous, admin use only).
- - process.get_available_commands: Get commands available to `start_process`.
- - process.kill_process: Terminate a process (elicitation confirmation required).
- - process.suspend_process: Suspend a process (elicitation confirmation required).
- - process.resume_process: Resume a suspended process (elicitation confirmation required).
- - process.kill_process_tree: Terminate a process tree (elicitation confirmation required).
+ - process.start_process: Start a process (validated commands list). 
+ - process.run_admin_shell: Run a raw shell command (dangerous, admin use only). 
+ - process.get_available_commands: Get commands available to `start_process`. 
+ - process.kill_process: Terminate a process (elicitation confirmation required). 
+ - process.suspend_process: Suspend a process (elicitation confirmation required). 
+ - process.resume_process: Resume a suspended process (elicitation confirmation required). 
+ - process.kill_process_tree: Terminate a process tree (elicitation confirmation required). 
 
  - server.get_server_status: Retrieve overall server status and features.
  - server.list_allowed_roots: List currently allowed filesystem roots.
@@ -90,108 +90,279 @@ Below is an example of how it may look like:
 {
   "roles": {
     "admin": {
-      "permissions": ["*"],
+      "permissions": [
+        "*"
+      ],
       "constraints": {}
     },
     "developer": {
       "permissions": [
-        "filesystem.list_files",
-        "filesystem.read_file",
-        "filesystem.write_file",
-        "filesystem.create_directory",
-        "filesystem.move_file",
-        "filesystem.search_files",
-        "filesystem.get_file_info",
         "process.list_processes",
-        "process.get_process_info",
-        "process.get_process_tree",
         "process.start_process",
-        "process.get_available_commands",
-        "monitoring.get_system_resource_usage",
-        "monitoring.get_system_info",
-        "server.get_server_status",
-        "server.list_allowed_roots"
+        "process.kill_process",
+        "process.suspend_process",
+        "process.resume_process",
+        "filesystem.read_file",
+        "system.get_variable",
+        "system.list_variables",
+        "system.set_variable",
+        "system.delete_variable",
+        "registry.list_registry_key",
+        "registry.read_registry_key",
+        "registry.write_registry_key",
+        "registry.delete_registry_key",
+        "service.list_services",
+        "service.get_service_status",
+        "service.start_service",
+        "service.stop_service",
+        "service.stop_service_with_deps",
+        "service.restart_service",
+        "service.change_service_startup_type",
+        "service.change_service_config",
+        "service.get_service_logs",
+        "service.create_service",
+        "service.delete_service",
+        "service.wrap_script_as_service"
       ],
       "constraints": {
-        "filesystem.read_file": {
-          "allowed_paths": [
-            "G:/Koblenzessentials/Projects",
-            "C:/Users/*/Documents/Projects"
-          ]
-        },
-        "filesystem.write_file": {
-          "allowed_paths": [
-            "G:/Koblenzessentials/Projects"
-          ]
-        },
         "process.start_process": {
           "allowed_commands": [
             "git",
             "npm",
-            "node",
             "python",
             "pip",
-            "cargo",
-            "dotnet"
+            "notepad"
           ],
-          "blocked_commands": [
-            "format",
-            "del",
-            "rm",
-            "rmdir"
+          "max_timeout": 120
+        },
+        "process.kill_process": {
+          "require_own_process": true,
+          "protected_processes": [
+            "svchost.exe",
+            "csrss.exe",
+            "lsass.exe",
+            "explorer.exe",
+            "dwm.exe"
           ]
-        }
-      }
-    },
-    "analyst": {
-      "permissions": [
-        "filesystem.list_files",
-        "filesystem.read_file",
-        "filesystem.read_multiple_files",
-        "filesystem.search_files",
-        "filesystem.get_file_info",
-        "filesystem.filesystem_summary",
-        "process.list_processes",
-        "process.get_process_info",
-        "process.get_process_connections",
-        "monitoring.get_system_resource_usage",
-        "monitoring.get_disk_status",
-        "monitoring.get_system_info",
-        "server.get_server_status"
-      ],
-      "constraints": {
+        },
+        "process.suspend_process": {
+          "require_own_process": true,
+          "protected_processes": [
+            "svchost.exe",
+            "csrss.exe",
+            "lsass.exe",
+            "explorer.exe",
+            "dwm.exe"
+          ]
+        },
+        "process.resume_process": {
+          "require_own_process": true,
+          "protected_processes": [
+            "svchost.exe",
+            "csrss.exe",
+            "lsass.exe",
+            "explorer.exe",
+            "dwm.exe"
+          ]
+        },
         "filesystem.read_file": {
           "allowed_paths": [
-            "G:/Koblenzessentials/Projects",
-            "C:/Logs"
+            "G:/Koblenzessentials/Технології захисту інформації/"
+          ]
+        },
+        "system.get_variable": {
+          "allowed_scopes": ["PROCESS", "USER"],
+          "allowed_variables": ["PATH", "MY_APP_CONFIG"]
+        },
+        "system.list_variables": {
+          "allowed_scopes": ["PROCESS", "USER"]
+        },
+        "system.set_variable": {
+          "allowed_scopes": ["PROCESS", "USER"],
+          "allowed_variables": ["MY_APP_CONFIG"]
+        },
+        "system.delete_variable": {
+          "allowed_scopes": ["PROCESS", "USER"],
+          "allowed_variables": ["MY_APP_CONFIG"]
+        },
+        "registry.list_registry_key": {
+          "allowed_hives": [
+            "HKEY_CURRENT_USER",
+            "HKEY_LOCAL_MACHINE"
+          ],
+          "allowed_keys": [
+            "Environment",
+            "SOFTWARE\\MyCompany\\*"
+          ]
+        },
+        "registry.read_registry_key": {
+          "allowed_hives": [
+            "HKEY_CURRENT_USER",
+            "HKEY_LOCAL_MACHINE"
+          ],
+          "allowed_keys": [
+            "Environment",
+            "SOFTWARE\\MyCompany\\*"
+          ]
+        },
+        "registry.write_registry_key": {
+          "allowed_hives": [
+            "HKEY_CURRENT_USER",
+            "HKEY_LOCAL_MACHINE"
+          ],
+          "allowed_keys": [
+            "Environment",
+            "SOFTWARE\\MyCompany\\*"
+          ]
+        },
+        "registry.delete_registry_key": {
+          "allowed_hives": [
+            "HKEY_CURRENT_USER",
+            "HKEY_LOCAL_MACHINE"
+          ],
+          "allowed_keys": [
+            "Environment",
+            "SOFTWARE\\MyCompany\\*"
+          ]
+        },
+        "service.list_services": {
+          "allowed_services": [
+            "Spooler",
+            "W32Time",
+            "MyService"
+          ]
+        },
+        "service.get_service_status": {
+          "allowed_services": [
+            "Spooler",
+            "W32Time",
+            "MyService"
+          ]
+        },
+        "service.start_service": {
+          "allowed_services": [
+            "Spooler",
+            "W32Time",
+            "MyService"
+          ]
+        },
+        "service.stop_service": {
+          "allowed_services": [
+            "Spooler",
+            "W32Time",
+            "MyService"
+          ]
+        },
+        "service.stop_service_with_deps": {
+          "allowed_services": [
+            "Spooler",
+            "W32Time",
+            "MyService"
+          ]
+        },
+        "service.restart_service": {
+          "allowed_services": [
+            "Spooler",
+            "W32Time",
+            "MyService"
+          ]
+        },
+        "service.change_service_startup_type": {
+          "allowed_services": [
+            "Spooler",
+            "W32Time",
+            "MyService"
+          ]
+        },
+        "service.change_service_config": {
+          "allowed_services": [
+            "Spooler",
+            "W32Time",
+            "MyService"
+          ]
+        },
+        "service.get_service_logs": {
+          "allowed_services": [
+            "Spooler",
+            "W32Time",
+            "MyService"
+          ]
+        },
+        "service.create_service": {
+          "allowed_services": [
+            "MyService"
+          ],
+          "allowed_paths": [
+            "G:/Projects",
+            "C:/Python314/python.exe"
+          ]
+        },
+        "service.delete_service": {
+          "allowed_services": [
+            "MyService"
+          ]
+        },
+        "service.wrap_script_as_service": {
+          "allowed_services": [
+            "MyService"
+          ],
+          "allowed_paths": [
+            "G:/Projects",
+            "C:/Python314/python.exe"
           ]
         }
       }
     },
     "guest": {
       "permissions": [
-        "monitoring.get_system_info",
-        "server.get_server_status"
+        "filesystem.list_files",
+        "filesystem.get_path_info",
+        "filesystem.read_file",
+        "filesystem.write_file",
+        "filesystem.edit_file",
+        "filesystem.search_files"
       ],
-      "constraints": {}
+      "constraints": {
+        "filesystem.list_files": {
+          "allowed_paths": [
+            "G:/Технології захисту інформації/"
+          ],
+          "max_depth": 2
+        },
+         "filesystem.get_path_info": {
+          "allowed_paths": [
+            "G:/Технології захисту інформації/"
+          ],
+          "max_depth": 2
+         },
+         "filesystem.read_file": {
+            "allowed_paths": [
+              "G:/Технології захисту інформації/"
+            ],
+            "max_read_size": 10485760 
+         },
+         "filesystem.write_file": {
+          "allowed_paths": [
+              "G:/Технології захисту інформації/"
+            ],
+            "max_write_size": 10485760
+         },
+         "filesystem.search_files": {
+          "allowed_paths": [
+            "G:/Технології захисту інформації/"
+          ]
+         }
+      }
     }
   },
   "users": {
-    "75110071": {
-      "role": "admin",
-      "username": "LyaKonch"
-    },
-    "dev-user-001": {
-      "role": "developer",
-      "username": "john.developer"
-    },
-    "analyst-user-001": {
-      "role": "analyst",
-      "username": "jane.analyst"
-    },
-    "guest-user-001": {
+    "12345": {
       "role": "guest",
-      "username": "public.viewer"
+      "username": "boss"
+    },
+    "75110071": {
+      "role": "developer",
+      "username": "LyaKonch"
     }
   }
 }
@@ -232,10 +403,42 @@ This maps real-world identities to your roles.
 
 ## Constraints Reference Table
 
+### Filesystem Tools
+
 | Constraint Key | Tools | Purpose | Example |
 |---|---|---|---|
 | `allowed_paths` | list_files, read_file, write_file, edit_file, create_directory, get_path_info, move_file, search_files, delete_path | Whitelist of accessible directories (global access control) | `["G:/Projects", "C:/Data"]` |
 | `max_read_size` | read_file, edit_file | Limit file size for read operations (prevents agent memory overflow) | `10485760` (10 MB) |
 | `max_write_size` | write_file | Limit file size for write operations (prevents disk spam) | `5242880` (5 MB) |
 | `max_depth` | list_files, get_path_info, search_files | Maximum recursion depth to prevent scanning entire disk | `5` |
+
+### Process Tools
+
+| Constraint Key | Permissions | Purpose | Example |
+|---|---|---|---|
+| `allowed_commands` | start_process | Whitelist of allowed shell commands that users can execute | `["git", "npm", "python", "pip"]` |
+| `max_timeout` | start_process, run_admin_shell | Maximum execution time in seconds for commands (capped to this limit) | `60` (60 seconds max) |
+| `require_own_process` | kill_process, suspend_process, resume_process, kill_process_tree | Allow users to only modify processes owned by their username | `true` (recommended) |
+| `protected_processes` | kill_process, suspend_process, resume_process, kill_process_tree | List of process names that cannot be modified (safeguard system processes) | `["svchost.exe", "csrss.exe", "lsass.exe"]` |
+
+### System Tools
+
+| Constraint Key | Permissions | Purpose | Example |
+|---|---|---|---|
+| `allowed_scopes` | system.get_variable, system.list_variables, system.set_variable, system.delete_variable | Allowed environment scopes (e.g., PROCESS, USER, SYSTEM). Limits which scopes can be accessed. | `["PROCESS", "USER", "SYSTEM"]` |
+| `allowed_variables` | system.get_variable, system.set_variable, system.delete_variable | Whitelist of environment variable names that may be read/modified. Supports exact names or patterns. | `["PATH", "MY_APP_CONFIG"]` |
+
+### Registry Tools
+
+| Constraint Key | Permissions | Purpose | Example |
+|---|---|---|---|
+| `allowed_hives` | registry.list_registry_key, registry.read_registry_key, registry.write_registry_key, registry.delete_registry_key | Whitelist of registry hives that can be accessed. | `["HKEY_CURRENT_USER", "HKEY_LOCAL_MACHINE"]` |
+| `allowed_keys` | registry.list_registry_key, registry.read_registry_key, registry.write_registry_key, registry.delete_registry_key | Whitelist or patterns of registry subkeys that may be read/modified. | `["Environment", "SOFTWARE\\MyCompany\\*"]` |
+
+### Service Tools
+
+| Constraint Key | Permissions | Purpose | Example |
+|---|---|---|---|
+| `allowed_services` | service.list_services, service.get_service_status, service.start_service, service.stop_service, service.stop_service_with_deps, service.restart_service, service.change_service_startup_type, service.change_service_config, service.get_service_logs, service.create_service, service.delete_service, service.wrap_script_as_service | Whitelist of service names that can be listed or modified. The tool checks the service short name against this list before acting. | `["Spooler", "W32Time", "MyService"]` |
+| `allowed_paths` | service.create_service, service.wrap_script_as_service | Whitelist of executable/script paths used when creating or wrapping a service. Applies to `binary_path`, `executor_path`, and `script_path`. | `["G:/Projects", "C:/Tools"]` |
 

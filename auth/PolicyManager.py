@@ -3,8 +3,11 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import psutil
+
 from config import settings
 from utilities.dependencies import is_path_within_scope
+from utilities.error_handling import ToolOperationError
 
 
 class PolicyManager:
@@ -42,27 +45,46 @@ class PolicyManager:
 
     def check_constraint(self, constraints: dict | None, key: str, value_to_check: Any) -> bool:
         if not constraints:
-            return (
-                True  # no constraints - allow (or change to False to deny by default if you prefer)
-            )
+            return True  # no constraints - allow
 
         limit = constraints.get(key)
         if limit is None:
             return True
 
-        # logic based on key type
         if key == "allowed_paths":
             return is_path_within_scope(value_to_check, limit)
 
-        if key in ["max_read_size", "max_write_size"]:
+        if key in ["allowed_hives", "allowed_scopes", "allowed_extensions", "allowed_services"]:
+            return str(value_to_check).upper() in [str(h).upper() for h in limit]
+
+        if key == "allowed_keys":
+            import fnmatch
+
+            return any(
+                fnmatch.fnmatch(value_to_check.lower(), ak.lower())
+                or value_to_check.lower().startswith(ak.replace("*", "").lower())
+                for ak in limit
+            )
+
+        if key in ["max_read_size", "max_write_size", "max_timeout", "max_depth"]:
             return int(value_to_check) <= int(limit)
 
-        if key == "allowed_extensions":
-            ext = Path(value_to_check).suffix.lower()
-            return ext in [e.lower() for e in limit]
+        if key == "require_own_process" and limit is True:
+            try:
+                current_user = psutil.Process().username()
+                return value_to_check == current_user
+            except Exception as e:
+                raise ToolOperationError(
+                    "unexpected", "Error checking process ownership constraint"
+                ) from e
 
-        if key == "max_depth":
-            return int(value_to_check) <= int(limit)
+        if key == "protected_processes":
+            return str(value_to_check) not in [str(p) for p in limit]
+
+        if key == "allowed_patterns":
+            import fnmatch
+
+            return any(fnmatch.fnmatch(value_to_check.upper(), pat.upper()) for pat in limit)
 
         return True
 
