@@ -583,6 +583,7 @@ dev = [
     { name = "mypy" },
     { name = "pre-commit" },
     { name = "ruff" },
+    { name = "types-aiofiles" },
 ]
 
 [package.metadata]
@@ -608,6 +609,7 @@ dev = [
     { name = "mypy", specifier = ">=1.18.2" },
     { name = "pre-commit", specifier = ">=4.3.0" },
     { name = "ruff", specifier = ">=0.15.5" },
+    { name = "types-aiofiles", specifier = ">=25.1.0.20260508" },
 ]
 
 [[package]]
@@ -2219,6 +2221,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/36/bf/8825b5929afd84d0dabd606c67cd57b8388cb3ec385f7ef19c5cc2202069/typer-0.21.1.tar.gz", hash = "sha256:ea835607cd752343b6b2b7ce676893e5a0324082268b48f27aa058bdb7d2145d", size = 110371, upload-time = "2026-01-06T11:21:10.989Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a0/1d/d9257dd49ff2ca23ea5f132edf1281a0c4f9de8a762b9ae399b670a59235/typer-0.21.1-py3-none-any.whl", hash = "sha256:7985e89081c636b88d172c2ee0cfe33c253160994d47bdfdc302defd7d1f1d01", size = 47381, upload-time = "2026-01-06T11:21:09.824Z" },
+]
+
+[[package]]
+name = "types-aiofiles"
+version = "25.1.0.20260508"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3b/d9/60e8b26ad7e57eb3b58f3370b35f0d740dd0909079417e784f4e6c0f92f6/types_aiofiles-25.1.0.20260508.tar.gz", hash = "sha256:d26b07bb28f36c154c77d33982e506ee462044932d42c4eea6e78f69d1de5b84", size = 14851, upload-time = "2026-05-08T04:49:48.446Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f2/88/31d8fb1a3d0a96e1e41cfc58c67f48634e840e2598336887fa5be1dd9c82/types_aiofiles-25.1.0.20260508-py3-none-any.whl", hash = "sha256:c35d2be25a7e4b881da7f62ff3823db3770b2f704f31ac69681c227569e808cc", size = 14365, upload-time = "2026-05-08T04:49:47.302Z" },
 ]
 
 [[package]]

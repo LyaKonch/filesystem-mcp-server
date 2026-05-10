@@ -4,6 +4,7 @@ import fnmatch
 import logging
 import os
 import shutil
+import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -39,7 +40,7 @@ class BaseFilesystemManager(ABC):
         depth: int = 1,
         recursive: bool = False,
         pattern: str = "*",
-        exclude_dirs: list[str] = None,
+        exclude_dirs: list[str] | None = None,
         file_type: str = "all",  # "file", "directory", "all"
         calculate_size: bool = False,
         constraints: dict | None = Depends(guard("filesystem.list_files")),
@@ -94,10 +95,10 @@ class BaseFilesystemManager(ABC):
         max_depth: int,
         calculate_size: bool = False,
         pattern: str = "*",
-        exclude_dirs: list[str] = None,
+        exclude_dirs: list[str] | None = None,
         file_type: str = "all",  # "file", "directory", "all"
         current_depth: int = 0,
-    ) -> dict:
+    ) -> dict | None | str:
         """Recursively build a tree structure of files and directories with depth control."""
 
         if exclude_dirs is None:
@@ -171,7 +172,7 @@ class BaseFilesystemManager(ABC):
             if is_dir:
                 try:
                     entries = list(os.scandir(path))
-                    item_info["items_count"] = len(entries)
+                    item_info["items_count"] = str(len(entries))
                 except PermissionError:
                     item_info["items_count"] = "Permission Denied"
                 if calculate_size:
@@ -204,7 +205,7 @@ class BaseFilesystemManager(ABC):
 
     async def get_owner(self, path: Path) -> str:
         try:
-            if os.name == "nt":  # Windows
+            if sys.platform == "win32":  # Windows
                 # easy way using powershell
                 cmd = f"(Get-Acl '{path}').Owner"
                 process = await asyncio.create_subprocess_exec(
@@ -218,7 +219,7 @@ class BaseFilesystemManager(ABC):
                 stdout, _ = await process.communicate()
                 return stdout.decode("utf-8", errors="ignore").strip()
             else:  # Linux / macOS
-                return await asyncio.to_thread(path.owner)
+                return str(path.owner())
         except Exception:
             return "Unknown"
 
@@ -279,7 +280,7 @@ class BaseFilesystemManager(ABC):
         depth: int,
         calculate_size: bool = False,
         constraints: dict | None = Depends(guard("filesystem.get_path_info")),
-    ) -> dict | str:
+    ) -> dict | str | None:
         """Get detailed metadata about a file or directory.
 
         Args:
@@ -305,7 +306,7 @@ class BaseFilesystemManager(ABC):
             if "max_depth" in constraints and not policy_manager.check_constraint(
                 constraints, "max_depth", depth
             ):
-                ctx.warning(
+                await ctx.warning(
                     "Provided depth exceeds your allowed max_depth constraint. Using the maximum allowed depth instead."
                 )
                 max_depth = min(max_depth, depth)
@@ -351,6 +352,7 @@ class BaseFilesystemManager(ABC):
                 Its like adding images to the prompt, thus your limit can be reached very fast, especially with files containing many images.
                 Also not every client supports sampling and not every model supports OCR/vision, therefore, if you need this tool, you should check those info beforehand.
         """
+        constraints = constraints or {}
         try:
             target_path = await validate_path(path, ctx, must_exist=True, expected_type="file")
 
@@ -512,10 +514,12 @@ class BaseFilesystemManager(ABC):
                     "operation_failed", f"Failed to create parent directories for '{path}': {e}"
                 ) from e
 
-            file_mode = "a" if mode == "append" else "w"
-
-            async with aiofiles.open(str(target_path), file_mode, encoding="utf-8") as f:
-                await f.write(content)
+            if mode == "append":
+                async with aiofiles.open(str(target_path), "a", encoding="utf-8") as f:
+                    await f.write(content)
+            else:
+                async with aiofiles.open(str(target_path), "w", encoding="utf-8") as f:
+                    await f.write(content)
 
             return {
                 "status": "success",
@@ -642,8 +646,9 @@ class BaseFilesystemManager(ABC):
         path: str,
         ctx: Context,
         constraints: dict | None = Depends(guard("filesystem.create_directory")),
-    ) -> str:
+    ) -> dict | str:
         """Create a new directory."""
+        constraints = constraints or {}
         try:
             target_path = await validate_path(path, ctx, must_exist=False)
 
@@ -700,13 +705,14 @@ class BaseFilesystemManager(ABC):
         destination: str,
         ctx: Context,
         constraints: dict | None = Depends(guard("filesystem.move_file")),
-    ) -> str:
+    ) -> dict | str:
         """Move or rename files and directories.
 
         Args:
                 source: Source path
                 destination: Destination path
         """
+        constraints = constraints or {}
         try:
             source_path = await validate_path(source, ctx, must_exist=True)
             dest_path = await validate_path(destination, ctx, must_exist=False)
@@ -785,6 +791,7 @@ class BaseFilesystemManager(ABC):
             path: The directory to search in.
             query: The exact text string to search for.
         """
+        constraints = constraints or {}
         try:
             target_path = await validate_path(path, ctx, must_exist=True, expected_type="dir")
 
@@ -835,7 +842,7 @@ class BaseFilesystemManager(ABC):
         ctx: Context,
         recursive: bool = False,
         constraints: dict | None = Depends(guard("filesystem.delete_path")),
-    ) -> dict:
+    ) -> dict | str:
         """
         Delete a file or an empty directory.
         If deleting a directory that contains files, you MUST set recursive=True.

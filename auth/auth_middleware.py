@@ -142,7 +142,7 @@ class AuthMiddleware(Middleware):
 
         user_id = get_github_user_id()
         username = get_github_username()
-        filtered_tools: Sequence[Tool] = []
+        filtered_tools: list[Tool] = []
 
         for tool in result:
             module_logger.debug(f"Checking permissions for tool: {tool.name}")
@@ -153,7 +153,8 @@ class AuthMiddleware(Middleware):
             if not permission or policy_manager.check_access(user_id, permission, username):
                 filtered_tools.append(tool)
 
-        return filtered_tools
+        # Return an immutable sequence to match middleware contract explicitly.
+        return tuple(filtered_tools)
 
 
 def create_auth_middleware():

@@ -120,7 +120,7 @@ def is_authenticated() -> bool:
 
 def guard(permission: str):
 
-    async def _guard_logic(user_id: str = Depends(get_github_user_id)) -> dict:
+    async def _guard_logic(user_id: str | None = Depends(get_github_user_id)) -> dict:
         if not settings.AUTH_ENABLED:
             return {}  # no auth = no constraints
 

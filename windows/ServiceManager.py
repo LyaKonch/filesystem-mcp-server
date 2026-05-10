@@ -651,6 +651,7 @@ class ServiceManager(BaseServiceManager):
         start_type: 'automatic'|'manual'|'disabled'
         """
         current_mcp_ctx.set(ctx)
+        await validate_path(binary_path, ctx, must_exist=True, expected_type="file")
         self._check_service_constraints(service_name, constraints)
         if "allowed_paths" in (constraints or {}) and not policy_manager.check_constraint(
             constraints, "allowed_paths", binary_path
@@ -865,6 +866,8 @@ class ServiceManager(BaseServiceManager):
             stderr_path: (Optional) Path to save the standard error logs.
         """
         current_mcp_ctx.set(ctx)
+        await validate_path(script_path, ctx, must_exist=True, expected_type="file")
+        await validate_path(executor_path, ctx, must_exist=True, expected_type="file")
         self._check_service_constraints(service_name, constraints)
         if "allowed_paths" in (constraints or {}):
             if not policy_manager.check_constraint(constraints, "allowed_paths", executor_path):

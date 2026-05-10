@@ -20,7 +20,7 @@ class FilesystemManager(BaseFilesystemManager):
 
         stdout, _ = await process.communicate()
 
-        results = []
+        results: list[dict] = []
         if not stdout:
             return results
 

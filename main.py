@@ -151,7 +151,7 @@ def auto_register_tools(mcp: FastMCP, manager_instance):
             logger = method._tool_logger
 
             # here we wrap the method with error boundary and register as tool
-            tags = sorted(method._tool_tags) if getattr(method, "_tool_tags", None) else None
+            tags = set(method._tool_tags) if getattr(method, "_tool_tags", None) else None
             mcp.tool(name=name, description=desc, tags=tags)(tool_error_boundary(method, logger))
             logger.info(f"Automatically registered tool: {name}")
 

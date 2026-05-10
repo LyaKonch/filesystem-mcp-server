@@ -25,6 +25,7 @@ dev = [
     "ruff>=0.15.5",
     "pre-commit>=4.3.0",
     "mypy>=1.18.2",
+    "types-aiofiles>=25.1.0.20260508",
 ]
 
 [tool.ruff]
@@ -43,9 +44,17 @@ ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
-"core_tools/BaseFilesystemManager.py" = ["B024"]
+"core_tools/BaseFilesystemManager.py" = ["B024", "B008"]
+"core_tools/BaseProcessManager.py" = ["B008"]
 "core_tools/BaseServiceManager.py" = ["B024"]
 "core_tools/OSManager.py" = ["B024"]
+"core_tools/FileTransferManager.py" = ["B008"]
+"core_tools/MonitoringManager.py" = ["B008"]
+"core_tools/ServerManager.py" = ["B008"]
+"windows/OSManager.py" = ["B008"]
+"windows/RegistryManager.py" = ["B008"]
+"windows/ServiceManager.py" = ["B008"]
+"windows/SystemManager.py" = ["B008"]
 
 [tool.ruff.format]
 quote-style = "double"

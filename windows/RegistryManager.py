@@ -102,7 +102,7 @@ class RegistryManager:
         """
         Returns the subkeys and values of a specified registry key.
         hive_name: 'HKEY_CURRENT_USER', 'HKEY_LOCAL_MACHINE', 'HKEY_CLASSES_ROOT', 'HKEY_USERS', 'HKEY_CURRENT_CONFIG'
-        sub_key: e.g. 'Environment' under HKEY_CURRENT_USER for user variables or r'SYSTEM\CurrentControlSet\Control\Session Manager\Environment' under HKEY_LOCAL_MACHINE for system variables
+        sub_key: e.g. 'Environment' under HKEY_CURRENT_USER for user variables or 'SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment' under HKEY_LOCAL_MACHINE for system variables
         """
 
         hive = self.hives.get(hive_name.upper())

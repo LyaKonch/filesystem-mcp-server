@@ -35,7 +35,7 @@ class FilesystemManager(BaseFilesystemManager):
                 f"PowerShell search errors: {stderr.decode('cp1251', errors='ignore')}"
             )
 
-        results = []
+        results: list[dict] = []
         if not stdout:
             return results
 

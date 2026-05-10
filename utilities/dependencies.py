@@ -2,7 +2,7 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import Literal, cast
+from typing import Literal
 from urllib.parse import unquote, urlparse
 
 import fastmcp
@@ -241,7 +241,19 @@ async def request_elicitation_permission(context: fastmcp.Context, reason: str) 
     try:
         permission = await context.elicit(reason, bool)  # type: ignore[arg-type]
         logger.info("Elicitation result: %s", permission)
-        return cast(bool | None, permission.data)
+
+        if permission.action == "accept":
+            return bool(permission.data)
+
+        if permission.action == "decline":
+            # Explicit user rejection.
+            return False
+
+        if permission.action == "cancel":
+            # User dismissed or interrupted the flow without explicit choice.
+            return None
+
+        return None
     except Exception as e:
         logger.error("Error requesting elicitation permission: %s", e)
         raise ToolOperationError(

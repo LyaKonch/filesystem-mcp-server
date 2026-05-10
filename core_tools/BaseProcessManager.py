@@ -45,6 +45,7 @@ class BaseProcessManager(ABC):
         timeout: Maximum time in seconds to allow the process to run before timing out.
         """
         current_mcp_ctx.set(ctx)
+        constraints = constraints or {}
         max_allowed_timeout = constraints.get("max_timeout", 600)
         if "max_timeout" in constraints and not policy_manager.check_constraint(
             constraints, "max_timeout", max_allowed_timeout
@@ -81,6 +82,7 @@ class BaseProcessManager(ABC):
             On windows all commands starts with NO_CREATE_WINDOW flag, so they will not create new gui window and may end immediately after execution.
         """
         current_mcp_ctx.set(ctx)
+        constraints = constraints or {}
         if "allowed_commands" in constraints and not policy_manager.check_constraint(
             constraints, "allowed_commands", command
         ):
@@ -466,7 +468,7 @@ class BaseProcessManager(ABC):
             self.logger.warning(f"Failed to terminate process tree rooted at {pid}: {e}")
             raise
 
-    def _check_process_action_constraints(self, process: psutil.Process, constraints: dict):
+    def _check_process_action_constraints(self, process: psutil.Process, constraints: dict | None):
         """Checks common constraints for process actions like kill/suspend/resume and raises ToolOperationError if any constraint is violated."""
         if not constraints:
             return
@@ -589,6 +591,11 @@ class BaseProcessManager(ABC):
         ctx: Context | None = None,
         constraints: dict | None = Depends(guard("process.get_current_username")),
     ):
+        """Return username of the current server process owner.
+
+        Use this to verify under which OS account the MCP server is running
+        before performing process/service actions.
+        """
         try:
             return psutil.Process().username()
         except Exception as e:
