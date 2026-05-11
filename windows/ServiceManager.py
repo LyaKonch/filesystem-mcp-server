@@ -525,7 +525,7 @@ class ServiceManager(BaseServiceManager):
         max_records: int = 50,
         ctx: Context | None = None,
         constraints: dict | None = Depends(guard("service.get_service_logs")),
-    ) -> list:
+    ) -> list | str:
         """
         Return recent Application Event Log entries for a given service using the modern Event Log API.
 

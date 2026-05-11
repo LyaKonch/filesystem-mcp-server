@@ -122,34 +122,75 @@ python .\main.py --allow-cwd --no-auth --transport stdio
 ```bash
 python main.py --transport http --host 127.0.0.1 --port 8000 --persist
 ```
+
 ## Доступні інструменти (Tools)
 
-### 📁 Розширена робота з файлами
-- `list_files(path)` - Перегляд вмісту.
-- `list_directory_with_sizes(path)` - Список файлів з їх розмірами.
-- `read_file(path)` / `read_multiple_files(paths)` - Читання одного або кількох файлів.
-- `write_file(path, content)` - Створення або перезапис файлу.
-- `move_file(source, dest)` - Переміщення/перейменування.
-- `delete_file(path, confirm)` - Видалення файлу. Вимагає підтвердження (`confirm=True` або через діалог з користувачем).
-- `delete_directory(path, confirm)` - Рекурсивне видалення папки.
-- `search_files(path, pattern)` - Пошук за glob-шаблонами.
-- `filesystem_summary(path)` - Звіт про кількість файлів та загальний розмір.
+Нижче — перелік реальних інструментів, які експортуються з коду сервера (груповано за функціональністю). Кожен інструмент захищений політиками доступу — перед використанням перевіряйте права та обмеження.
 
-### 🛡️ Аналіз та AI
-- `analyze_directory_security(path)` - Сканує папку на підозрілі файли, дублі, великі файли та оцінює безпеку. Може використовувати AI для звіту.
-- `get_creative_file_description(path)` - Використовує AI для опису вмісту файлу (якщо клієнт підтримує sampling).
+### Файлова система
+- `list_files` — Переглядає вміст директорії (фільтри, рекурсія, розміри).
+- `get_path_info` — Детальна інформація та метадані про файл/папку.
+- `read_file` — Читання файлу (опція включення опису зображень, обмеження за розміром).
+- `write_file` — Створення / перезапис / додавання до файлу.
+- `edit_file` — Безпечна заміна текстового блоку в файлі.
+- `create_directory` — Створення директорії.
+- `move_file` — Переміщення / перейменування файлу або папки.
+- `search_files` — Пошук тексту в файлах каталогу.
+- `delete_path` — Видалення файлу або (за рекурсією) папки.
 
-### 📊 Моніторинг системи
-- `get_system_resource_usage()` - Завантаження CPU та RAM у реальному часі.
-- `get_disk_status()` - Інформація про вільне місце на всіх дисках.
-- `get_system_info()` - Деталі про OS, аптайм, версію ядра та хостнейм.
+### Процеси
+- `run_admin_shell` — (Адмін) виконати сиру shell-команду.
+- `start_process` — Запустити процес з аргументами.
+- `get_available_commands` — Повертає перелік дозволених команд.
+- `kill_process` — Завершити процес (з підтвердженням).
+- `suspend_process` — Призупинити процес.
+- `resume_process` — Відновити процес.
+- `kill_process_tree` — Завершити процес і його нащадків.
+- `list_processes` — Повертає короткі резюме запущених процесів.
+- `get_current_username` — Ім'я користувача, від якого запущений сервіс.
+- `get_process_info` — Розширена інформація про процес.
+- `get_detailed_process_info` — Глибока діагностика процесу (дерево, з'єднання, відкриті файли).
+- `get_process_connections` — Мережеві з'єднання процесу.
+- `get_process_tree` — Дерево процесів.
+- `get_process_open_files` — Файли, відкриті процесом.
 
-### ⚙️ Керування сервером
-- `get_server_status()` - Перевірка активного транспорту, features клієнта та поточних roots.
-- `list_allowed_roots()` - Показати всі доступні папки.
-- `add_allowed_root(path)` - Додати нову папку в білий список без перезапуску сервера.
-- `remove_root(path)` - Забрати доступ до папки.
-- `submit_error_report(summary, error_id?, reproduction_steps?, system_info?, attachments?)` - Надіслати технічний звіт про помилку для підтримки.
+### Моніторинг
+- `get_system_resource_usage` — CPU/RAM у реальному часі.
+- `get_disk_status` — Статус і простір дисків.
+- `get_system_info` — Статична інформація про систему та аптайм.
+
+### Служби (Windows)
+- `list_services` — Пошук/фільтрація сервісів.
+- `get_service_status` — Статус одного сервісу.
+- `start_service` / `stop_service` / `restart_service` — Керування сервісом.
+- `stop_service_with_deps` — Зупинити сервіс з залежностями.
+- `change_service_startup_type` / `change_service_config` — Змінити конфіг/тип запуску.
+- `get_service_logs` — Отримати події з журналу додатків для сервісу.
+- `create_service` / `delete_service` — Створення/видалення сервісу.
+- `wrap_script_as_service` — Загорнути скрипт як Windows service.
+
+### Реєстр (Windows)
+- `list_registry_key` — Перегляд підключів і значень ключа.
+- `read_registry_key` — Прочитати конкретне значення.
+- `write_registry_key` — Записати значення (вимагає підтвердження).
+- `delete_registry_key` — Видалити значення.
+- `get_registry_value_types` — Повернути допустимі типи значень.
+- `get_registry_hive_path` — Отримати відповідність hive-namespace.
+- `check_key_exists` — Перевірити наявність ключа.
+
+### Система / Змінні середовища (Windows)
+- `get_variable` — Отримати значення змінної оточення (PROCESS/USER/SYSTEM).
+- `list_variables` — Перелік змінних для вказаного scope.
+- `set_variable` — Встановити змінну (PROCESS/USER/SYSTEM).
+- `delete_variable` — Видалити змінну.
+- `create_windows_restore_point` — Створити restore point (потрібні права адміністратора).
+
+### Керування сервером
+- `get_server_status` — Статус MCP-сервера та клієнтські features.
+- `list_allowed_roots` — Показати дозволені root-директорії.
+- `add_allowed_root` / `update_roots` / `remove_root` — Керування whitelist-ом коренів.
+- `submit_error_report` — Надіслати технічний звіт (з `error_id`).
+
 
 ## Налаштування MCP Клієнта (Claude Desktop / Cursor)
 

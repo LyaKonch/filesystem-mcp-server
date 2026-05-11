@@ -30,7 +30,7 @@ class PolicyManager:
         if user_id not in self.policy["users"]:
             # auto-registering
             self.policy["users"][user_id] = {"role": "guest", "username": username}
-            self.path.write_text(json.dumps(self.policy, indent=2, encoding="utf-8"))
+            self.path.write_text(json.dumps(self.policy, indent=2))
         return self.policy["users"][user_id]["role"]
 
     def check_access(self, user_id, permission, username="unknown") -> bool:
