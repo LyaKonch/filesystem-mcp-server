@@ -83,7 +83,11 @@ class BaseServiceManager(ABC):
         pass
 
     @abstractmethod
-    async def delete_service(self, ctx: Context, service_name: str) -> str:
+    async def delete_service(
+        self,
+        ctx: Context,
+        service_name: str,
+    ) -> str:
         """Delete an existing service (requires confirmation)."""
         pass
 

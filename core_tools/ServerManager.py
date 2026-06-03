@@ -3,6 +3,7 @@ from pathlib import Path
 
 from fastmcp import Context
 from fastmcp.dependencies import Depends
+from fastmcp.server.dependencies import CurrentContext
 
 from auth.permissions import guard
 from config import settings
@@ -23,7 +24,9 @@ class ServerManager:
         tags=["server.get_server_status"],
     )
     async def get_server_status(
-        self, ctx: Context, constraints: dict | None = Depends(guard("server.get_server_status"))
+        self,
+        ctx: Context = CurrentContext(),
+        constraints: dict | None = Depends(guard("server.get_server_status")),
     ) -> dict:
         """Get information about server status, client features, and allowed roots."""
         self.module_logger.info("Checking server status")
@@ -57,7 +60,9 @@ class ServerManager:
         tags=["server.list_allowed_roots"],
     )
     async def list_allowed_roots(
-        self, ctx: Context, constraints: dict | None = Depends(guard("server.list_allowed_roots"))
+        self,
+        ctx: Context = CurrentContext(),
+        constraints: dict | None = Depends(guard("server.list_allowed_roots")),
     ) -> str:
         """Get a formatted list of all currently allowed root directories."""
         try:
@@ -93,7 +98,7 @@ class ServerManager:
     async def add_allowed_root(
         self,
         path: str,
-        ctx: Context,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("server.add_allowed_root")),
     ) -> str:
         """Add a path to the server's allowed roots whitelist at runtime."""

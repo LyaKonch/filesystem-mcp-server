@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from fastmcp import Context
 from fastmcp.dependencies import Depends
+from fastmcp.server.dependencies import CurrentContext
 
 from auth.permissions import guard
 from auth.PolicyManager import policy_manager
@@ -48,9 +49,9 @@ class SystemManager(BaseSystemManager):
     )
     def get_variable(
         self,
-        ctx: Context,
         name: str,
         scope: EnvScope = EnvScope.USER,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("system.get_variable")),
     ) -> dict | str | None:
         """Return an environment variable value.
@@ -93,8 +94,8 @@ class SystemManager(BaseSystemManager):
     )
     def list_variables(
         self,
-        ctx: Context,
         scope: EnvScope = EnvScope.USER,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("system.list_variables")),
     ) -> dict[str, str] | str:
         """List environment variables for the given scope.
@@ -123,10 +124,10 @@ class SystemManager(BaseSystemManager):
     )
     async def set_variable(
         self,
-        ctx: Context,
         name: str,
         value: str,
         scope: EnvScope = EnvScope.USER,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("system.set_variable")),
     ) -> str:
         """Set an environment variable.
@@ -174,9 +175,9 @@ class SystemManager(BaseSystemManager):
     )
     async def delete_variable(
         self,
-        ctx: Context,
         name: str,
         scope: EnvScope = EnvScope.USER,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("system.delete_variable")),
     ) -> str:
         """Delete an environment variable.
@@ -245,9 +246,9 @@ class SystemManager(BaseSystemManager):
     @export_tool(name="create_windows_restore_point", tags=["system.create_windows_restore_point"])
     async def create_restore_point(
         self,
-        ctx: Context,
         description: str,
         restore_point_type: str = "MODIFY_SETTINGS",
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("system.create_windows_restore_point")),
     ) -> str:
         """Creates a new System Restore point.

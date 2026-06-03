@@ -4,6 +4,7 @@ from typing import Any
 
 from fastmcp import Context
 from fastmcp.dependencies import Depends
+from fastmcp.server.dependencies import CurrentContext
 
 from auth.permissions import guard
 from auth.PolicyManager import policy_manager
@@ -94,9 +95,9 @@ class RegistryManager:
     )
     def list_registry_key(
         self,
-        ctx: Context,
         hive_name: str,
         sub_key: str,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("registry.list_registry_key")),
     ) -> dict | str:
         """
@@ -174,10 +175,10 @@ class RegistryManager:
     )
     def read_registry_key(
         self,
-        ctx: Context,
         hive_name: str,
         sub_key: str,
         name: str,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("registry.read_registry_key")),
     ) -> dict | str:
         """
@@ -236,12 +237,12 @@ class RegistryManager:
     )
     async def write_registry_key(
         self,
-        ctx: Context,
         hive_name: str,
         sub_key: str,
         value_name: str,
         value: str,
         value_type: int,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("registry.write_registry_key")),
     ) -> str:
         """Writes a value to the Windows registry. Scope determines where the value is written (user or system)."""
@@ -321,10 +322,10 @@ class RegistryManager:
     )
     async def delete_registry_key(
         self,
-        ctx: Context,
         hive_name: str,
         sub_key: str,
         value_name: str,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("registry.delete_registry_key")),
     ) -> str:
         """Deletes a specific value from the Windows registry."""
@@ -389,7 +390,7 @@ class RegistryManager:
     )
     def get_registry_value_types(
         self,
-        ctx: Context,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("registry.get_registry_value_types")),
     ) -> dict[int, str]:
         """Returns a list of valid registry value types."""
@@ -402,8 +403,8 @@ class RegistryManager:
     )
     def get_registry_hive_path(
         self,
-        ctx: Context,
         hive_name: str,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("registry.get_registry_hive_path")),
     ) -> int | None | str:
         """Returns the registry hive path for a given hive name."""
@@ -450,9 +451,9 @@ class RegistryManager:
     )
     def check_key_exists(
         self,
-        ctx: Context,
         hive_name: str,
         sub_key: str,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("registry.check_key_exists")),
     ) -> bool:
         """Checks if a specific registry key exists."""

@@ -14,7 +14,7 @@ dependencies = [
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.0.0",
     "python-docx>=1.2.0",
-    "pywin32>=311",
+    "pywin32>=311; sys_platform == 'windows'",
     "redis>=7.1.0",
 ]
 
@@ -55,6 +55,7 @@ ignore = ["E501"]
 "windows/RegistryManager.py" = ["B008"]
 "windows/ServiceManager.py" = ["B008"]
 "windows/SystemManager.py" = ["B008"]
+"linux/SystemManager.py" = ["B008"]
 
 [tool.ruff.format]
 quote-style = "double"

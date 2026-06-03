@@ -26,15 +26,25 @@ class BaseSystemManager(ABC):
 
     @abstractmethod
     async def set_variable(
-        self, ctx: Context, name: str, value: str, scope: EnvScope = EnvScope.USER
+        self, name: str, value: str, scope: EnvScope = EnvScope.USER, ctx: Context | None = None
     ) -> str:
-        pass
+        """Set an environment variable. Implementations may optionally accept `ctx`.
+
+        The `ctx` argument is optional and placed at the end to keep helper
+        methods (which call `set_variable` without a ctx) ergonomic.
+        """
+        raise NotImplementedError()
 
     @abstractmethod
     async def delete_variable(
-        self, ctx: Context, name: str, scope: EnvScope = EnvScope.USER
+        self, name: str, scope: EnvScope = EnvScope.USER, ctx: Context | None = None
     ) -> str:
-        pass
+        """Delete an environment variable. Implementations may optionally accept `ctx`.
+
+        The `ctx` argument is optional and placed at the end to keep helper
+        methods (which call `delete_variable` without a ctx) ergonomic.
+        """
+        raise NotImplementedError()
 
     # @abstractmethod
     # async def get_hardware_info(self, ctx:Context, name: str) -> str:
@@ -48,7 +58,7 @@ class BaseSystemManager(ABC):
     # ==========================================
 
     async def append_to_variable(
-        self, ctx: Context, name: str, value: str, scope: EnvScope = EnvScope.USER
+        self, name: str, value: str, scope: EnvScope = EnvScope.USER
     ) -> str:
         """Mostly useful for PATH-like variables. Appends a value to a separator-delimited list if it's not already present."""
         try:
@@ -67,10 +77,10 @@ class BaseSystemManager(ABC):
         else:
             new_value = value
 
-        return await self.set_variable(ctx, name, new_value, scope)
+        return await self.set_variable(name, new_value, scope)
 
     async def remove_from_variable(
-        self, ctx: Context, name: str, value: str, scope: EnvScope = EnvScope.USER
+        self, name: str, value: str, scope: EnvScope = EnvScope.USER
     ) -> str:
         """Mostly useful for PATH-like variables. Removes a value from a separator-delimited list if it exists."""
         try:
@@ -90,8 +100,8 @@ class BaseSystemManager(ABC):
         new_value = separator.join(paths)
 
         if not new_value:
-            return await self.delete_variable(ctx, name, scope)
-        return await self.set_variable(ctx, name, new_value, scope)
+            return await self.delete_variable(name, scope)
+        return await self.set_variable(name, new_value, scope)
 
     def _validate_key_name(self, name: str):
         if "=" in name or " " in name:

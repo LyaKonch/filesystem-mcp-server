@@ -7,6 +7,7 @@ from datetime import datetime
 import psutil
 from fastmcp import Context
 from fastmcp.dependencies import Depends
+from fastmcp.server.dependencies import CurrentContext
 
 from auth.permissions import guard
 from utilities.decorators import export_tool
@@ -23,7 +24,7 @@ class MonitoringManager:
     )
     async def get_system_resource_usage(
         self,
-        ctx: Context,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("monitoring.get_system_resource_usage")),
     ) -> dict:
         """Get current CPU and Memory usage statistics."""
@@ -42,7 +43,9 @@ class MonitoringManager:
         tags=["monitoring.get_disk_status"],
     )
     async def get_disk_status(
-        self, ctx: Context, constraints: dict | None = Depends(guard("monitoring.get_disk_status"))
+        self,
+        ctx: Context = CurrentContext(),
+        constraints: dict | None = Depends(guard("monitoring.get_disk_status")),
     ) -> list[dict]:
         """Get usage statistics for all mounted disk partitions."""
         disks = []
@@ -68,7 +71,9 @@ class MonitoringManager:
         tags=["monitoring.get_system_info"],
     )
     async def get_system_info(
-        self, ctx: Context, constraints: dict | None = Depends(guard("monitoring.get_system_info"))
+        self,
+        ctx: Context = CurrentContext(),
+        constraints: dict | None = Depends(guard("monitoring.get_system_info")),
     ) -> dict:
         """
         Get static system information: OS details, Hardware specs, Network ID, Uptime.

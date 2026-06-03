@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from fastmcp import Context
 from fastmcp.dependencies import Depends
+from fastmcp.server.dependencies import CurrentContext
 
 from auth.permissions import guard
 from core_tools.OSManager import BaseOSManager
@@ -40,10 +41,10 @@ class WindowsOSManager(BaseOSManager):
     )
     async def backup_registry_keys(
         self,
-        ctx: Context,
         hive: str,
         sub_key: str,
         output_path: str,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("windowsos.backup_registry_keys")),
     ) -> str:
         """Exports a registry keys to a .reg file (readable text format) using 'reg export' command."""
@@ -71,8 +72,8 @@ class WindowsOSManager(BaseOSManager):
     )
     async def restore_backup(
         self,
-        ctx: Context,
         file_path: str,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("windowsos.restore_registry_keys_from_file")),
     ):
         """Restores registry keys from a .reg file using 'reg import' command. The .reg file should be in the format exported by backup_registry_keys."""

@@ -6,11 +6,11 @@ from contextlib import asynccontextmanager
 import psutil
 from fastmcp import Context
 from fastmcp.dependencies import Depends
+from fastmcp.server.dependencies import CurrentContext, get_context
 
 from auth.permissions import get_github_user_id, guard
 from auth.PolicyManager import policy_manager
 from utilities import dependencies
-from utilities.contextvar import current_mcp_ctx
 from utilities.decorators import export_tool
 from utilities.dependencies import request_elicitation_permission
 from utilities.error_handling import ToolOperationError
@@ -35,7 +35,7 @@ class BaseProcessManager(ABC):
     async def run_admin_shell(
         self,
         raw_command: str,
-        ctx: Context,
+        ctx: Context = CurrentContext(),
         timeout: int = 60,
         constraints: dict | None = Depends(guard("process.run_admin_shell")),
     ) -> str:
@@ -44,7 +44,6 @@ class BaseProcessManager(ABC):
         Admin use only.
         timeout: Maximum time in seconds to allow the process to run before timing out.
         """
-        current_mcp_ctx.set(ctx)
         constraints = constraints or {}
         max_allowed_timeout = constraints.get("max_timeout", 600)
         if "max_timeout" in constraints and not policy_manager.check_constraint(
@@ -68,7 +67,7 @@ class BaseProcessManager(ABC):
     async def start_process(
         self,
         command: str,
-        ctx: Context,
+        ctx: Context = CurrentContext(),
         command_args: list[str] | None = None,
         timeout: int = 60,
         constraints: dict | None = Depends(guard("process.start_process")),
@@ -81,7 +80,6 @@ class BaseProcessManager(ABC):
             timeout: Maximum time in seconds to allow the process to run before timing out.
             On windows all commands starts with NO_CREATE_WINDOW flag, so they will not create new gui window and may end immediately after execution.
         """
-        current_mcp_ctx.set(ctx)
         constraints = constraints or {}
         if "allowed_commands" in constraints and not policy_manager.check_constraint(
             constraints, "allowed_commands", command
@@ -187,7 +185,7 @@ class BaseProcessManager(ABC):
 
     async def _read_stream(self, stream) -> str:
         result_str: list[str] = []
-        ctx = current_mcp_ctx.get()
+        ctx = get_context()
         async for line in stream:
             decoded_line = line.decode(errors="replace").strip()
             if ctx:
@@ -202,7 +200,7 @@ class BaseProcessManager(ABC):
     )
     def get_available_commands(
         self,
-        ctx: Context | None = None,
+        ctx: Context | None = CurrentContext(),
         constraints: dict | None = Depends(guard("process.get_available_commands")),
     ) -> dict[str, list[str] | str] | str:
         """Get a list of available commands that can be executed with start_process."""
@@ -226,7 +224,7 @@ class BaseProcessManager(ABC):
     )
     async def kill_process(
         self,
-        ctx: Context,
+        ctx: Context = CurrentContext(),
         process_id=None,
         name=None,
         username=None,
@@ -271,7 +269,7 @@ class BaseProcessManager(ABC):
     )
     async def suspend_process(
         self,
-        ctx: Context,
+        ctx: Context = CurrentContext(),
         process_id=None,
         name=None,
         username=None,
@@ -323,7 +321,7 @@ class BaseProcessManager(ABC):
     )
     async def resume_process(
         self,
-        ctx: Context,
+        ctx: Context = CurrentContext(),
         process_id=None,
         name=None,
         username=None,
@@ -375,8 +373,8 @@ class BaseProcessManager(ABC):
     )
     async def kill_process_tree(
         self,
-        ctx: Context,
         pid: int,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("process.kill_process_tree")),
     ) -> str:
         """
@@ -512,7 +510,7 @@ class BaseProcessManager(ABC):
         sort_by: str = "pid",
         limit: int | None = None,
         offset: int = 0,
-        ctx: Context | None = None,
+        ctx: Context | None = CurrentContext(),
         constraints: dict | None = Depends(guard("process.list_processes")),
     ) -> list[dict[str, object]] | str:
         """Return lightweight summaries for running processes.
@@ -588,7 +586,7 @@ class BaseProcessManager(ABC):
     )
     def get_current_username(
         self,
-        ctx: Context | None = None,
+        ctx: Context | None = CurrentContext(),
         constraints: dict | None = Depends(guard("process.get_current_username")),
     ):
         """Return username of the current server process owner.
@@ -616,9 +614,9 @@ class BaseProcessManager(ABC):
     def get_process_info(
         self,
         pid: int,
-        ctx: Context | None = None,
+        ctx: Context | None = CurrentContext(),
         constraints: dict | None = Depends(guard("process.get_process_info")),
-    ) -> dict[str, object]:
+    ) -> dict[str, object] | str:
         """Return an expanded snapshot for a single process PID.
 
         Includes summary fields plus executable path, command line, cwd,
@@ -667,7 +665,7 @@ class BaseProcessManager(ABC):
         tree: bool = False,
         connections: bool = False,
         open_files: bool = False,
-        ctx: Context | None = None,
+        ctx: Context | None = CurrentContext(),
         constraints: dict | None = Depends(guard("process.get_detailed_process_info")),
     ) -> dict[str, object]:
         """Return process info and optionally include deep diagnostic sections.
@@ -730,7 +728,7 @@ class BaseProcessManager(ABC):
         kind: str | None = "inet",
         state: str | None = None,
         limit: int | None = None,
-        ctx: Context | None = None,
+        ctx: Context | None = CurrentContext(),
         constraints: dict | None = Depends(guard("process.get_process_connections")),
     ) -> list[dict[str, object]]:
         """Return network connections opened by a process.
@@ -813,7 +811,7 @@ class BaseProcessManager(ABC):
         down_to_children: bool = True,
         depth: int = 1,
         max_nodes: int = 100,
-        ctx: Context | None = None,
+        ctx: Context | None = CurrentContext(),
         constraints: dict | None = Depends(guard("process.get_process_tree")),
     ) -> dict[str, object]:
         """Return parent/child relationships for a process.
@@ -906,7 +904,7 @@ class BaseProcessManager(ABC):
         pid: int,
         limit: int | None = None,
         include_deleted: bool = False,
-        ctx: Context | None = None,
+        ctx: Context | None = CurrentContext(),
         constraints: dict | None = Depends(guard("process.get_process_open_files")),
     ) -> list[dict[str, object]]:
         """Return files currently opened by a process.
@@ -1123,7 +1121,7 @@ class BaseProcessManager(ABC):
             match = True
 
             for key, expected_value in active_filters.items():
-                if p.get(key) != expected_value:
+                if p.get(key) != expected_value or p.get(key) not in expected_value:
                     match = False
                     break
 

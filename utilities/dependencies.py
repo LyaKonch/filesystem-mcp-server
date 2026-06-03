@@ -91,7 +91,7 @@ def uri_to_path(uri: str) -> Path:
             )
 
     file = Path(raw_path)
-    return check_path(file)
+    return check_path(file, check_existence=False)
 
 
 def check_path(value: Path | str, check_existence: bool = True) -> Path:
@@ -196,6 +196,10 @@ async def fetch_roots_from_client(context: fastmcp.Context) -> list[Path] | None
             if roots is not None:
                 for root in roots:
                     file_url = uri_to_path(str(root.uri))
+                    if not Path(
+                        file_url
+                    ).exists():  # ignoring roots if it doesnt exist locally on server
+                        continue
                     uris.append(file_url)
                 logger.info("Fetched roots from client: %s", uris)
                 return uris

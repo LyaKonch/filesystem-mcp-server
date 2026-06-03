@@ -11,6 +11,7 @@ from pathlib import Path
 import aiofiles
 from fastmcp import Context
 from fastmcp.dependencies import Depends
+from fastmcp.server.dependencies import CurrentContext
 
 from auth.permissions import guard, policy_manager
 from utilities.decorators import export_tool
@@ -36,7 +37,7 @@ class BaseFilesystemManager(ABC):
     async def list_files(
         self,
         path: str,
-        ctx: Context,
+        ctx: Context = CurrentContext(),
         depth: int = 1,
         recursive: bool = False,
         pattern: str = "*",
@@ -276,9 +277,9 @@ class BaseFilesystemManager(ABC):
     async def get_path_info(
         self,
         path: str,
-        ctx: Context,
         depth: int,
         calculate_size: bool = False,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("filesystem.get_path_info")),
     ) -> dict | str | None:
         """Get detailed metadata about a file or directory.
@@ -336,10 +337,10 @@ class BaseFilesystemManager(ABC):
     async def read_file(
         self,
         path: str,
-        ctx: Context,
         include_images: bool = False,
         read_from: str = "beginning",  # "beginning" або "end"
         max_bytes: int = 50000,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("filesystem.read_file")),
     ):
         """
@@ -420,7 +421,6 @@ class BaseFilesystemManager(ABC):
                                         self.module_logger.warning(
                                             "Failed to describe image %s: %s", obj["id"], e
                                         )
-
                 return file_data
 
             return {"metadata": {}, "content": {}}
@@ -457,8 +457,8 @@ class BaseFilesystemManager(ABC):
         self,
         path: str,
         content: str,
-        ctx: Context,
         mode: str = "overwrite",  # "overwrite" або "append"
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("filesystem.write_file")),
     ) -> dict | str:
         """
@@ -551,8 +551,8 @@ class BaseFilesystemManager(ABC):
         path: str,
         old_text: str,
         new_text: str,
-        ctx: Context,
         replace_all: bool = False,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("filesystem.edit_file")),
     ) -> dict | str:
         """
@@ -644,7 +644,7 @@ class BaseFilesystemManager(ABC):
     async def create_directory(
         self,
         path: str,
-        ctx: Context,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("filesystem.create_directory")),
     ) -> dict | str:
         """Create a new directory."""
@@ -703,7 +703,7 @@ class BaseFilesystemManager(ABC):
         self,
         source: str,
         destination: str,
-        ctx: Context,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("filesystem.move_file")),
     ) -> dict | str:
         """Move or rename files and directories.
@@ -780,7 +780,7 @@ class BaseFilesystemManager(ABC):
         self,
         path: str,
         query: str,
-        ctx: Context,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("filesystem.search_files")),
     ) -> str | dict:
         """
@@ -839,8 +839,8 @@ class BaseFilesystemManager(ABC):
     async def delete_path(
         self,
         path: str,
-        ctx: Context,
         recursive: bool = False,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("filesystem.delete_path")),
     ) -> dict | str:
         """

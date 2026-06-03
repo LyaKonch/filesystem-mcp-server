@@ -54,7 +54,13 @@ class PolicyManager:
         if key == "allowed_paths":
             return is_path_within_scope(value_to_check, limit)
 
-        if key in ["allowed_hives", "allowed_scopes", "allowed_extensions", "allowed_services"]:
+        if key in [
+            "allowed_hives",
+            "allowed_scopes",
+            "allowed_extensions",
+            "allowed_services",
+            "allowed_commands",
+        ]:
             return str(value_to_check).upper() in [str(h).upper() for h in limit]
 
         if key == "allowed_keys":

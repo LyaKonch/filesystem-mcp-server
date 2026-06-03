@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: dockerfile
-    container_name: filesystem-mcp-server
+    container_name: test_server
     env_file:
       - .env
     environment:
@@ -13,7 +13,7 @@ services:
       MCP_PORT: 8000
     ports:
       - "8000:8000"
-    command: ["python", "main.py", "--transport", "http", "--host", "0.0.0.0", "--port", "8000", "--persist"]
+    command: ["python", "main.py", "--transport", "http", "--host", "0.0.0.0", "--port", "8000", "--persist", "--roots","/"]
     restart: unless-stopped
     volumes:
       - ./.fastmcp_storage:/app/.fastmcp_storage

@@ -3,7 +3,13 @@ import secrets
 from pathlib import Path
 from typing import Any
 
+from cryptography.fernet import Fernet
 from fastmcp.server.auth.providers.github import GitHubProvider
+from key_value.aio.stores.disk import DiskStore
+from key_value.aio.stores.redis import RedisStore
+from key_value.aio.wrappers.encryption import (
+    FernetEncryptionWrapper as LibraryFernetEncryptionWrapper,
+)
 
 from config import settings
 
@@ -11,9 +17,8 @@ from config import settings
 # Redis Store for KeyValueStore interface from redis client and cryptography packets are needed
 # Same for Disk Storage, etc
 from utilities.storage import (
-    DiskStore,
-    FernetEncryptionWrapper,
-    RedisStore,
+    LoggingDiskStore,
+    LoggingRedisStore,
 )
 
 module_logger = logging.getLogger(__name__)
@@ -33,6 +38,7 @@ def get_auth_provider() -> GitHubProvider | None:
 
     if not settings.FASTMCP_SERVER_AUTH_GITHUB_CLIENT_ID:
         module_logger.error("❌ Auth enabled but Client ID missing via .env or CLI.")
+        settings.AUTH_ENABLED = False
         return None
 
     if settings.POLICY_CONFIG_PATH:
@@ -56,26 +62,33 @@ def get_auth_provider() -> GitHubProvider | None:
         jwt_key = settings.JWT_SIGNING_KEY or secrets.token_urlsafe(32)
 
         # (Redis or Disk)
-        backend: RedisStore | DiskStore
+        backend: LoggingRedisStore | LoggingDiskStore
         if settings.USE_REDIS:
             try:
                 module_logger.info(f"💾 Connecting to Redis at {settings.REDIS_HOST}...")
-                backend = RedisStore(host=settings.REDIS_HOST, port=settings.REDIS_PORT)
+                backend = LoggingRedisStore(
+                    RedisStore(host=settings.REDIS_HOST, port=settings.REDIS_PORT)
+                )
             except Exception as e:
                 module_logger.error(f"❌ Redis failed: {e}. Fallback to Disk.")
-                backend = DiskStore(".fastmcp_storage")
+                storage_path = Path(".fastmcp_storage")
+                storage_path.mkdir(exist_ok=True)
+                backend = LoggingDiskStore(DiskStore(directory=str(storage_path)))
         else:
             # Local Disk
             storage_path = Path(".fastmcp_storage")
             storage_path.mkdir(exist_ok=True)
 
-            backend = DiskStore(str(storage_path / "storage.json"))
+            backend = LoggingDiskStore(DiskStore(directory=str(storage_path)))
 
         # encrypting
         if settings.STORAGE_ENCRYPTION_KEY is None:
             module_logger.error("Missing STORAGE_ENCRYPTION_KEY while persistence is enabled")
             return None
-        client_storage = FernetEncryptionWrapper(backend, settings.STORAGE_ENCRYPTION_KEY)
+        client_storage = LibraryFernetEncryptionWrapper(
+            backend,
+            fernet=Fernet(settings.STORAGE_ENCRYPTION_KEY.encode()),
+        )
 
     else:
         # for dev/demo or quick usage ===

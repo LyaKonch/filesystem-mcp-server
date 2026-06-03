@@ -1,4 +1,5 @@
 import logging
+import time
 import uuid
 from collections.abc import Mapping, Sequence
 
@@ -47,6 +48,10 @@ class AuthMiddleware(Middleware):
         return op
 
     @staticmethod
+    def _extract_operation_parameters(context: MiddlewareContext) -> str:
+        return getattr(context.message, "arguments", "-")
+
+    @staticmethod
     def _extract_user_id(ctx: Context | None) -> str:
         if not settings.AUTH_ENABLED:
             return "-"
@@ -54,6 +59,19 @@ class AuthMiddleware(Middleware):
             return "-"
         user_id = get_github_user_id()
         return user_id if user_id else "-"
+
+    @staticmethod
+    def _extract_ip_address(ctx: Context | None) -> str:
+        if settings.TRANSPORT != "stdio":
+            return (
+                f"{ctx.request_context.request.client.host}:{ctx.request_context.request.client.port}"
+                if ctx
+                and ctx.request_context
+                and ctx.request_context.request
+                and ctx.request_context.request.client
+                else "-"
+            )
+        return "-"
 
     @staticmethod
     def _extract_trace_id(context: MiddlewareContext, request_id: str) -> str:
@@ -84,16 +102,20 @@ class AuthMiddleware(Middleware):
         operation = self._extract_operation(context)
         trace_id = self._extract_trace_id(context, request_id)
         user_id = self._extract_user_id(fastmcp_ctx)
-
+        operation_parameters = self._extract_operation_parameters(context)
+        ip_address = self._extract_ip_address(fastmcp_ctx)
         set_log_context(
             request_id=request_id,
             trace_id=trace_id,
             user_id=user_id,
             operation=operation,
+            operation_parameters=operation_parameters,
+            ip_address=ip_address,
         )
         module_logger.debug("🔐 AuthMiddleware: Processing method %s", context.method)
 
         try:
+            start = time.perf_counter()
             # if auth is disabled, allow everything
             if not settings.AUTH_ENABLED:
                 return await call_next(context)
@@ -106,6 +128,8 @@ class AuthMiddleware(Middleware):
 
             return await call_next(context)
         finally:
+            end = time.perf_counter()
+            module_logger.info(f"Finished processing {context.method} in {end - start:.4f} seconds")
             clear_log_context()
 
     # cheking auth for every tool call

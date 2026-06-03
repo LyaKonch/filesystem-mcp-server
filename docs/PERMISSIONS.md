@@ -325,31 +325,31 @@ Below is an example of how it may look like:
       "constraints": {
         "filesystem.list_files": {
           "allowed_paths": [
-            "G:/Технології захисту інформації/"
+            "G:/Projects/"
           ],
           "max_depth": 2
         },
          "filesystem.get_path_info": {
           "allowed_paths": [
-            "G:/Технології захисту інформації/"
+            "G:/Projects/"
           ],
           "max_depth": 2
          },
          "filesystem.read_file": {
             "allowed_paths": [
-              "G:/Технології захисту інформації/"
+              "G:/Projects/"
             ],
             "max_read_size": 10485760 
          },
          "filesystem.write_file": {
           "allowed_paths": [
-              "G:/Технології захисту інформації/"
+              "G:/Projects/"
             ],
             "max_write_size": 10485760
          },
          "filesystem.search_files": {
           "allowed_paths": [
-            "G:/Технології захисту інформації/"
+            "G:/Projects/"
           ]
          }
       }

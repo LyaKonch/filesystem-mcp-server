@@ -35,4 +35,4 @@ EXPOSE 8000
 
 ENV MCP_HOST=0.0.0.0
 # запускаємо cmd команду на старт сервера, аргумент - шлях до тестового оточення
-CMD ["python", "main.py", "/tmp/mcp_test_env"]
+# CMD ["python", "main.py", "/tmp/mcp_test_env"]

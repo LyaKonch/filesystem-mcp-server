@@ -14,11 +14,11 @@ import win32serviceutil
 import winerror
 from fastmcp import Context
 from fastmcp.dependencies import Depends
+from fastmcp.server.dependencies import CurrentContext
 
 from auth.permissions import guard
 from auth.PolicyManager import policy_manager
 from core_tools.BaseServiceManager import BaseServiceManager
-from utilities.contextvar import current_mcp_ctx
 from utilities.decorators import export_tool
 from utilities.dependencies import request_elicitation_permission, validate_path
 from utilities.error_handling import ToolOperationError
@@ -520,35 +520,70 @@ class ServiceManager(BaseServiceManager):
     )
     async def get_service_logs(
         self,
-        service_name: str,
+        service_name: str | None = None,
         source_name: str | None = None,
+        channel: str = "Application",
+        level: list[int] | None = None,
+        event_id: int | None = None,
+        hours_ago: int | None = None,
+        message_contains: str | None = None,
         max_records: int = 50,
         ctx: Context | None = None,
         constraints: dict | None = Depends(guard("service.get_service_logs")),
     ) -> list | str:
         """
-        Return recent Application Event Log entries for a given service using the modern Event Log API.
+        Return filtered Event Log entries using the modern Event Log API.
 
         Args:
-            service_name: The name of the service to find logs for.
+            service_name: (Optional) Name of the service.
             source_name: (Optional) Explicitly specify the Event Source Name.
-                         If not provided, the tool will try to match the service_name,
-                         or look for logs from wrapper tools (like 'Servy') that mention the service.
+            channel: Event Log channel to query (default 'Application', can be 'System', etc).
+            level: (Optional) List of severity levels (1=Critical, 2=Error, 3=Warning, 4=Info).
+            event_id: (Optional) Filter by specific Event ID.
+            hours_ago: (Optional) Fetch logs only from the last X hours.
+            message_contains: (Optional) Filter logs containing specific text in the message.
             max_records: Maximum number of recent entries to return.
         """
 
-        self._check_service_constraints(service_name, constraints)
+        if service_name:
+            self._check_service_constraints(service_name, constraints)
 
         def _sync():
             results = []
             try:
+                # we build dynamic xpath for query
+                xpath_conditions = []
+
                 if source_name:
-                    xpath_query = f"*[System[Provider[@Name='{source_name}']]]"
+                    xpath_conditions.append(f"Provider[@Name='{source_name}']")
+                elif service_name:
+                    xpath_conditions.append(
+                        f"(Provider[@Name='{service_name}'] or Provider[@Name='Servy'] or Provider[@Name='Servy.Service'])"
+                    )
+
+                if level:
+                    # (Level=1 or Level=2)
+                    lvl_str = " or ".join([f"Level={lev}" for lev in level])
+                    xpath_conditions.append(f"({lvl_str})")
+
+                if event_id:
+                    xpath_conditions.append(f"EventID={event_id}")
+
+                if hours_ago:
+                    # timediff in milliseconds
+                    ms = int(hours_ago * 3600 * 1000)
+                    xpath_conditions.append(f"TimeCreated[timediff(@SystemTime) <= {ms}]")
+
+                if xpath_conditions:
+                    system_query = " and ".join(xpath_conditions)
+                    xpath_query = f"*[System[{system_query}]]"
                 else:
-                    xpath_query = f"*[System[Provider[@Name='{service_name}'] or Provider[@Name='Servy'] or Provider[@Name='Servy.Service']]]"
+                    xpath_query = "*"  # no filters - all logs
+
+                self.logger.debug(f"Executing Event Log XPath query: {xpath_query}")
 
                 flags = win32evtlog.EvtQueryChannelPath | win32evtlog.EvtQueryReverseDirection
-                query_handle = win32evtlog.EvtQuery("Application", flags, xpath_query, None)
+                query_handle = win32evtlog.EvtQuery(channel, flags, xpath_query, None)
 
                 ns = {"e": "http://schemas.microsoft.com/win/2004/08/events/event"}
 
@@ -566,11 +601,10 @@ class ServiceManager(BaseServiceManager):
                         try:
                             root = ET.fromstring(xml_str)
                             src = root.find(".//e:Provider", ns).get("Name", "")
-                            event_id = root.find(".//e:EventID", ns).text
+                            evt_id = root.find(".//e:EventID", ns).text
                             time_created = root.find(".//e:TimeCreated", ns).get("SystemTime", "")
-                            level = root.find(".//e:Level", ns).text
-                        except Exception as e:
-                            self.logger.warning(f"Failed to parse Event XML: {e}")
+                            lvl = root.find(".//e:Level", ns).text
+                        except Exception:
                             continue
 
                         try:
@@ -588,28 +622,18 @@ class ServiceManager(BaseServiceManager):
                                 else:
                                     msg = "<unformatted event>"
 
-                        is_match = False
-
-                        if not source_name and "servy" in src.lower():
-                            if (
-                                service_name.lower() in msg.lower()
-                                or service_name.lower() in xml_str.lower()
-                            ):
-                                is_match = True
-                        else:
-                            is_match = True
-
-                        if not is_match:
+                        # filtering by message content if needed.
+                        # this should be done last, because message itself doesnt exist in query result,
+                        # we must extract it manually
+                        if message_contains and message_contains.lower() not in msg.lower():
                             continue
 
                         results.append(
                             {
                                 "time": time_created,
                                 "source": src,
-                                "event_id": int(event_id) if event_id else 0,
-                                "event_type": int(level)
-                                if level
-                                else 0,  # 1=Critical, 2=Error, 3=Warning, 4=Info
+                                "event_id": int(evt_id) if evt_id else 0,
+                                "level": int(lvl) if lvl else 0,
                                 "message": msg.strip(),
                             }
                         )
@@ -617,11 +641,10 @@ class ServiceManager(BaseServiceManager):
             except Exception as e:
                 raise ToolOperationError(
                     "unexpected",
-                    f"Failed to read event log for service '{service_name}': {e}",
+                    f"Failed to read event log: {e}",
                     actions=[
-                        "Verify the service name.",
-                        "Check whether event log is accessible.",
-                        "Retry the request.",
+                        "Verify the channel or service name.",
+                        "Ensure you have administrative privileges to access certain channels (like Security).",
                     ],
                 ) from e
 
@@ -635,13 +658,13 @@ class ServiceManager(BaseServiceManager):
     )
     async def create_service(
         self,
-        ctx: Context,
         service_name: str,
         display_name: str,
         binary_path: str,
         start_type: str = "manual",
         username: str | None = None,
         password: str | None = None,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("service.create_service")),
     ) -> str:
         """
@@ -650,7 +673,6 @@ class ServiceManager(BaseServiceManager):
 
         start_type: 'automatic'|'manual'|'disabled'
         """
-        current_mcp_ctx.set(ctx)
         await validate_path(binary_path, ctx, must_exist=True, expected_type="file")
         self._check_service_constraints(service_name, constraints)
         if "allowed_paths" in (constraints or {}) and not policy_manager.check_constraint(
@@ -764,12 +786,11 @@ class ServiceManager(BaseServiceManager):
     )
     async def delete_service(
         self,
-        ctx: Context,
         service_name: str,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("service.delete_service")),
     ) -> str:
         """Delete an installed service. Requires user confirmation. It's recommended to stop the service first if it's running."""
-        current_mcp_ctx.set(ctx)
 
         self._check_service_constraints(service_name, constraints)
 
@@ -843,7 +864,6 @@ class ServiceManager(BaseServiceManager):
     )
     async def wrap_script_as_service(
         self,
-        ctx: Context,
         service_name: str,
         executor_path: str,
         script_path: str,
@@ -851,6 +871,7 @@ class ServiceManager(BaseServiceManager):
         start_type: str = "Automatic",
         stdout_path: str | None = None,
         stderr_path: str | None = None,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("service.wrap_script_as_service")),
     ) -> str:
         """
@@ -865,7 +886,6 @@ class ServiceManager(BaseServiceManager):
             stdout_path: (Optional) Path to save the standard output logs.
             stderr_path: (Optional) Path to save the standard error logs.
         """
-        current_mcp_ctx.set(ctx)
         await validate_path(script_path, ctx, must_exist=True, expected_type="file")
         await validate_path(executor_path, ctx, must_exist=True, expected_type="file")
         self._check_service_constraints(service_name, constraints)

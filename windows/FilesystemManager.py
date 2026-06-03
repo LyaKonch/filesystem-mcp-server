@@ -8,7 +8,7 @@ from core_tools.BaseFilesystemManager import BaseFilesystemManager
 class FilesystemManager(BaseFilesystemManager):
     def __init__(self):
         # self.os_manager = os_manager
-        self.logger = logging.getLogger(__name__)
+        self.module_logger = logging.getLogger(__name__)
 
     async def _search_content(self, target_path: Path, query: str) -> list[dict]:
         # path for search, we add  \*
@@ -31,7 +31,7 @@ class FilesystemManager(BaseFilesystemManager):
         stdout, stderr = await process.communicate()
 
         if stderr:
-            self.logger.warning(
+            self.module_logger.warning(
                 f"PowerShell search errors: {stderr.decode('cp1251', errors='ignore')}"
             )
 

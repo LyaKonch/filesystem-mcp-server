@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fastmcp import Context
 from fastmcp.dependencies import Depends
+from fastmcp.server.dependencies import CurrentContext
 from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse, Response
 
@@ -66,7 +67,7 @@ class FileTransferManager:
     async def prepare_file_for_download(
         self,
         file_path: str,
-        ctx: Context,
+        ctx: Context = CurrentContext(),
         constraints: dict | None = Depends(guard("file_transfer.prepare_file_for_download")),
     ) -> str:
         """Prepare a secure temporary download link for a file.

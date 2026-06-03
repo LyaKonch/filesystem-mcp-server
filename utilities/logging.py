@@ -43,6 +43,8 @@ request_id_ctx: ContextVar[str] = ContextVar("request_id", default="-")
 trace_id_ctx: ContextVar[str] = ContextVar("trace_id", default="-")
 user_id_ctx: ContextVar[str] = ContextVar("user_id", default="-")
 operation_ctx: ContextVar[str] = ContextVar("operation", default="-")
+operation_parameters_ctx: ContextVar[str] = ContextVar("operation_parameters", default="-")
+ip_address_ctx: ContextVar[str] = ContextVar("ip_address", default="-")
 
 
 class MyJSONFormatter(logging.Formatter):
@@ -98,6 +100,8 @@ class ContextFilter(logging.Filter):
         record.trace_id = trace_id_ctx.get()
         record.user_id = user_id_ctx.get()
         record.operation = operation_ctx.get()
+        record.operation_parameters = operation_parameters_ctx.get()
+        record.ip_address = ip_address_ctx.get()
         return True
 
 
@@ -121,6 +125,8 @@ class CriticalWebhookHandler(logging.Handler):
             "trace_id": getattr(record, "trace_id", "-"),
             "user_id": getattr(record, "user_id", "-"),
             "operation": getattr(record, "operation", "-"),
+            "operation_parameters": getattr(record, "operation_parameters", "-"),
+            "ip_address": getattr(record, "ip_address", "-"),
         }
 
         req = request.Request(
@@ -143,6 +149,8 @@ def set_log_context(
     trace_id: str | None = None,
     user_id: str | None = None,
     operation: str | None = None,
+    operation_parameters: str | None = None,
+    ip_address: str | None = None,
 ) -> None:
     if request_id is not None:
         request_id_ctx.set(request_id)
@@ -152,6 +160,10 @@ def set_log_context(
         user_id_ctx.set(user_id)
     if operation is not None:
         operation_ctx.set(operation)
+    if operation_parameters is not None:
+        operation_parameters_ctx.set(operation_parameters)
+    if ip_address is not None:
+        ip_address_ctx.set(ip_address)
 
 
 def clear_log_context() -> None:
@@ -159,6 +171,8 @@ def clear_log_context() -> None:
     trace_id_ctx.set("-")
     user_id_ctx.set("-")
     operation_ctx.set("-")
+    operation_parameters_ctx.set("-")
+    ip_address_ctx.set("-")
 
 
 def _ensure_log_dir(log_file: str) -> None:
@@ -170,7 +184,7 @@ def _ensure_log_dir(log_file: str) -> None:
 def _build_logging_config(log_level: str, json_logs: bool) -> dict[str, Any]:
     file_format = (
         "%(asctime)s [%(levelname)s] [%(name)s] "
-        "[request_id=%(request_id)s trace_id=%(trace_id)s user_id=%(user_id)s op=%(operation)s] %(message)s"
+        "[request_id=%(request_id)s trace_id=%(trace_id)s user_id=%(user_id)s ip_address=%(ip_address)s op=%(operation)s op_params=%(operation_parameters)s] %(message)s"
     )
 
     return {
@@ -197,6 +211,8 @@ def _build_logging_config(log_level: str, json_logs: bool) -> dict[str, Any]:
                     "trace_id": "trace_id",
                     "user_id": "user_id",
                     "operation": "operation",
+                    "operation_parameters": "operation_parameters",
+                    "ip_address": "ip_address",
                 },
             },
         },

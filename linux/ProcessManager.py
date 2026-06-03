@@ -10,15 +10,3 @@ class ProcessManager(BaseProcessManager):
 
     def _get_subprocess_kwargs(self, use_shell: bool) -> dict:
         return {"start_new_session": True}
-
-    def start_process(self, command):
-        pass
-
-    def kill_process(self, process_id):
-        pass
-
-    def suspend_process(self, process_id):
-        pass
-
-    def resume_process(self, process_id):
-        pass

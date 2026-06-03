@@ -176,6 +176,14 @@ if __name__ == "__main__":
         settings.DEBUG = True
         settings.LOG_LEVEL = "DEBUG"
 
+    if not settings.ALLOWED_ROOTS:
+        logging.warning(
+            "No allowed roots specified. The server will not allow access to any files which make no sense for the server. Use --roots or --allow-cwd to specify allowed directories."
+        )
+        raise ValueError(
+            "No allowed roots specified. Withour allowed roots, the server will not allow access to any files. Use --roots or --allow-cwd to specify allowed directories."
+        )
+
     initialize_logging(settings.LOG_LEVEL, settings.LOG_JSON)
     logger = logging.getLogger("filesystem_mcp.main")
 
