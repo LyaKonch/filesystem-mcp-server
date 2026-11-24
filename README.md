@@ -1,16 +1,16 @@
 # MCP Filesystem Server
 
-Сервер Model Context Protocol (MCP), який надає контрольований доступ до файлової системи, інструменти системного моніторингу та керування дозволеними root-директоріями.
+A Model Context Protocol (MCP) server that provides controlled access to the file system, system monitoring tools, and management of allowed root directories.
 
-## Архітектура та структурні елементи
+## Architecture and Components
 
-Проєкт включає:
-- **Application server:** Python + FastMCP (`main.py`) з інструментами файлової системи та моніторингу.
-- **Web/server transport layer:** `stdio`, `sse` або `http` (налаштовується через `--transport`).
-- **Файлове сховище:** локальна файлова система (операції читання/запису в межах `ALLOWED_ROOTS`).
-- **Сервіс кешування (опційно):** Redis для persistent auth/session storage.
-- **База даних:** не використовується в поточній архітектурі (стан зберігається в Disk/Redis storage).
-- **Інші компоненти:** middleware для auth/access control, модулі логування, CI workflow.
+The project includes:
+- **Application server:** Python + FastMCP (`main.py`) with filesystem and monitoring tools.
+- **Web/server transport layer:** `stdio`, `sse`, or `http` (configured via `--transport`).
+- **File storage:** the local file system (read/write operations within `ALLOWED_ROOTS`).
+- **Caching service (optional):** Redis for persistent auth/session storage.
+- **Database:** not used in the current architecture (state is kept in Disk/Redis storage).
+- **Other components:** auth/access control middleware, logging modules, CI workflow.
 
 ```mermaid
 flowchart LR
@@ -27,26 +27,26 @@ flowchart LR
     F --> FS[(Allowed Roots\nLocal File System)]
 ```
 
-## Вимоги до середовища
+## Requirements
 
 - Git
 - Python 3.13+
-- `pip` або `uv`
-- (Опційно) Redis 7+ для persistent storage
+- `pip` or `uv`
+- (Optional) Redis 7+ for persistent storage
 
-## Швидкий старт
+## Quick Start
 
 ```
 git clone https://github.com/LyaKonch/filesystem-mcp-server
 cd filesystem-mcp-server
 
 uv sync
-# прослідкуйте щоб віртуальне середовище було активовано
+# make sure the virtual environment is activated
 
 python main.py --allow-cwd --no-auth
 ```
 
-Без uv:
+Without uv:
 ```bash
 git clone <repository-url>
 cd filesystem-mcp-server
@@ -55,7 +55,7 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install -e .
 cp .env.example .env
-# .env файл потрібно налаштувати під себе
+# adjust the .env file to your setup
 python main.py --allow-cwd --no-auth --transport stdio
 ```
 
@@ -67,136 +67,136 @@ py -3.13 -m venv .venv
 python -m pip install --upgrade pip
 pip install -e .
 Copy-Item .env.example .env
-# .env файл потрібно налаштувати під себе
+# adjust the .env file to your setup
 python .\main.py --allow-cwd --no-auth --transport stdio
 ```
 
-## Налаштування конфігурації
+## Configuration
 
-Основні параметри задаються як через `.env`:
+The main settings can be provided via `.env`:
 - `MCP_HOST`, `MCP_PORT`, `TRANSPORT`
 - `AUTH_ENABLED`
 - `ALLOWED_ROOTS`
 - `USE_PERSISTENT_STORAGE`, `USE_REDIS`, `REDIS_HOST`, `REDIS_PORT`
 - `LOG_LEVEL`, `LOG_JSON`, `LOG_FILE`, `LOG_MAX_BYTES`, `LOG_BACKUP_COUNT`
-- `ERROR_LOCALE` (`uk` або `en`) для локалізації користувацьких повідомлень про помилки
-- `ERROR_REPORTS_FILE` (шлях до JSONL-файлу звітів про помилки від користувачів)
-- `ALERT_WEBHOOK_URL`, `ALERT_WEBHOOK_TIMEOUT_SEC` (вебхук для оповіщень про `CRITICAL` помилки)
+- `ERROR_LOCALE` (`uk` or `en`) for localizing user-facing error messages
+- `ERROR_REPORTS_FILE` (path to the JSONL file with user error reports)
+- `ALERT_WEBHOOK_URL`, `ALERT_WEBHOOK_TIMEOUT_SEC` (webhook for `CRITICAL` error alerts)
 
 
-Так і через CLI прапорці:
-| Аргумент | Опис |
+Or via CLI flags:
+| Argument | Description |
 | --- | --- |
-| `roots` | Шляхи до дозволених директорій (наприклад `python --roots main.py /path/to/dir`). |
-| `--allow-cwd` | Дозволити доступ до поточної робочої директорії. |
-| `--no-auth` | Рекомендовано. Вимикає аутентифікацію (корисно, якщо виникають помилки з токенами). |
-| `--transport` | Тип транспорту: `stdio` (за замовчуванням), `http` або `sse`. |
-| `--host`, `--port` | Хост та порт для HTTP/SSE (за замовчуванням `127.0.0.1:8000`). |
-| `--persist` | Зберігати стан сервера (дозволені клієнти) між перезапусками. |
-| `--debug` | Увімкнути детальне логування для розробки. |
-| `--log-level` | Мінімальний рівень логування: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`. |
-| `--log-json` | Увімкнути JSON-формат логів (консоль + файл). |
+| `roots` | Paths to allowed directories (e.g. `python --roots main.py /path/to/dir`). |
+| `--allow-cwd` | Allow access to the current working directory. |
+| `--no-auth` | Recommended. Disables authentication (useful if you run into token errors). |
+| `--transport` | Transport type: `stdio` (default), `http`, or `sse`. |
+| `--host`, `--port` | Host and port for HTTP/SSE (default `127.0.0.1:8000`). |
+| `--persist` | Persist server state (allowed clients) across restarts. |
+| `--debug` | Enable verbose logging for development. |
+| `--log-level` | Minimum log level: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`. |
+| `--log-json` | Enable JSON log format (console + file). |
 
-## Логування та обробка помилок
+## Logging and Error Handling
 
-- Логування налаштовано централізовано через `logging.config.dictConfig` (`utilities/logging.py`).
-- Мінімальний рівень логування можна змінити без перекомпіляції через `.env` (`LOG_LEVEL`) або CLI (`--log-level`).
-- Логи пишуться в:
-  - `stdout` для `DEBUG/INFO`
-  - `stderr` для `WARNING/ERROR/CRITICAL`
-  - файл `LOG_FILE` через `RotatingFileHandler`
-- Ротація логів: `LOG_MAX_BYTES` (макс. розмір файлу) + `LOG_BACKUP_COUNT` (кількість бекапів).
-- Підтримується контекст логування: `request_id`, `user_id`, `operation`.
-- Для необроблених винятків встановлено глобальні hooks (`sys.excepthook`, `threading.excepthook`) з `error_id` (UUID).
-- Для критичних помилок сервера у `main.py` записується `error_id`, який можна дати користувачу для діагностики.
-- Для tool-викликів помилки проходять через єдиний error-boundary: користувач отримує локалізоване повідомлення, `Error ID`, короткі кроки відновлення та підказку повідомити ID у підтримку.
-- Для `CRITICAL` логів підтримано опційні webhook-оповіщення (якщо задано `ALERT_WEBHOOK_URL`).
-- Додано механізм збору технічних даних від користувача через tool `submit_error_report` (summary, error_id, кроки відтворення, system info, attachments) зі збереженням у `ERROR_REPORTS_FILE`.
+- Logging is configured centrally via `logging.config.dictConfig` (`utilities/logging.py`).
+- The minimum log level can be changed without rebuilding via `.env` (`LOG_LEVEL`) or the CLI (`--log-level`).
+- Logs are written to:
+  - `stdout` for `DEBUG/INFO`
+  - `stderr` for `WARNING/ERROR/CRITICAL`
+  - the `LOG_FILE` file via `RotatingFileHandler`
+- Log rotation: `LOG_MAX_BYTES` (max file size) + `LOG_BACKUP_COUNT` (number of backups).
+- Logging context is supported: `request_id`, `user_id`, `operation`.
+- Global hooks (`sys.excepthook`, `threading.excepthook`) are installed for unhandled exceptions, with an `error_id` (UUID).
+- For critical server errors, `main.py` records an `error_id` that can be given to the user for diagnostics.
+- Tool call errors go through a single error boundary: the user receives a localized message, an `Error ID`, short recovery steps, and a hint to report the ID to support.
+- Optional webhook alerts are supported for `CRITICAL` logs (if `ALERT_WEBHOOK_URL` is set).
+- Technical data can be collected from users via the `submit_error_report` tool (summary, error_id, reproduction steps, system info, attachments) and is stored in `ERROR_REPORTS_FILE`.
 
-Для локальної розробки рекомендований режим:
+Recommended mode for local development:
 - `--no-auth`
 - `--allow-cwd`
 - `--transport stdio`
 
-Приклад команди для запуску в режимі http server:
+Example command to run as an HTTP server:
 ```bash
 python main.py --transport http --host 127.0.0.1 --port 8000 --persist
 ```
 
-## Доступні інструменти (Tools)
+## Available Tools
 
-Нижче — перелік реальних інструментів, які експортуються з коду сервера (груповано за функціональністю). Кожен інструмент захищений політиками доступу — перед використанням перевіряйте права та обмеження.
+Below is the list of tools actually exported by the server code (grouped by functionality). Every tool is protected by access policies — check permissions and restrictions before use.
 
-### Файлова система
-- `list_files` — Переглядає вміст директорії (фільтри, рекурсія, розміри).
-- `get_path_info` — Детальна інформація та метадані про файл/папку.
-- `read_file` — Читання файлу (опція включення опису зображень, обмеження за розміром).
-- `write_file` — Створення / перезапис / додавання до файлу.
-- `edit_file` — Безпечна заміна текстового блоку в файлі.
-- `create_directory` — Створення директорії.
-- `move_file` — Переміщення / перейменування файлу або папки.
-- `search_files` — Пошук тексту в файлах каталогу.
-- `delete_path` — Видалення файлу або (за рекурсією) папки.
+### File System
+- `list_files` — List directory contents (filters, recursion, sizes).
+- `get_path_info` — Detailed information and metadata about a file/folder.
+- `read_file` — Read a file (option to include image descriptions, size limits).
+- `write_file` — Create / overwrite / append to a file.
+- `edit_file` — Safely replace a block of text in a file.
+- `create_directory` — Create a directory.
+- `move_file` — Move / rename a file or folder.
+- `search_files` — Search for text in files within a directory.
+- `delete_path` — Delete a file or (recursively) a folder.
 
-### Процеси
-- `run_admin_shell` — (Адмін) виконати сиру shell-команду.
-- `start_process` — Запустити процес з аргументами.
-- `get_available_commands` — Повертає перелік дозволених команд.
-- `kill_process` — Завершити процес (з підтвердженням).
-- `suspend_process` — Призупинити процес.
-- `resume_process` — Відновити процес.
-- `kill_process_tree` — Завершити процес і його нащадків.
-- `list_processes` — Повертає короткі резюме запущених процесів.
-- `get_current_username` — Ім'я користувача, від якого запущений сервіс.
-- `get_process_info` — Розширена інформація про процес.
-- `get_detailed_process_info` — Глибока діагностика процесу (дерево, з'єднання, відкриті файли).
-- `get_process_connections` — Мережеві з'єднання процесу.
-- `get_process_tree` — Дерево процесів.
-- `get_process_open_files` — Файли, відкриті процесом.
+### Processes
+- `run_admin_shell` — (Admin) run a raw shell command.
+- `start_process` — Start a process with arguments.
+- `get_available_commands` — Return the list of allowed commands.
+- `kill_process` — Terminate a process (with confirmation).
+- `suspend_process` — Suspend a process.
+- `resume_process` — Resume a process.
+- `kill_process_tree` — Terminate a process and its descendants.
+- `list_processes` — Return short summaries of running processes.
+- `get_current_username` — Name of the user the service is running as.
+- `get_process_info` — Extended information about a process.
+- `get_detailed_process_info` — Deep process diagnostics (tree, connections, open files).
+- `get_process_connections` — Network connections of a process.
+- `get_process_tree` — Process tree.
+- `get_process_open_files` — Files opened by a process.
 
-### Моніторинг
-- `get_system_resource_usage` — CPU/RAM у реальному часі.
-- `get_disk_status` — Статус і простір дисків.
-- `get_system_info` — Статична інформація про систему та аптайм.
+### Monitoring
+- `get_system_resource_usage` — Real-time CPU/RAM usage.
+- `get_disk_status` — Disk status and free space.
+- `get_system_info` — Static system information and uptime.
 
-### Служби (Windows)
-- `list_services` — Пошук/фільтрація сервісів.
-- `get_service_status` — Статус одного сервісу.
-- `start_service` / `stop_service` / `restart_service` — Керування сервісом.
-- `stop_service_with_deps` — Зупинити сервіс з залежностями.
-- `change_service_startup_type` / `change_service_config` — Змінити конфіг/тип запуску.
-- `get_service_logs` — Отримати події з журналу додатків для сервісу.
-- `create_service` / `delete_service` — Створення/видалення сервісу.
-- `wrap_script_as_service` — Загорнути скрипт як Windows service.
+### Services (Windows)
+- `list_services` — Search/filter services.
+- `get_service_status` — Status of a single service.
+- `start_service` / `stop_service` / `restart_service` — Service control.
+- `stop_service_with_deps` — Stop a service along with its dependencies.
+- `change_service_startup_type` / `change_service_config` — Change configuration/startup type.
+- `get_service_logs` — Get events from the Application log for a service.
+- `create_service` / `delete_service` — Create/delete a service.
+- `wrap_script_as_service` — Wrap a script as a Windows service.
 
-### Реєстр (Windows)
-- `list_registry_key` — Перегляд підключів і значень ключа.
-- `read_registry_key` — Прочитати конкретне значення.
-- `write_registry_key` — Записати значення (вимагає підтвердження).
-- `delete_registry_key` — Видалити значення.
-- `get_registry_value_types` — Повернути допустимі типи значень.
-- `get_registry_hive_path` — Отримати відповідність hive-namespace.
-- `check_key_exists` — Перевірити наявність ключа.
+### Registry (Windows)
+- `list_registry_key` — View a key's subkeys and values.
+- `read_registry_key` — Read a specific value.
+- `write_registry_key` — Write a value (requires confirmation).
+- `delete_registry_key` — Delete a value.
+- `get_registry_value_types` — Return the allowed value types.
+- `get_registry_hive_path` — Get the hive-namespace mapping.
+- `check_key_exists` — Check whether a key exists.
 
-### Система / Змінні середовища (Windows)
-- `get_variable` — Отримати значення змінної оточення (PROCESS/USER/SYSTEM).
-- `list_variables` — Перелік змінних для вказаного scope.
-- `set_variable` — Встановити змінну (PROCESS/USER/SYSTEM).
-- `delete_variable` — Видалити змінну.
-- `create_windows_restore_point` — Створити restore point (потрібні права адміністратора).
+### System / Environment Variables (Windows)
+- `get_variable` — Get the value of an environment variable (PROCESS/USER/SYSTEM).
+- `list_variables` — List variables for the given scope.
+- `set_variable` — Set a variable (PROCESS/USER/SYSTEM).
+- `delete_variable` — Delete a variable.
+- `create_windows_restore_point` — Create a restore point (requires administrator rights).
 
-### Керування сервером
-- `get_server_status` — Статус MCP-сервера та клієнтські features.
-- `list_allowed_roots` — Показати дозволені root-директорії.
-- `add_allowed_root` / `update_roots` / `remove_root` — Керування whitelist-ом коренів.
-- `submit_error_report` — Надіслати технічний звіт (з `error_id`).
+### Server Management
+- `get_server_status` — MCP server status and client features.
+- `list_allowed_roots` — Show allowed root directories.
+- `add_allowed_root` / `update_roots` / `remove_root` — Manage the roots whitelist.
+- `submit_error_report` — Submit a technical report (with `error_id`).
 
 
-## Налаштування MCP Клієнта (Claude Desktop / Cursor)
+## MCP Client Configuration (Claude Desktop / Cursor)
 
-### Рекомендована конфігурація (STDIO)
+### Recommended Configuration (STDIO)
 
-Найпростіший спосіб без проблем з портами та токенами.
+The simplest option, with no port or token issues.
 
 ```json
 {
@@ -213,11 +213,11 @@ python main.py --transport http --host 127.0.0.1 --port 8000 --persist
 }
 ```
 
-Не забудьте вказати повний шлях до python (наприклад `.venv/Scripts/python`), якщо використовуєте віртуальне середовище.
+Remember to specify the full path to python (e.g. `.venv/Scripts/python`) if you use a virtual environment.
 
-### Конфігурація через HTTP (SSE)
+### HTTP (SSE) Configuration
 
-Якщо ви запускаєте сервер окремо (`python main.py --transport http --port 8000 --persist`).
+If you run the server separately (`python main.py --transport http --port 8000 --persist`).
 
 ```json
 {
@@ -234,112 +234,113 @@ python main.py --transport http --host 127.0.0.1 --port 8000 --persist
 }
 ```
 
-Зверніть увагу на `/mcp` в кінці URL.
+Note the `/mcp` at the end of the URL.
 
-## Налаштування авторизації (GitHub OAuth)
+## Authorization Setup (GitHub OAuth)
 
-Для налаштування мехінізму авторизації дивіться офіційний гайд:
+To set up the authorization mechanism, see the official guide:
 https://gofastmcp.com/integrations/github
 
-Рекомендовано створити файл `.env` в корені сервера. `config.py` автоматично підтягне всі змінні.
+It is recommended to create a `.env` file in the server root. `config.py` will load all variables automatically.
 
-Нюанси налаштування:
-- Потрібен GitHub OAuth App з коректним callback URL згідно гайду.
-- Заповніть `FASTMCP_SERVER_AUTH_GITHUB_CLIENT_ID` та `FASTMCP_SERVER_AUTH_GITHUB_CLIENT_SECRET` у `.env`.
-- Встановіть `FASTMCP_SERVER_AUTH_GITHUB_BASE_URL` на базовий URL сервера (для локального тесту зазвичай `http://127.0.0.1:8000`).
-- Для персистентної авторизації потрібні `JWT_SIGNING_KEY` та `STORAGE_ENCRYPTION_KEY` і запуск з `--persist`.
-- Якщо використовуєте Redis( не стабільне, не протестовано), задайте параметром `--redis` і задай `REDIS_HOST`/`REDIS_PORT`.
-- Для локального dev можна( і бажано ) запускати з `--no-auth`, якщо виникають помилки токенів.
+Setup notes:
+- You need a GitHub OAuth App with a correct callback URL as described in the guide.
+- Fill in `FASTMCP_SERVER_AUTH_GITHUB_CLIENT_ID` and `FASTMCP_SERVER_AUTH_GITHUB_CLIENT_SECRET` in `.env`.
+- Set `FASTMCP_SERVER_AUTH_GITHUB_BASE_URL` to the server's base URL (for local testing usually `http://127.0.0.1:8000`).
+- Persistent authorization requires `JWT_SIGNING_KEY` and `STORAGE_ENCRYPTION_KEY`, and running with `--persist`.
+- If you use Redis (unstable, untested), pass the `--redis` flag and set `REDIS_HOST`/`REDIS_PORT`.
+- For local development you can (and should) run with `--no-auth` if you run into token errors.
 
-## Вирішення проблем
+## Troubleshooting
 
-### 🔑 Проблеми з аутентифікацією (Invalid Token / Client Not Registered)
+### 🔑 Authentication Issues (Invalid Token / Client Not Registered)
 
-Якщо ви бачите помилки `invalid_token` або `Client Not Registered`:
+If you see `invalid_token` or `Client Not Registered` errors:
 
-1. Зупиніть сервер.
-2. Запустіть його з прапорцем `--no-auth`.
-3. Оновіть конфіг клієнта, щоб він не очікував auth-flow.
+1. Stop the server.
+2. Start it with the `--no-auth` flag.
+3. Update the client config so it does not expect an auth flow.
 
-Інколи буває, що інструмент mcp-remote кешує client-id в своїх конфігах, а на сервері цього користувача не впізнають, так як токени авторизації у сховищі були втрачені або змінені. В таких випадках єдиним виходом є очищення кешу mcp-remote, як правило за шляхом `~/.mcp-auth/mcp-remote-<version>`.
+Sometimes the mcp-remote tool caches the client-id in its configs, while the server no longer recognizes that user because the authorization tokens in storage were lost or changed. In such cases the only fix is to clear the mcp-remote cache, usually located at `~/.mcp-auth/mcp-remote-<version>`.
 
-Для траблшутінгу інших незазначених проблем переходьте за посиланням:
+For troubleshooting other issues not listed here, see:
 `https://docs.scalekit.com/authenticate/mcp/troubleshooting/`  
 
-Аутентифікація через GitHub зараз знаходиться в стадії активної розробки. Для стабільної роботи локально рекомендується її вимикати.
+GitHub authentication is currently under active development. For stable local use it is recommended to disable it.
 
-### 🌐 Помилка "Connection Refused" або 404
+### 🌐 "Connection Refused" or 404 Error
 
-Переконайтеся, що ви вказуєте правильний порт і шлях. За замовчуванням сервер слухає порт 8000 і шлях `/mcp`.
+Make sure you are using the correct port and path. By default the server listens on port 8000 and path `/mcp`.
 
-- Неправильно: `http://127.0.0.1/`
-- Правильно: `http://127.0.0.1:8000/mcp`
+- Wrong: `http://127.0.0.1/`
+- Correct: `http://127.0.0.1:8000/mcp`
 
 ### 🔒 Access Denied / Path not allowed
 
-Сервер дозволяє доступ тільки до тек, вказаних при запуску або доданих динамічно.
+The server only allows access to folders specified at startup or added dynamically.
 
-- Використовуйте `list_allowed_roots()`, щоб побачити, куди є доступ.
-- Використовуйте `add_allowed_root("/path/to/dir")`, щоб надати доступ.
-
-
-### Перевірка конфігурації
-
-Після налаштування mcp.json:
-
-1. **Перезапустіть MCP клієнт** (Claude Desktop, Cursor тощо)
-2. **Перевірте підключення:**
-   - Використайте інструмент `get_client_features()` для перевірки можливостей
-   - Викличте `get_allowed_roots()` для перевірки доступних директорій
-3. **Протестуйте базові операції:**
-   - `list_files(".")` - перегляд файлів
-   - `read_file("README.md")` - читання файлу
-
-### Налагодження конфігурації
-
-#### Проблема: Сервер не запускається
-**Рішення:**
-- Перевірте правильність шляхів в `command` та `args`
-- Переконайтеся, що Python та залежності встановлені
-- Перевірте права доступу до файлів
-
-#### Проблема: "No allowed roots specified"  
-**Рішення:**
-- Додайте директорії в `args` або використайте `--allow-cwd`
-- Переконайтеся, що шляхи існують і доступні
-
-#### Проблема: "Path is not within allowed roots"
-**Рішення:**
-- Перевірте список дозволених коренів через `get_allowed_roots()`
-- Додайте необхідні директорії в конфігурацію
+- Use `list_allowed_roots()` to see which paths are accessible.
+- Use `add_allowed_root("/path/to/dir")` to grant access.
 
 
-## Підтримка
+### Verifying the Configuration
 
-Якщо у вас виникли питання або проблеми:
-1. Перевірте розділ "Вирішення проблем" вище
-2. Відвідайте [документацію FastMCP](https://gofastmcp.com) для детальної інформації
-3. Створіть issue в репозиторії
+After setting up mcp.json:
+
+1. **Restart the MCP client** (Claude Desktop, Cursor, etc.)
+2. **Check the connection:**
+   - Use the `get_client_features()` tool to check capabilities
+   - Call `get_allowed_roots()` to check the available directories
+3. **Test basic operations:**
+   - `list_files(".")` - list files
+   - `read_file("README.md")` - read a file
+
+### Debugging the Configuration
+
+#### Problem: The server does not start
+**Solution:**
+- Check that the paths in `command` and `args` are correct
+- Make sure Python and the dependencies are installed
+- Check file access permissions
+
+#### Problem: "No allowed roots specified"  
+**Solution:**
+- Add directories to `args` or use `--allow-cwd`
+- Make sure the paths exist and are accessible
+
+#### Problem: "Path is not within allowed roots"
+**Solution:**
+- Check the list of allowed roots via `get_allowed_roots()`
+- Add the required directories to the configuration
+
+
+## Support
+
+If you have questions or problems:
+1. Check the "Troubleshooting" section above
+2. Visit the [FastMCP documentation](https://gofastmcp.com) for details
+3. Open an issue in the repository
 
 ---
 
-**Примітка:** Цей сервер призначений для використання в безпечному середовищі. Завжди перевіряйте права доступу та обмежуйте доступ тільки до необхідних директорій.
+**Note:** This server is intended for use in a secure environment. Always check access permissions and restrict access to only the directories you need.
 
-## Документація для DevOps та експлуатації
+## DevOps and Operations Documentation
 
 - [Production deployment guide](docs/deployment.md)
 - [Update and rollback guide](docs/update.md)
 - [Backup and restore guide](docs/backup.md)
 - [Automation scripts](docs/scripts)
 
-## Розширена технічна документація
+## Extended Technical Documentation
 
-- [Технічне бачення та взаємодія компонентів](docs/technical_design.md)
-- [Лінтинг і статичні перевірки](docs/linting.md)
-- ["Жива" документація через тести (Test-Driven Documentation)](docs/test_driven_documentation.md)
-- [Автоматична публікація документації (CI/CD + GitHub Pages)](docs/docs_publishing.md)
-- [Інструкція генерації документації](docs/generate_docs.md)
-## Container та інфраструктурні конфіги
+- [Technical design and component interaction](docs/technical_design.md)
+- [Linting and static checks](docs/linting.md)
+- ["Living" documentation through tests (Test-Driven Documentation)](docs/test_driven_documentation.md)
+- [Automatic documentation publishing (CI/CD + GitHub Pages)](docs/docs_publishing.md)
+- [Documentation generation guide](docs/generate_docs.md)
+
+## Container and Infrastructure Configs
 
 - `dockerfile`
 - `docker-compose.yml`
@@ -347,46 +348,46 @@ https://gofastmcp.com/integrations/github
 - `docs/terraform/`
 - `.github/workflows/quality.yml`
 
-## Політика документування в проєкті
+## Project Documentation Policy
 
-- `README.md` описує onboarding розробника та основні операційні кроки.
-- `docs/*.md` містять експлуатаційні інструкції для DevOps.
-- Зміни в конфігурації або процесах деплою мають супроводжуватися оновленням відповідних файлів у `docs/`.
+- `README.md` covers developer onboarding and the main operational steps.
+- `docs/*.md` contain operational instructions for DevOps.
+- Changes to configuration or deployment processes must be accompanied by updates to the corresponding files in `docs/`.
 
-### Стандарт документування коду
+### Code Documentation Standard
 
-У проєкті використовується **Google Style docstring** для Python-коду.
+The project uses **Google Style docstrings** for Python code.
 
-Обов'язково документуємо:
+The following must be documented:
 
-- публічні функції;
-- публічні методи;
-- публічні класи;
-- фабрики/реєстратори інструментів (наприклад `register(...)`, `create_...(...)`).
+- public functions;
+- public methods;
+- public classes;
+- tool factories/registrars (e.g. `register(...)`, `create_...(...)`).
 
-Мінімальна структура docstring:
+Minimal docstring structure:
 
 ```python
-"""Короткий опис дії.
+"""Short description of the action.
 
 Args:
-  arg1: Що це за параметр.
+  arg1: What this parameter is.
 
 Returns:
-  Тип: Що повертає функція.
+  Type: What the function returns.
 """
 ```
 
-Рекомендації:
+Recommendations:
 
-- Перший рядок — коротка дія в наказовому стилі (наприклад: "Get ...", "Create ...", "Validate ...").
-- Для асинхронних функцій формат такий самий, як для звичайних.
-- Якщо функція може кидати важливі винятки, додавайте секцію `Raises`.
-- Якщо docstring вже існує не в Google Style, його треба **оновити**, а не дублювати.
+- The first line is a short action in imperative mood (e.g. "Get ...", "Create ...", "Validate ...").
+- Async functions use the same format as regular ones.
+- If a function can raise important exceptions, add a `Raises` section.
+- If an existing docstring is not in Google Style, **update** it rather than duplicating it.
 
-### Правило для внесків у репозиторій
+### Contribution Rule
 
-Кожен PR, що змінює публічний API, має також:
+Every PR that changes the public API must also:
 
-1. Оновити/додати docstring у Google Style.
-2. Оновити опис у `README.md`/`docs/*.md`, якщо змінилась поведінка або контракти API.
+1. Update/add Google Style docstrings.
+2. Update the description in `README.md`/`docs/*.md` if behavior or API contracts changed.
